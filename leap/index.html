@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LEAP — a one-button runner</title>
+<style>
+  :root{
+    --bg:#0c1a24; --panel:#122836; --ink:#e8f4f2; --accent:#ffcc55;
+    --run:#4fd1c5; --danger:#ff5d73; --good:#8fe36a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background: radial-gradient(1100px 600px at 50% -15%, #1c3a4c 0%, var(--bg) 65%);
+    color:var(--ink);
+    font-family:"Courier New", ui-monospace, monospace;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; padding:14px; overflow:hidden; user-select:none;
+  }
+  h1{font-size:clamp(1.6rem,6vw,2.4rem); letter-spacing:.18em; color:var(--run);}
+  #wrap{position:relative; width:min(92vw,880px); aspect-ratio:16/9;
+    border:3px solid #24485c; border-radius:14px; overflow:hidden;
+    box-shadow:0 20px 60px -20px #000, inset 0 0 60px -20px #000;}
+  canvas{display:block; width:100%; height:100%; image-rendering:pixelated; cursor:pointer;}
+  .overlay{position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:rgba(9,20,28,.82); backdrop-filter:blur(2px); padding:20px;}
+  .overlay.hidden{display:none;}
+  .big{font-size:clamp(1.4rem,5vw,2rem); color:var(--accent); letter-spacing:.12em;}
+  .sub{font-size:clamp(.8rem,2.6vw,1rem); opacity:.8; line-height:1.7;}
+  button{font-family:inherit; font-size:1rem; letter-spacing:.1em; cursor:pointer;
+    color:#0c1a24; background:var(--run); border:0; padding:12px 26px; border-radius:9px;
+    font-weight:bold; text-transform:uppercase; transition:transform .1s;}
+  button:hover{transform:translateY(-2px);}
+  kbd{background:var(--panel); border:1px solid #2f5568; border-bottom-width:3px;
+    border-radius:5px; padding:1px 7px; font-size:.85em;}
+  #hud{position:absolute; top:10px; left:0; right:0; display:flex; justify-content:space-between;
+    padding:0 16px; font-size:clamp(.85rem,2.6vw,1.1rem); pointer-events:none; text-shadow:0 2px 6px #000;}
+  #foot{font-size:.72rem; opacity:.45;}
+</style>
+</head>
+<body>
+<h1>LEAP</h1>
+<div id="wrap">
+  <canvas id="cv" width="960" height="540"></canvas>
+  <div id="hud"><span id="score">0</span><span id="best"></span></div>
+
+  <div id="title" class="overlay">
+    <div class="big">ONE BUTTON. KEEP RUNNING.</div>
+    <div class="sub">
+      <kbd>Space</kbd> / <kbd>↑</kbd> / click / tap to jump<br>
+      Tap again in the air for a double jump<br>
+      Clear the gaps and the spikes. Speed only goes up.
+    </div>
+    <button id="startBtn">RUN</button>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <div class="big" id="overBig">WIPEOUT</div>
+    <div class="sub" id="overSub"></div>
+    <button id="retryBtn">RUN AGAIN</button>
+  </div>
+</div>
+<div id="foot">single-file game · keyboard, mouse or touch · made with claude</div>
+
+<script>
+"use strict";
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height;
+const GROUND = H - 90;
+const scoreEl = document.getElementById("score");
+const bestEl = document.getElementById("best");
+const titleEl = document.getElementById("title");
+const overEl = document.getElementById("over");
+const overBig = document.getElementById("overBig");
+const overSub = document.getElementById("overSub");
+
+const BEST_KEY = "leap-best";
+let best = 0;
+try { best = parseInt(localStorage.getItem(BEST_KEY) || "0", 10) || 0; } catch (e) {}
+function showBest(){ bestEl.textContent = best ? "BEST " + best : ""; }
+showBest();
+
+/* ---------- sound ---------- */
+let AC = null;
+function beep(freq, dur, type = "square", vol = 0.12, slide = 0){
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, AC.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), AC.currentTime + dur);
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+const sfx = {
+  jump: () => beep(520, 0.12, "square", 0.1, 240),
+  double: () => beep(720, 0.12, "square", 0.1, 320),
+  land: () => beep(180, 0.08, "triangle", 0.08),
+  score: () => beep(880, 0.05, "square", 0.06),
+  dead: () => { beep(300, 0.5, "sawtooth", 0.16, -240); beep(120, 0.6, "triangle", 0.14, -60); },
+};
+
+/* ---------- state ---------- */
+let state = "title";
+let player, speed, dist, score, obstacles, particles, hills, spawnX, shake, lastScoreTick;
+
+function reset(){
+  player = { x: 190, y: GROUND, vy: 0, r: 20, jumps: 0, onGround: true, spin: 0 };
+  speed = 6;
+  dist = 0; score = 0; lastScoreTick = 0;
+  obstacles = [];
+  particles = [];
+  hills = [];
+  for (let i = 0; i < 6; i++) hills.push({ x: i * 200, h: 40 + Math.random() * 90 });
+  spawnX = W + 200;
+  shake = 0;
+}
+
+function spawnObstacle(){
+  const roll = Math.random();
+  if (roll < 0.45){
+    // pit
+    const w = 90 + Math.random() * (70 + speed * 6);
+    obstacles.push({ type: "pit", x: spawnX, w });
+    spawnX += w + 220 + Math.random() * 160;
+  } else {
+    // spike cluster on the ground
+    const n = 1 + Math.floor(Math.random() * 3);
+    const w = n * 34;
+    obstacles.push({ type: "spike", x: spawnX, w, n });
+    spawnX += w + 260 + Math.random() * 180;
+  }
+}
+
+function jump(){
+  if (state === "title" || state === "over"){ start(); return; }
+  if (state !== "play") return;
+  if (player.jumps >= 2) return;
+  player.vy = player.jumps === 0 ? -15.5 : -13.5;
+  player.onGround = false;
+  player.jumps++;
+  (player.jumps === 1 ? sfx.jump : sfx.double)();
+  for (let i = 0; i < 8; i++)
+    particles.push({ x: player.x, y: player.y + player.r, vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 3 + 1, life: 1, c: "#4fd1c5" });
+}
+
+function start(){
+  reset();
+  state = "play";
+  titleEl.classList.add("hidden");
+  overEl.classList.add("hidden");
+}
+
+function die(){
+  state = "over";
+  shake = 20;
+  sfx.dead();
+  for (let i = 0; i < 40; i++)
+    particles.push({ x: player.x, y: player.y, vx: (Math.random() - 0.5) * 12,
+      vy: (Math.random() - 0.7) * 12, life: 1, c: Math.random() < 0.5 ? "#ff5d73" : "#ffcc55" });
+  if (score > best){
+    best = score;
+    try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {}
+    overBig.textContent = "NEW BEST!";
+  } else {
+    overBig.textContent = "WIPEOUT";
+  }
+  overSub.textContent = "distance " + score + (best ? "  ·  best " + best : "");
+  showBest();
+  overEl.classList.remove("hidden");
+}
+
+/* ---------- input ---------- */
+addEventListener("keydown", e => {
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW"){
+    e.preventDefault();
+    if (!e.repeat) jump();
+  }
+});
+cv.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
+document.getElementById("startBtn").addEventListener("click", start);
+document.getElementById("retryBtn").addEventListener("click", start);
+
+/* ---------- update ---------- */
+function overPit(x){
+  for (const o of obstacles)
+    if (o.type === "pit" && x > o.x && x < o.x + o.w) return true;
+  return false;
+}
+
+function update(){
+  if (state !== "play") return;
+
+  speed += 0.0016;
+  dist += speed;
+
+  // score ticks with distance
+  if (dist - lastScoreTick > 12){
+    score += 1;
+    lastScoreTick = dist;
+    if (score % 10 === 0) sfx.score();
+  }
+
+  // player physics
+  player.vy += 0.72;
+  player.y += player.vy;
+  if (!player.onGround) player.spin += speed * 0.02;
+
+  const footOnPit = overPit(player.x);
+  if (player.y >= GROUND && !footOnPit){
+    if (!player.onGround){ sfx.land(); player.spin = 0;
+      for (let i = 0; i < 6; i++)
+        particles.push({ x: player.x, y: GROUND + player.r, vx: (Math.random() - 0.5) * 6,
+          vy: -Math.random() * 2, life: 1, c: "#7fd7cf" }); }
+    player.y = GROUND;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumps = 0;
+  } else {
+    player.onGround = false;
+  }
+
+  // fell in a pit
+  if (player.y > H + 60){ die(); return; }
+
+  // move + cull obstacles
+  for (const o of obstacles) o.x -= speed;
+  obstacles = obstacles.filter(o => o.x + o.w > -60);
+  spawnX -= speed;
+  while (spawnX < W + 400) spawnObstacle();
+
+  // spike collision
+  for (const o of obstacles){
+    if (o.type !== "spike") continue;
+    const px = player.x, pb = player.y + player.r;
+    if (px > o.x - 14 && px < o.x + o.w + 14 && pb > GROUND - 26){ die(); return; }
+  }
+
+  // parallax hills
+  for (const hl of hills) hl.x -= speed * 0.35;
+  hills = hills.filter(hl => hl.x > -240);
+  while (hills.length < 6) hills.push({ x: (hills.length ? hills[hills.length - 1].x : 0) + 200, h: 40 + Math.random() * 90 });
+
+  // particles
+  for (const p of particles){ p.x -= speed * 0.4; p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.life -= 0.03; }
+  particles = particles.filter(p => p.life > 0);
+
+  if (shake > 0) shake *= 0.9;
+}
+
+/* ---------- render ---------- */
+function draw(){
+  ctx.save();
+  if (shake > 0.5) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+  // sky
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#153244");
+  g.addColorStop(1, "#0b1922");
+  ctx.fillStyle = g;
+  ctx.fillRect(-40, -40, W + 80, H + 80);
+
+  // hills
+  ctx.fillStyle = "#1c3d4f";
+  for (const hl of hills){
+    ctx.beginPath();
+    ctx.moveTo(hl.x - 120, GROUND);
+    ctx.quadraticCurveTo(hl.x, GROUND - hl.h, hl.x + 120, GROUND);
+    ctx.fill();
+  }
+
+  // ground band (broken by pits)
+  ctx.fillStyle = "#20323c";
+  let cursor = -60;
+  const segEnd = W + 120;
+  const pits = obstacles.filter(o => o.type === "pit").sort((a, b) => a.x - b.x);
+  for (const p of pits){
+    if (p.x > cursor) ctx.fillRect(cursor, GROUND, p.x - cursor, H - GROUND + 60);
+    cursor = Math.max(cursor, p.x + p.w);
+  }
+  if (cursor < segEnd) ctx.fillRect(cursor, GROUND, segEnd - cursor, H - GROUND + 60);
+
+  // ground top line
+  ctx.strokeStyle = "#4fd1c5";
+  ctx.lineWidth = 3;
+  cursor = -60;
+  ctx.beginPath();
+  for (const p of pits){
+    if (p.x > cursor){ ctx.moveTo(cursor, GROUND); ctx.lineTo(p.x, GROUND); }
+    cursor = Math.max(cursor, p.x + p.w);
+  }
+  if (cursor < segEnd){ ctx.moveTo(cursor, GROUND); ctx.lineTo(segEnd, GROUND); }
+  ctx.stroke();
+
+  // spikes
+  ctx.fillStyle = "#ff5d73";
+  for (const o of obstacles){
+    if (o.type !== "spike") continue;
+    for (let i = 0; i < o.n; i++){
+      const sx = o.x + i * 34;
+      ctx.beginPath();
+      ctx.moveTo(sx, GROUND);
+      ctx.lineTo(sx + 17, GROUND - 30);
+      ctx.lineTo(sx + 34, GROUND);
+      ctx.fill();
+    }
+  }
+
+  // particles
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // player
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.spin);
+  ctx.fillStyle = "#ffcc55";
+  ctx.fillRect(-player.r, -player.r, player.r * 2, player.r * 2);
+  ctx.fillStyle = "#0c1a24";
+  ctx.fillRect(-8, -8, 6, 6);
+  ctx.fillRect(4, -8, 6, 6);
+  ctx.restore();
+
+  ctx.restore();
+  scoreEl.textContent = score;
+}
+
+/* ---------- loop ---------- */
+function frame(){
+  update();
+  draw();
+  requestAnimationFrame(frame);
+}
+reset();
+frame();
+</script>
+</body>
+</html>

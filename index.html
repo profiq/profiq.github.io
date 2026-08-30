@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coding challenge gallery — profiq</title>
+<meta name="description" content="Example single-file minigames built for the Summer Coding Challenge 2026 — each one a self-contained index.html generated from a single AI prompt.">
+<style>
+  :root{
+    --blue-bg:#002f5f; --blue-dark:#003360; --blue:#005bbb;
+    --ink:#102033; --turq:#009ead; --green-hover:#a3da41;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:#fff; line-height:1.6;
+  }
+  .wrap{max-width:64rem; margin:0 auto; padding:0 1.5rem;}
+  .hero{background:var(--blue-bg); color:#fff; padding:4rem 0 3.5rem;}
+  .eyebrow{
+    font-size:.82rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--green-hover); margin-bottom:.6rem;
+  }
+  h1{font-size:clamp(2rem,5vw,3rem); line-height:1.1; max-width:48rem;}
+  .hero p{margin-top:1rem; max-width:38rem; color:rgba(255,255,255,.76);}
+  .hero a{color:#fff;}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:rgba(255,255,255,.12); padding:.1em .35em; border-radius:.25rem;
+  }
+  .grid{
+    list-style:none; display:grid; gap:2rem; padding:3.5rem 0;
+  }
+  @media(min-width:48rem){ .grid{grid-template-columns:1fr 1fr;} }
+  .card{
+    display:flex; flex-direction:column; overflow:hidden; border-radius:1rem;
+    border:1px solid rgba(0,91,187,.15);
+    box-shadow:0 18px 50px -24px rgba(0,51,96,.35);
+  }
+  .card .cover{
+    display:flex; aspect-ratio:16/9; align-items:center; justify-content:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:clamp(1.5rem,5vw,2.5rem); font-weight:900; letter-spacing:.18em;
+    color:#fff; text-decoration:none;
+  }
+  .cover.blastman{background:linear-gradient(to bottom right,#2a2150,#ffb444);}
+  .cover.leap{background:linear-gradient(to bottom right,#1c3a4c,#4fd1c5);}
+  .body{display:flex; flex:1; flex-direction:column; gap:.75rem; padding:1.5rem;}
+  .body h2{font-size:1.25rem; color:var(--blue-dark);}
+  .tagline{font-size:.875rem; font-weight:700; color:var(--turq);}
+  .blurb{font-size:.95rem; color:rgba(16,32,51,.72);}
+  .controls{font-size:.8rem; color:rgba(16,32,51,.55);}
+  .play{
+    margin-top:auto; align-self:flex-start; padding:.55rem 1.1rem;
+    border:1px solid var(--blue); border-radius:.5rem; color:var(--blue);
+    font-weight:700; font-size:.875rem; text-decoration:none;
+  }
+  .play:hover{background:var(--blue); color:#fff;}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Summer Coding Challenge 2026</p>
+      <h1>Example app gallery</h1>
+      <p>
+        The <a href="https://www.pracujprosiliconvalley.cz/summer-coding-challenge-2026/" target="_blank" rel="noreferrer">challenge</a>
+        asks for a complete minigame delivered as one <code>index.html</code> that runs in any
+        browser — generated from a single prompt, no manual edits. Here are a couple built to
+        that spec so you can see what "done" looks like.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <ul class="grid">
+      <li class="card">
+        <a class="cover blastman" href="blastman/">BLASTMAN</a>
+        <div class="body">
+          <h2>BLASTMAN</h2>
+          <p class="tagline">Drop bombs · break walls · survive</p>
+          <p class="blurb">
+            A single-screen Bomberman built for 1 or 2 players. Trap the enemies (or each other)
+            in the blast radius, grab power-ups, clear the board.
+          </p>
+          <p class="controls">Keyboard · P1 WASD + Space, P2 arrows + Enter</p>
+          <a class="play" href="blastman/">Play BLASTMAN</a>
+        </div>
+      </li>
+      <li class="card">
+        <a class="cover leap" href="leap/">LEAP</a>
+        <div class="body">
+          <h2>LEAP</h2>
+          <p class="tagline">One button · keep running</p>
+          <p class="blurb">
+            An endless one-button runner. Time your jumps and double-jumps over the gaps and
+            spikes while the speed keeps climbing.
+          </p>
+          <p class="controls">Space / click / tap — that's the whole game</p>
+          <a class="play" href="leap/">Play LEAP</a>
+        </div>
+      </li>
+    </ul>
+  </main>
+</body>
+</html>
