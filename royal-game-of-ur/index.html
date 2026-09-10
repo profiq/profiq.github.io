@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Royal Game of Ur</title>
+<style>
+:root{
+  --bg:#12100f; --bg2:#1b1715; --panel:#221d1a; --line:#3a302a;
+  --gold:#d9a441; --gold-soft:#8a6a2c; --lapis:#3b6fb5; --lapis-soft:#25436b;
+  --cream:#efe4cd; --dim:#a3958a; --danger:#c8553d;
+  --cell:clamp(34px,7.6vw,62px); --gap:6px;
+  --p0:#e2b055; --p1:#4f9dc9;
+  font-synthesis:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #2a231e 0%, transparent 60%),
+    var(--bg);
+  color:var(--cream);
+  font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  min-height:100vh;
+}
+#app{transition:filter 1.1s ease}
+#app.grayed{filter:grayscale(1) brightness(.55)}
+
+/* ---------- nav ---------- */
+nav.tabs{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--line);
+  background:linear-gradient(#221d1acc,#1b1715cc);backdrop-filter:blur(6px);
+  position:sticky;top:0;z-index:20;
+}
+.brand{font-weight:700;letter-spacing:.06em;margin-right:auto;color:var(--gold);font-size:16px}
+.brand small{display:block;font-weight:400;font-size:11px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+.tab{
+  background:transparent;border:1px solid var(--line);color:var(--dim);
+  padding:7px 16px;border-radius:999px;cursor:pointer;font-size:14px;
+  transition:all .18s ease;
+}
+.tab:hover{color:var(--cream);border-color:var(--gold-soft)}
+.tab.active{background:var(--gold);border-color:var(--gold);color:#1a1512;font-weight:600}
+
+main{max-width:1120px;margin:0 auto;padding:26px 18px 60px}
+.view{display:none;animation:fadeIn .3s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+h1{font-size:clamp(28px,5vw,44px);margin:.2em 0 .1em;letter-spacing:.02em}
+h1 .sub{display:block;font-size:13px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:6px}
+h2{font-size:20px;margin:1.6em 0 .5em;color:var(--gold)}
+p.lede{color:var(--dim);max-width:60ch}
+a{color:var(--gold)}
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--gold);color:#1a1512;border:none;padding:11px 22px;border-radius:8px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:transform .12s,box-shadow .18s,opacity .18s;
+  box-shadow:0 4px 0 var(--gold-soft);
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 0 var(--gold-soft)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--gold-soft)}
+.btn[disabled]{opacity:.4;cursor:not-allowed;transform:none;box-shadow:0 4px 0 var(--gold-soft)}
+.btn.ghost{background:transparent;color:var(--cream);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ---------- board ---------- */
+.board{
+  position:relative;display:grid;
+  grid-template-columns:repeat(8,var(--cell));
+  grid-auto-rows:var(--cell);
+  gap:var(--gap);
+  padding:var(--gap);
+  background:linear-gradient(160deg,#2b241f,#191512);
+  border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 18px 40px #0008, inset 0 1px 0 #ffffff10;
+  width:max-content;
+}
+.board.mini{--cell:clamp(22px,4vw,34px);--gap:4px}
+.cell{
+  border-radius:7px;background:#2f2822;border:1px solid #453a31;
+  position:relative;transition:background .2s,box-shadow .2s;
+}
+.cell.void{background:transparent;border:none}
+.cell.r0{background:linear-gradient(#342b23,#2c251f);border-color:#5b4830;box-shadow:inset 0 -3px 0 #e2b05559}
+.cell.r2{background:linear-gradient(#242c31,#1f262a);border-color:#314c5e;box-shadow:inset 0 -3px 0 #4f9dc959}
+.cell.rosette{background:linear-gradient(140deg,#33507d,#22354f);border-color:#4a6b9c}
+.cell.rosette::after{
+  content:"✶";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#cfe0ff;opacity:.65;font-size:calc(var(--cell)*.55);line-height:1;
+}
+.cell.target{background:#4a5f3a;border-color:#8fbf5e;box-shadow:0 0 0 2px #8fbf5e88}
+.cell.pulse{animation:pulseCell .75s ease-out}
+@keyframes pulseCell{
+  0%{box-shadow:0 0 0 0 #cfe0ffcc}
+  100%{box-shadow:0 0 0 22px #cfe0ff00}
+}
+.pieces{position:absolute;inset:var(--gap);pointer-events:none}
+
+.piece{
+  position:absolute;left:0;top:0;width:var(--cell);height:var(--cell);
+  transition:transform .25s cubic-bezier(.4,1.4,.5,1);
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+}
+.pip{
+  width:74%;height:74%;border-radius:50%;
+  transition:opacity .35s ease,transform .35s ease,box-shadow .2s;
+  animation:popIn .3s cubic-bezier(.3,1.6,.5,1);
+}
+.piece.p0 .pip{background:radial-gradient(circle at 32% 28%,#f7d99a,var(--p0) 60%,#8a6224);border:1px solid #ffe9b8}
+.piece.p1 .pip{background:radial-gradient(circle at 32% 28%,#a9dcf3,var(--p1) 60%,#20536e);border:1px solid #bfe7fa}
+@keyframes popIn{from{transform:scale(.1);opacity:0}to{transform:scale(1);opacity:1}}
+.piece.movable{pointer-events:auto;cursor:pointer}
+.piece.movable .pip{box-shadow:0 0 0 3px #8fbf5e,0 0 16px #8fbf5eaa;animation:bob 1.1s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.piece.gone .pip{opacity:0;transform:scale(.15) rotate(200deg)}
+.piece.borne .pip{opacity:0;transform:scale(.4) translateY(-14px)}
+
+/* ---------- game layout ---------- */
+.game-grid{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:start}
+.center{display:flex;flex-direction:column;align-items:center;gap:16px}
+.rail{display:flex;flex-direction:column;gap:14px;min-width:186px}
+.side{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;
+}
+.side.turnup{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 22px #d9a44122}
+.side h3{margin:0 0 2px;font-size:15px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.dot.p0{background:var(--p0)}.dot.p1{background:var(--p1)}
+.side .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:12px 0 5px}
+.slots{display:flex;gap:5px;flex-wrap:wrap}
+.slot{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);background:#00000030;transition:all .3s}
+.slot.on.p0{background:var(--p0);border-color:#ffe9b8}
+.slot.on.p1{background:var(--p1);border-color:#bfe7fa}
+.slot.bump{animation:bump .45s ease}
+@keyframes bump{0%{transform:scale(.3)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+.pile{border-radius:9px;padding:8px;border:1px dashed transparent;transition:all .2s}
+.pile.movable{border-color:#8fbf5e;background:#8fbf5e18;cursor:pointer;animation:bob 1.1s ease-in-out infinite}
+.count{font-size:24px;font-weight:700;color:var(--gold)}
+.count small{font-size:12px;color:var(--dim);font-weight:400}
+
+/* ---------- dice ---------- */
+.dice-area{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;
+}
+.dice{display:flex;gap:8px}
+.die{width:40px;height:40px;position:relative;filter:drop-shadow(0 3px 3px #0007)}
+.die i{
+  position:absolute;inset:0;background:linear-gradient(160deg,#4a3f36,#2c251f);
+  clip-path:polygon(50% 5%,96% 93%,4% 93%);
+}
+.die.on i{background:linear-gradient(160deg,#f0dcae,#c9a86e)}
+.die.on::after{
+  content:"";position:absolute;left:50%;top:26%;transform:translateX(-50%);
+  width:9px;height:9px;border-radius:50%;background:#2c251f;
+}
+.die.roll{animation:jitter .12s linear infinite}
+@keyframes jitter{0%{transform:rotate(-7deg) translateY(-2px)}50%{transform:rotate(6deg) translateY(2px)}100%{transform:rotate(-7deg) translateY(-2px)}}
+.sumbox{text-align:center;min-width:64px}
+.sumbox b{display:block;font-size:28px;color:var(--gold);line-height:1}
+.sumbox span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.turnline{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.turnline b{color:var(--cream)}
+.msg{
+  min-height:24px;text-align:center;font-size:15px;color:var(--cream);
+  background:#00000035;border:1px solid var(--line);border-radius:8px;padding:8px 16px;
+  max-width:560px;width:100%;
+}
+.msg.flash{animation:flash .4s ease}
+@keyframes flash{from{background:#d9a44133}to{background:#00000035}}
+
+select{
+  background:#1a1512;color:var(--cream);border:1px solid var(--line);border-radius:7px;
+  padding:7px 9px;font-size:14px;width:100%;cursor:pointer;
+}
+.hint{font-size:12px;color:var(--dim);margin-top:6px}
+
+/* ---------- home ---------- */
+.home-wrap{display:grid;grid-template-columns:1fr auto;gap:34px;align-items:center}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:22px}
+.rules-link{
+  display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:8px;
+  border:1px solid var(--lapis);color:#bcd8ff;background:#3b6fb51f;text-decoration:none;
+  font-weight:600;transition:all .18s;
+}
+.rules-link:hover{background:#3b6fb540;border-color:#7fb0f0}
+
+/* ---------- rules ---------- */
+.rules-body{max-width:74ch}
+.rules-body li{margin:.45em 0}
+.rules-body strong{color:var(--gold)}
+.diagram{display:flex;gap:26px;flex-wrap:wrap;align-items:center;margin:18px 0 6px}
+.legend{font-size:13px;color:var(--dim)}
+.legend .swatch{display:inline-block;width:16px;height:16px;border-radius:4px;vertical-align:-3px;margin-right:6px;background:linear-gradient(140deg,#33507d,#22354f);border:1px solid #4a6b9c}
+.src{margin-top:20px;padding:12px 16px;border-left:3px solid var(--gold);background:#00000030;border-radius:0 8px 8px 0}
+
+/* ---------- overlay ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  background:#0b0908d9;opacity:0;pointer-events:none;transition:opacity .5s ease;overflow:hidden;
+}
+.overlay.show{opacity:1;pointer-events:auto}
+.result-card{
+  position:relative;z-index:2;text-align:center;padding:34px 44px;border-radius:16px;
+  background:linear-gradient(160deg,#241e1a,#171311);border:1px solid var(--line);
+  box-shadow:0 30px 70px #000c;max-width:92vw;
+}
+.overlay.win .result-card{border-color:var(--gold);animation:rise .5s cubic-bezier(.2,1.4,.4,1)}
+.overlay.loss .result-card{border-color:#5b4f47;animation:rise .5s ease,shake 1.1s ease .45s}
+@keyframes rise{from{transform:translateY(28px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  12%{transform:translateX(-8px)}28%{transform:translateX(7px)}
+  44%{transform:translateX(-5px)}60%{transform:translateX(4px)}
+  76%{transform:translateX(-2px)}
+}
+.result-card h2{margin:0 0 6px;font-size:clamp(28px,6vw,44px);color:var(--cream)}
+.overlay.win .result-card h2{color:var(--gold)}
+.result-card .score{color:var(--dim);font-size:15px;margin-bottom:22px}
+.result-card .score b{color:var(--cream);font-size:17px}
+.result-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.confetti{position:absolute;top:-6vh;width:9px;height:16px;border-radius:2px;opacity:.95;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(125vh) rotate(900deg)}}
+
+@media (max-width:880px){
+  .game-grid{grid-template-columns:1fr}
+  .rail{flex-direction:row;flex-wrap:wrap;min-width:0}
+  .rail .side{flex:1 1 220px}
+  .center{order:-1}
+  .home-wrap{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<nav class="tabs">
+  <div class="brand">The Royal Game of Ur<small>c. 2600 BC · Mesopotamia</small></div>
+  <button class="tab active" data-tab="home">Home</button>
+  <button class="tab" data-tab="game">Game</button>
+  <button class="tab" data-tab="rules">Rules</button>
+</nav>
+
+<main>
+  <!-- ================= HOME ================= -->
+  <section class="view active" id="view-home">
+    <div class="home-wrap">
+      <div>
+        <h1><span class="sub">Play the oldest board game</span>The Royal Game of Ur</h1>
+        <p class="lede">
+          A race for seven pieces down a twisting track of twenty squares, decided by four
+          binary dice. Land on a rosette to roll again; catch an opponent on the shared middle
+          row and send them all the way home. First to bear off all seven wins.
+        </p>
+        <div class="cta">
+          <button class="btn" id="homeNewGame">▶ New Game</button>
+          <a class="rules-link" href="#rules" id="homeRulesLink">📜 Read the Rules</a>
+        </div>
+        <p class="hint">Opponent strength: choose <b>Easy</b> to learn, <b>Hard</b> for a real fight.</p>
+        <div style="max-width:220px"><select id="diffHome">
+          <option value="hard">Hard — plays optimally</option>
+          <option value="easy">Easy — plays at random</option>
+        </select></div>
+      </div>
+      <div>
+        <div class="board" id="board-preview" aria-hidden="true"></div>
+        <p class="hint" style="text-align:center">Board preview · ✶ marks a rosette</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section class="view" id="view-game">
+    <div class="game-grid">
+      <div class="rail">
+        <div class="side" id="side-0">
+          <h3><span class="dot p0"></span> You</h3>
+          <div class="lbl">Home pile</div>
+          <div class="pile" id="pile-0">
+            <div class="count"><span id="home-0">7</span><small>/7 waiting</small></div>
+            <div class="slots" id="homeslots-0"></div>
+          </div>
+          <div class="lbl">Borne off</div>
+          <div class="slots" id="offslots-0"></div>
+        </div>
+
+        <div class="side" id="side-1">
+          <h3><span class="dot p1"></span> AI</h3>
+          <div class="lbl">Home pile</div>
+          <div class="pile" id="pile-1">
+            <div class="count"><span id="home-1">7</span><small>/7 waiting</small></div>
+            <div class="slots" id="homeslots-1"></div>
+          </div>
+          <div class="lbl">Borne off</div>
+          <div class="slots" id="offslots-1"></div>
+          <div class="lbl">Difficulty</div>
+          <select id="diffGame">
+            <option value="hard">Hard — plays optimally</option>
+            <option value="easy">Easy — plays at random</option>
+          </select>
+          <div class="hint">Applies from the next new game.</div>
+        </div>
+
+        <div class="side">
+          <button class="btn ghost" id="gameNewGame" style="width:100%;justify-content:center">↻ New Game</button>
+        </div>
+      </div>
+
+      <div class="center">
+        <div class="board" id="board-game"></div>
+        <div class="dice-area">
+          <button class="btn" id="rollBtn">🎲 Roll</button>
+          <div class="dice" id="dice"></div>
+          <div class="sumbox"><b id="sum">–</b><span>Sum</span></div>
+        </div>
+        <div class="turnline" id="turnline">Turn: <b>You</b></div>
+        <div class="msg" id="msg">Press <b>Roll</b> to begin.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RULES ================= -->
+  <section class="view" id="view-rules">
+    <h1><span class="sub">Authoritative ruleset</span>Rules</h1>
+    <div class="rules-body">
+      <ul>
+        <li>Two players, <strong>7 pieces</strong> each, starting in an off-board <strong>home pile</strong>.</li>
+        <li>This is the <strong>shared-middle</strong> form of the game. The board has <strong>20 squares in 3 rows of 8</strong>; the two outer rows are missing their 5th and 6th squares. Each player owns the <strong>4 starting squares</strong> and <strong>2 finishing squares</strong> of their own outer row, and the <strong>8 squares of the middle row are shared</strong> by both players.</li>
+        <li><strong>The route (14 squares).</strong> A piece enters on the 4th square of its owner's outer row, travels outward to the end of that row, turns into the middle row, runs the full length of the middle row, then turns back into its owner's row for the final two squares and exits.</li>
+        <li><strong>Dice.</strong> Four tetrahedral dice, each with two marked and two unmarked corners: every die scores <strong>0 or 1</strong> with equal chance. The roll is their sum, <strong>0 to 4</strong>, with probabilities 1/16, 4/16, 6/16, 4/16, 1/16.</li>
+        <li>A roll of <strong>0 passes the turn</strong> — nothing may move.</li>
+        <li>On your turn you roll once and move <strong>exactly one piece</strong> forward exactly that many squares: either a new piece from your home pile (entering on the Nth square of your route) or a piece already on the board.</li>
+        <li>A piece may <strong>never land on a square occupied by one of your own pieces</strong>.</li>
+        <li><strong>Capture.</strong> Landing on a shared middle square occupied by an opponent's piece sends that piece back to its owner's home pile, to re-enter later. Pieces on your own private squares can never be captured.</li>
+        <li><strong>Rosettes.</strong> Five squares are marked with a rosette. Landing on one grants an <strong>extra roll</strong>. The <strong>central rosette</strong> of the middle row is also <strong>safe</strong>: a piece there cannot be captured, and no opponent may enter that square while it is occupied.</li>
+        <li><strong>Bearing off.</strong> A piece leaves the board by moving one square past the last square of its route; this requires an <strong>exact roll</strong>.</li>
+        <li>If you have <strong>no legal move</strong>, your turn passes.</li>
+        <li>The first player to <strong>bear off all 7 pieces wins</strong>.</li>
+      </ul>
+
+      <h2>Board diagram</h2>
+      <div class="diagram">
+        <div class="board mini" id="board-rules" aria-hidden="true"></div>
+        <div class="legend">
+          <p><span class="swatch"></span> <b>Rosette</b> — land here to roll again.</p>
+          <p>The five rosettes sit at both ends of each player's own row and at the centre of the shared middle row.</p>
+          <p>The gold-tinted top row belongs to <b>you</b>; the blue-tinted bottom row to your <b>opponent</b>. The middle row is contested ground.</p>
+        </div>
+      </div>
+
+      <div class="src">
+        Source: <a href="https://en.wikipedia.org/wiki/Royal_Game_of_Ur" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Royal_Game_of_Ur</a>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<!-- ================= RESULT OVERLAY ================= -->
+<div class="overlay" id="overlay">
+  <div class="result-card">
+    <h2 id="resultTitle">You win!</h2>
+    <div class="score" id="resultScore"></div>
+    <div class="result-btns">
+      <button class="btn" id="overlayNewGame">▶ New Game</button>
+      <button class="btn ghost" id="overlayHome">⌂ Home</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Royal Game of Ur — pure rules engine + AI (no DOM)
+   Exposes window.Ur. Shared-middle ("Finkel") ruleset.
+   ============================================================ */
+(function (global) {
+  'use strict';
+
+  /* Board is 3 rows x 8 cols. Outer rows are missing cols 4 and 5.
+     Each player's 14-square route: 4 private -> 8 shared -> 2 private. */
+  var PATH_TOP = [
+    [0, 3], [0, 2], [0, 1], [0, 0],
+    [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7],
+    [0, 7], [0, 6]
+  ];
+  var PATH_BOTTOM = PATH_TOP.map(function (rc) { return [rc[0] === 0 ? 2 : 1, rc[1]]; });
+  var PATHS = [PATH_TOP, PATH_BOTTOM];
+
+  var HOME = -1;         // piece not yet entered
+  var OFF = 14;          // piece borne off (one past the last route square)
+  var PIECES = 7;
+  var ROSETTES = [3, 7, 13];      // route indices that grant an extra roll
+  var SAFE = 7;                   // central rosette — capture-proof
+  var SHARED_FROM = 4, SHARED_TO = 11;  // route indices sharing the middle row
+  var ROSETTE_CELLS = [[0, 0], [0, 6], [1, 3], [2, 0], [2, 6]];
+  var DICE_P = [1 / 16, 4 / 16, 6 / 16, 4 / 16, 1 / 16]; // P(sum = 0..4)
+
+  function isRosette(idx) { return idx === 3 || idx === 7 || idx === 13; }
+  function isShared(idx) { return idx >= SHARED_FROM && idx <= SHARED_TO; }
+  function isRosetteCell(r, c) {
+    for (var i = 0; i < ROSETTE_CELLS.length; i++) {
+      if (ROSETTE_CELLS[i][0] === r && ROSETTE_CELLS[i][1] === c) return true;
+    }
+    return false;
+  }
+  function isPlayableCell(r, c) { return r === 1 || (c !== 4 && c !== 5); }
+  function cellOf(player, idx) { return PATHS[player][idx]; }
+
+  /* ---------- state ---------- */
+
+  function newState() {
+    return {
+      pieces: [
+        [HOME, HOME, HOME, HOME, HOME, HOME, HOME],
+        [HOME, HOME, HOME, HOME, HOME, HOME, HOME]
+      ]
+    };
+  }
+
+  function cloneState(s) {
+    return { pieces: [s.pieces[0].slice(), s.pieces[1].slice()] };
+  }
+
+  function countAt(s, player, pos) {
+    var n = 0, a = s.pieces[player];
+    for (var i = 0; i < PIECES; i++) if (a[i] === pos) n++;
+    return n;
+  }
+  function homeCount(s, player) { return countAt(s, player, HOME); }
+  function offCount(s, player) { return countAt(s, player, OFF); }
+
+  function winner(s) {
+    for (var p = 0; p < 2; p++) {
+      if (offCount(s, p) === PIECES) return p;
+    }
+    return null;
+  }
+
+  /* ---------- dice ---------- */
+
+  var Ur = {};
+  Ur.rng = Math.random;   // overridable (tests stub this)
+
+  function rollDice(rngFn) {
+    var f = rngFn || Ur.rng;
+    var d = [];
+    for (var i = 0; i < 4; i++) d.push(f() < 0.5 ? 0 : 1);
+    return d;
+  }
+  function sum(dice) {
+    var t = 0;
+    for (var i = 0; i < dice.length; i++) t += dice[i];
+    return t;
+  }
+
+  /* ---------- move generation ---------- */
+
+  function legalMoves(state, player, roll) {
+    var moves = [];
+    if (!roll) return moves;
+    var me = state.pieces[player], opp = state.pieces[1 - player];
+    var seen = {};
+    for (var i = 0; i < PIECES; i++) {
+      var from = me[i];
+      if (from === OFF) continue;
+      if (seen[from]) continue;         // identical origins (home pile) collapse to one move
+      var to = from + roll;
+      if (to > OFF) continue;           // bearing off needs an exact roll
+      var capture = false;
+      if (to < OFF) {
+        if (me.indexOf(to) >= 0) continue;              // own piece blocks
+        if (isShared(to)) {                             // only the middle row is contested
+          var oi = opp.indexOf(to);
+          if (oi >= 0) {
+            if (to === SAFE) continue;                  // central rosette is safe & unenterable
+            capture = true;
+          }
+        }
+      }
+      seen[from] = true;
+      moves.push({
+        piece: i,
+        from: from,
+        to: to,
+        capture: capture,
+        rosette: to < OFF && isRosette(to),
+        bearOff: to === OFF,
+        enter: from === HOME
+      });
+    }
+    return moves;
+  }
+
+  function applyMove(state, player, move) {
+    var ns = cloneState(state);
+    ns.pieces[player][move.piece] = move.to;
+    var captured = -1;
+    if (move.to < OFF) {
+      var oi = ns.pieces[1 - player].indexOf(move.to);
+      if (oi >= 0 && isShared(move.to)) {
+        ns.pieces[1 - player][oi] = HOME;
+        captured = oi;
+      }
+    }
+    return { state: ns, captured: captured, extraTurn: !!move.rosette };
+  }
+
+  /* ---------- evaluation ---------- */
+
+  /* Probability the opponent lands on `pos` (a shared square) next roll. */
+  function dangerAt(state, player, pos) {
+    if (!isShared(pos) || pos === SAFE) return 0;
+    var opp = state.pieces[1 - player], pr = 0;
+    for (var d = 1; d <= 4; d++) {
+      var src = pos - d;
+      if (src < HOME) continue;
+      if (opp.indexOf(src) >= 0) pr += DICE_P[d];
+    }
+    return pr > 1 ? 1 : pr;
+  }
+
+  function sideScore(state, player) {
+    var a = state.pieces[player], v = 0;
+    for (var i = 0; i < PIECES; i++) {
+      var pos = a[i];
+      if (pos === OFF) { v += 34; continue; }
+      if (pos === HOME) continue;
+      v += 4 + pos * 1.6;                       // progress along the route
+      if (pos === SAFE) v += 11;                // owning the centre rosette is the key square
+      else if (isRosette(pos)) v += 4;
+      v -= dangerAt(state, player, pos) * (10 + pos * 1.4);   // exposure costs more late
+    }
+    return v;
+  }
+
+  function evaluate(state, player) {
+    return sideScore(state, player) - sideScore(state, 1 - player);
+  }
+
+  /* ---------- search (expectimax over the dice distribution) ---------- */
+
+  function search(state, mover, depth, root) {
+    var w = winner(state);
+    if (w !== null) return w === root ? 10000 : -10000;
+    if (depth <= 0) return evaluate(state, root);
+    var total = 0;
+    for (var r = 0; r <= 4; r++) {
+      var moves = legalMoves(state, mover, r);
+      var val;
+      if (moves.length === 0) {
+        val = search(state, 1 - mover, depth - 1, root);
+      } else {
+        var best = null, maxing = (mover === root);
+        for (var i = 0; i < moves.length; i++) {
+          var res = applyMove(state, mover, moves[i]);
+          var v = search(res.state, res.extraTurn ? mover : 1 - mover, depth - 1, root);
+          if (best === null || (maxing ? v > best : v < best)) best = v;
+        }
+        val = best;
+      }
+      total += DICE_P[r] * val;
+    }
+    return total;
+  }
+
+  function scoreMove(state, player, move, depth) {
+    var res = applyMove(state, player, move);
+    return search(res.state, res.extraTurn ? player : 1 - player, depth, player);
+  }
+
+  /* ---------- AI ---------- */
+
+  function chooseMove(state, player, roll, difficulty) {
+    var moves = legalMoves(state, player, roll);
+    if (!moves.length) return null;
+    if (difficulty === 'easy') {
+      return moves[Math.min(moves.length - 1, Math.floor(Ur.rng() * moves.length))];
+    }
+    var depth = 2;
+    var best = null, bestV = -Infinity;
+    for (var i = 0; i < moves.length; i++) {
+      var v = scoreMove(state, player, moves[i], depth);
+      if (v > bestV + 1e-9) { bestV = v; best = moves[i]; }
+    }
+    return best;
+  }
+
+  /* ---------- exports ---------- */
+
+  Ur.HOME = HOME;
+  Ur.OFF = OFF;
+  Ur.PIECES = PIECES;
+  Ur.PATHS = PATHS;
+  Ur.ROSETTES = ROSETTES;
+  Ur.ROSETTE_CELLS = ROSETTE_CELLS;
+  Ur.SAFE = SAFE;
+  Ur.DICE_P = DICE_P;
+  Ur.isRosette = isRosette;
+  Ur.isRosetteCell = isRosetteCell;
+  Ur.isPlayableCell = isPlayableCell;
+  Ur.isShared = isShared;
+  Ur.cellOf = cellOf;
+  Ur.newState = newState;
+  Ur.cloneState = cloneState;
+  Ur.homeCount = homeCount;
+  Ur.offCount = offCount;
+  Ur.winner = winner;
+  Ur.rollDice = rollDice;
+  Ur.sum = sum;
+  Ur.legalMoves = legalMoves;
+  Ur.applyMove = applyMove;
+  Ur.dangerAt = dangerAt;
+  Ur.evaluate = evaluate;
+  Ur.scoreMove = scoreMove;
+  Ur.chooseMove = chooseMove;
+
+  global.Ur = Ur;
+})(typeof window !== 'undefined' ? window : this);
+
+/* ============================================================
+   UI layer — tabs, board rendering, animation, turn loop
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var HUMAN = 0, AI = 1;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = null;
+  var turn = HUMAN;
+  var busy = false;      // blocks input while animating / AI thinking
+  var over = false;
+  var difficulty = 'hard';
+  var pieceEls = [[], []];   // pieceEls[player][i] -> DOM node or null
+  var cells = {};            // "r,c" -> cell element on the game board
+  var layer = null;          // absolutely-positioned piece layer
+  var timers = [];
+
+  function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  /* ---------------- tabs ---------------- */
+
+  function showTab(name) {
+    ['home', 'game', 'rules'].forEach(function (n) {
+      $('view-' + n).classList.toggle('active', n === name);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+      b.classList.toggle('active', b.dataset.tab === name);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+    b.addEventListener('click', function () { showTab(b.dataset.tab); });
+  });
+  $('homeRulesLink').addEventListener('click', function (e) { e.preventDefault(); showTab('rules'); });
+
+  /* ---------------- board building ---------------- */
+
+  function buildBoard(host, collect) {
+    host.innerHTML = '';
+    var map = {};
+    for (var r = 0; r < 3; r++) {
+      for (var c = 0; c < 8; c++) {
+        var d = document.createElement('div');
+        if (!Ur.isPlayableCell(r, c)) {
+          d.className = 'cell void';
+        } else {
+          d.className = 'cell r' + r + (Ur.isRosetteCell(r, c) ? ' rosette' : '');
+        }
+        host.appendChild(d);
+        if (collect && Ur.isPlayableCell(r, c)) map[r + ',' + c] = d;
+      }
+    }
+    var lay = document.createElement('div');
+    lay.className = 'pieces';
+    host.appendChild(lay);
+    return { cells: map, layer: lay };
+  }
+
+  /* Decorative pieces for the non-interactive preview board. */
+  function decorate(host, lay) {
+    var demo = [[0, 5], [0, 9], [1, 7], [1, 12], [0, 2]];
+    demo.forEach(function (d) {
+      var rc = Ur.cellOf(d[0], d[1]);
+      var cell = host.children[rc[0] * 8 + rc[1]];
+      var el = document.createElement('div');
+      el.className = 'piece p' + d[0];
+      el.innerHTML = '<div class="pip"></div>';
+      el.style.transform = 'translate(' + cell.offsetLeft + 'px,' + cell.offsetTop + 'px)';
+      lay.appendChild(el);
+    });
+  }
+
+  var preview = buildBoard($('board-preview'), false);
+  buildBoard($('board-rules'), false);
+  var g = buildBoard($('board-game'), true);
+  cells = g.cells; layer = g.layer;
+  decorate($('board-preview'), preview.layer);
+
+  /* ---------------- geometry ---------------- */
+
+  function cellEl(player, idx) {
+    var rc = Ur.cellOf(player, idx);
+    return cells[rc[0] + ',' + rc[1]];
+  }
+  function step() {
+    var a = cells['1,0'], b = cells['1,1'];
+    return b.offsetLeft - a.offsetLeft;
+  }
+  function xyOf(player, idx) {
+    var el = cellEl(player, idx);
+    // the piece layer is inset by --gap, cells are offset from the padded box
+    return { x: el.offsetLeft - layer.offsetLeft, y: el.offsetTop - layer.offsetTop };
+  }
+
+  /* ---------------- panels ---------------- */
+
+  function fillSlots(host, n, cls, bumpTo) {
+    if (host.children.length !== 7) {
+      host.innerHTML = '';
+      for (var i = 0; i < 7; i++) {
+        var s = document.createElement('div');
+        s.className = 'slot ' + cls;
+        host.appendChild(s);
+      }
+    }
+    for (var j = 0; j < 7; j++) {
+      var on = j < n;
+      var el = host.children[j];
+      if (on && !el.classList.contains('on')) {
+        el.classList.add('on', 'bump');
+        (function (e) { later(function () { e.classList.remove('bump'); }, 460); })(el);
+      } else if (!on) {
+        el.classList.remove('on');
+      }
+    }
+  }
+
+  function renderPanels() {
+    for (var p = 0; p < 2; p++) {
+      var h = Ur.homeCount(state, p), o = Ur.offCount(state, p);
+      $('home-' + p).textContent = h;
+      fillSlots($('homeslots-' + p), h, 'p' + p);
+      fillSlots($('offslots-' + p), o, 'p' + p);
+    }
+    $('side-0').classList.toggle('turnup', !over && turn === HUMAN);
+    $('side-1').classList.toggle('turnup', !over && turn === AI);
+  }
+
+  /* ---------------- pieces ---------------- */
+
+  function makePiece(player) {
+    var el = document.createElement('div');
+    el.className = 'piece p' + player;
+    el.innerHTML = '<div class="pip"></div>';
+    layer.appendChild(el);
+    return el;
+  }
+
+  function syncPieces() {
+    for (var p = 0; p < 2; p++) {
+      for (var i = 0; i < Ur.PIECES; i++) {
+        var pos = state.pieces[p][i];
+        var el = pieceEls[p][i];
+        if (pos > Ur.HOME && pos < Ur.OFF) {
+          if (!el) { el = makePiece(p); pieceEls[p][i] = el; }
+          var xy = xyOf(p, pos);
+          el.style.transform = 'translate(' + xy.x + 'px,' + xy.y + 'px)';
+        } else if (el) {
+          pieceEls[p][i] = null;
+          if (pos === Ur.OFF) {
+            var e = xyOf(p, 13);
+            el.style.transform = 'translate(' + (e.x - step()) + 'px,' + e.y + 'px)';
+            el.classList.add('borne');
+          } else {
+            el.classList.add('gone');
+          }
+          (function (n) { later(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 480); })(el);
+        }
+      }
+    }
+  }
+
+  function clearBoardPieces() {
+    layer.innerHTML = '';
+    pieceEls = [[], []];
+  }
+
+  /* ---------------- messages ---------------- */
+
+  function setMsg(html) {
+    var m = $('msg');
+    m.innerHTML = html;
+    m.classList.remove('flash');
+    void m.offsetWidth;
+    m.classList.add('flash');
+  }
+  function updateTurnLine() {
+    $('turnline').innerHTML = over ? 'Game over' :
+      'Turn: <b>' + (turn === HUMAN ? 'You' : 'AI') + '</b>';
+  }
+
+  /* ---------------- dice ---------------- */
+
+  var diceEls = [];
+  (function () {
+    var host = $('dice');
+    for (var i = 0; i < 4; i++) {
+      var d = document.createElement('div');
+      d.className = 'die';
+      d.innerHTML = '<i></i>';
+      host.appendChild(d);
+      diceEls.push(d);
+    }
+  })();
+
+  function paintDice(dice, rolling) {
+    for (var i = 0; i < 4; i++) {
+      diceEls[i].classList.toggle('on', !!dice[i]);
+      diceEls[i].classList.toggle('roll', !!rolling);
+    }
+  }
+
+  function animateDice(cb) {
+    var iv = setInterval(function () {
+      paintDice([Math.random() < .5 ? 1 : 0, Math.random() < .5 ? 1 : 0,
+                 Math.random() < .5 ? 1 : 0, Math.random() < .5 ? 1 : 0], true);
+    }, 55);
+    $('sum').textContent = '…';
+    later(function () {
+      clearInterval(iv);
+      var dice = Ur.rollDice();
+      var s = Ur.sum(dice);
+      paintDice(dice, false);
+      $('sum').textContent = s;
+      cb(s);
+    }, 400);
+  }
+
+  /* ---------------- highlighting / human input ---------------- */
+
+  function clearHighlights() {
+    Array.prototype.forEach.call(layer.children, function (el) {
+      el.classList.remove('movable');
+      el.onclick = null; el.onmouseenter = null; el.onmouseleave = null;
+      el.__move = null;
+    });
+    $('pile-0').classList.remove('movable');
+    $('pile-0').onclick = null; $('pile-0').onmouseenter = null; $('pile-0').onmouseleave = null;
+    Object.keys(cells).forEach(function (k) { cells[k].classList.remove('target'); });
+  }
+
+  function showTarget(move, on) {
+    if (move.to >= Ur.OFF) return;
+    var el = cellEl(HUMAN, move.to);
+    if (el) el.classList.toggle('target', on);
+  }
+
+  function highlight(moves) {
+    clearHighlights();
+    moves.forEach(function (mv) {
+      var host;
+      if (mv.from === Ur.HOME) {
+        host = $('pile-0');
+        host.classList.add('movable');
+      } else {
+        host = pieceEls[HUMAN][mv.piece];
+        if (!host) return;
+        host.classList.add('movable');
+      }
+      host.__move = mv;
+      host.onmouseenter = function () { showTarget(mv, true); };
+      host.onmouseleave = function () { showTarget(mv, false); };
+      host.onclick = function () {
+        if (busy || over) return;
+        showTarget(mv, false);
+        doMove(HUMAN, mv);
+      };
+    });
+  }
+
+  /* ---------------- move execution ---------------- */
+
+  function pulse(player, idx) {
+    var el = cellEl(player, idx);
+    if (!el) return;
+    el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    later(function () { el.classList.remove('pulse'); }, 800);
+  }
+
+  function doMove(player, move) {
+    busy = true;
+    clearHighlights();
+    $('rollBtn').disabled = true;
+
+    var res = Ur.applyMove(state, player, move);
+    var captured = res.captured >= 0;
+    state = res.state;
+    syncPieces();
+    renderPanels();
+
+    var msg;
+    if (move.bearOff) {
+      msg = (player === HUMAN ? 'You bore a piece off' : 'The AI bore a piece off') +
+            ' — ' + Ur.offCount(state, player) + '/7 home free.';
+    } else if (captured) {
+      msg = player === HUMAN ? '<b>You captured an AI piece!</b>' : '<b>AI captured your piece</b>';
+    } else if (move.enter) {
+      msg = (player === HUMAN ? 'You' : 'The AI') + ' entered a new piece.';
+    } else {
+      msg = (player === HUMAN ? 'You' : 'The AI') + ' moved ' + (move.to - move.from) + '.';
+    }
+    if (move.rosette) {
+      pulse(player, move.to);
+      msg += ' Rosette — <b>Roll again!</b>';
+    }
+    setMsg(msg);
+
+    later(function () {
+      var w = Ur.winner(state);
+      if (w !== null) { endGame(w); return; }
+      if (!res.extraTurn) turn = 1 - turn;
+      startTurn();
+    }, 520);
+  }
+
+  function passTurn() {
+    turn = 1 - turn;
+    startTurn();
+  }
+
+  /* ---------------- turn loop ---------------- */
+
+  function startTurn() {
+    if (over) return;
+    busy = false;
+    updateTurnLine();
+    renderPanels();
+    if (turn === HUMAN) {
+      $('rollBtn').disabled = false;
+      setMsg('Your turn — press <b>Roll</b>.');
+    } else {
+      $('rollBtn').disabled = true;
+      setMsg('AI is thinking…');
+      later(aiTurn, 650);
+    }
+  }
+
+  function humanRoll() {
+    if (busy || over || turn !== HUMAN) return;
+    busy = true;
+    $('rollBtn').disabled = true;
+    animateDice(function (s) {
+      if (s === 0) {
+        setMsg('You rolled 0 — turn passes');
+        later(passTurn, 1000);
+        return;
+      }
+      var moves = Ur.legalMoves(state, HUMAN, s);
+      if (!moves.length) {
+        setMsg('You rolled ' + s + ' — no legal moves, turn passes');
+        later(passTurn, 1000);
+        return;
+      }
+      setMsg('You rolled <b>' + s + '</b> — click a highlighted piece to move it.');
+      highlight(moves);
+      busy = false;
+    });
+  }
+
+  function aiTurn() {
+    if (over) return;
+    busy = true;
+    animateDice(function (s) {
+      if (s === 0) {
+        setMsg('AI rolled 0 — turn passes');
+        later(passTurn, 1000);
+        return;
+      }
+      var mv = Ur.chooseMove(state, AI, s, difficulty);
+      if (!mv) {
+        setMsg('AI rolled ' + s + ' — no legal moves, turn passes');
+        later(passTurn, 1000);
+        return;
+      }
+      setMsg('AI rolled <b>' + s + '</b>…');
+      later(function () { doMove(AI, mv); }, 520);
+    });
+  }
+
+  /* ---------------- result overlay ---------------- */
+
+  function confetti() {
+    var ov = $('overlay');
+    var colors = ['#d9a441', '#4f9dc9', '#efe4cd', '#c8553d', '#8fbf5e', '#b07fd0'];
+    for (var i = 0; i < 40; i++) {
+      var c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random() * 100) + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (1.9 + Math.random() * 1.9) + 's';
+      c.style.animationDelay = (Math.random() * 1.1) + 's';
+      c.style.width = (5 + Math.random() * 8) + 'px';
+      c.style.height = (10 + Math.random() * 12) + 'px';
+      ov.appendChild(c);
+    }
+  }
+
+  function clearConfetti() {
+    var ov = $('overlay');
+    Array.prototype.forEach.call(ov.querySelectorAll('.confetti'), function (c) { ov.removeChild(c); });
+  }
+
+  function endGame(w) {
+    over = true;
+    busy = true;
+    clearHighlights();
+    $('rollBtn').disabled = true;
+    updateTurnLine();
+    renderPanels();
+
+    var ov = $('overlay');
+    clearConfetti();
+    ov.classList.remove('win', 'loss');
+    if (w === HUMAN) {
+      ov.classList.add('win');
+      $('resultTitle').textContent = 'You win!';
+      confetti();
+    } else {
+      ov.classList.add('loss');
+      $('resultTitle').textContent = 'The AI wins.';
+      $('app').classList.add('grayed');
+    }
+    $('resultScore').innerHTML = 'Final score — You <b>' + Ur.offCount(state, HUMAN) +
+      '</b> · AI <b>' + Ur.offCount(state, AI) + '</b> pieces borne off.';
+    later(function () { ov.classList.add('show'); }, 500);
+  }
+
+  function hideOverlay() {
+    $('overlay').classList.remove('show');
+    $('app').classList.remove('grayed');
+    later(clearConfetti, 600);
+  }
+
+  /* ---------------- new game ---------------- */
+
+  function newGame() {
+    clearTimers();
+    hideOverlay();
+    difficulty = $('diffGame').value;
+    state = Ur.newState();
+    turn = HUMAN;
+    over = false;
+    busy = false;
+    clearBoardPieces();
+    clearHighlights();
+    syncPieces();
+    paintDice([0, 0, 0, 0], false);
+    $('sum').textContent = '–';
+    renderPanels();
+    updateTurnLine();
+    $('rollBtn').disabled = false;
+    setMsg('New game. You move first — press <b>Roll</b>.');
+  }
+
+  /* ---------------- wiring ---------------- */
+
+  $('rollBtn').addEventListener('click', humanRoll);
+  $('homeNewGame').addEventListener('click', function () { showTab('game'); newGame(); });
+  $('gameNewGame').addEventListener('click', newGame);
+  $('overlayNewGame').addEventListener('click', function () { showTab('game'); newGame(); });
+  $('overlayHome').addEventListener('click', function () { hideOverlay(); showTab('home'); });
+
+  $('diffHome').addEventListener('change', function () { $('diffGame').value = this.value; });
+  $('diffGame').addEventListener('change', function () {
+    $('diffHome').value = this.value;
+    if (state && Ur.homeCount(state, 0) === 7 && Ur.homeCount(state, 1) === 7) difficulty = this.value;
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && $('view-game').classList.contains('active') && !over) {
+      e.preventDefault();
+      humanRoll();
+    }
+  });
+
+  window.addEventListener('resize', function () {
+    if (state) syncPieces();
+    // preview board pieces are laid out once; re-place them too
+    var host = $('board-preview'), lay = preview.layer;
+    lay.innerHTML = '';
+    decorate(host, lay);
+  });
+
+  newGame();
+  showTab('home');
+})();
+</script>
+</body>
+</html>

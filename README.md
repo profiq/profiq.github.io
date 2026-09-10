@@ -15,6 +15,10 @@ self-contained `index.html` that runs in any browser.
 - `telemark/` — TELEMARK, a 3D ski-jumping sim
 - `rychle-a-funkcne/` — Rychle a Funkčně, a math-as-racing game
 - `remnant/` — REMNANT, a 2D puzzle-platformer
+- `royal-game-of-ur/` — THE ROYAL GAME OF UR, a digitized ancient board game vs. an AI opponent
+- `quadbloom/` — QUADBLOOM, a color-matching logic puzzle
+- `andrii-kruhliak/` — DEAD ZONE, a first-person survival looter-shooter
+- `sonar-maze-profiq-contest/` — SONAR MAZE, a blackout maze crawler
 - `media/` — gameplay screenshots used on the landing page
 
 No build step. Push to the default branch and GitHub Pages serves it.
