@@ -1,0 +1,2312 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Rychle a Funkčně</title>
+<style>
+:root{
+  --bg:#F5F7FA; --panel:#FFFFFF; --grid:#E4E8ED; --axis:#94A0AC;
+  --text:#1F2937; --muted:#6B7280; --accent:#2F6FED; --accent-dark:#2456C0;
+  --success:#22C55E; --error:#EF4444;
+  --bronze:#CD7F32; --silver:#C0C0C0; --gold:#FFD700;
+  --u:8px; --r-card:12px; --r-ctl:8px; --sh:0 1px 3px rgba(0,0,0,.12);
+  --ui:system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--ui); font-size:14px;
+  overflow:hidden; overscroll-behavior:none;
+}
+#app{display:flex;flex-direction:column;height:100%;min-height:0}
+
+/* ---------- header ---------- */
+#hdr{
+  flex:0 0 auto;display:flex;align-items:center;gap:var(--u);
+  padding:8px 12px;background:var(--panel);box-shadow:var(--sh);z-index:20;
+  flex-wrap:wrap;
+}
+#hdr .brand{font-weight:700;font-size:16px;letter-spacing:.2px;white-space:nowrap}
+#hdr .brand span{color:var(--accent)}
+#hdr .sp{flex:1 1 auto}
+#stars{
+  display:inline-flex;align-items:center;gap:4px;font-weight:700;
+  padding:4px 10px;border-radius:999px;background:var(--bg);white-space:nowrap;
+  transition:transform .18s ease;
+}
+#stars.pop{transform:scale(1.25)}
+.xpwrap{display:flex;align-items:center;gap:6px;min-width:120px}
+.xpbar{position:relative;flex:1 1 90px;height:8px;border-radius:999px;background:var(--grid);overflow:hidden}
+.xpbar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:999px;transition:width .4s ease;display:block}
+.lvlbadge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:24px;height:24px;padding:0 6px;border-radius:999px;
+  background:var(--accent);color:#fff;font-weight:700;font-size:12px;
+}
+
+/* ---------- buttons ---------- */
+button{font-family:var(--ui);font-size:14px;cursor:pointer}
+.btn{
+  border:none;border-radius:var(--r-ctl);padding:9px 14px;background:var(--accent);
+  color:#fff;font-weight:600;box-shadow:var(--sh);transition:background .15s,transform .1s;
+}
+.btn:hover{background:var(--accent-dark)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{background:#C7CDD6;cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:var(--panel);color:var(--text);border:1px solid var(--grid)}
+.btn.ghost:hover{background:var(--bg)}
+.btn.ghost.on{border-color:var(--accent);color:var(--accent)}
+.btn.big{padding:14px 18px;font-size:16px;width:100%}
+.btn.sm{padding:6px 10px;font-size:13px}
+.iconbtn{
+  border:1px solid var(--grid);background:var(--panel);border-radius:var(--r-ctl);
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;
+}
+.iconbtn:hover{background:var(--bg)}
+.iconbtn.on{border-color:var(--accent)}
+.iconbtn svg{width:18px;height:18px;display:block}
+
+/* ---------- screens ---------- */
+main{flex:1 1 auto;min-height:0;position:relative}
+.screen{position:absolute;inset:0;display:none;overflow:auto}
+.screen.active{display:block}
+.screen.game.active{display:flex}
+.wrap{max-width:960px;margin:0 auto;padding:calc(var(--u)*3) calc(var(--u)*2) calc(var(--u)*6)}
+.card{background:var(--panel);border-radius:var(--r-card);box-shadow:var(--sh);padding:calc(var(--u)*2)}
+h1.title{font-size:34px;margin:calc(var(--u)*3) 0 4px;text-align:center;letter-spacing:-.5px}
+h1.title span{color:var(--accent)}
+.subtitle{text-align:center;color:var(--muted);margin:0 0 calc(var(--u)*3)}
+h2{font-size:20px;margin:0 0 var(--u)}
+h3{font-size:15px;margin:0 0 6px}
+p{margin:0 0 var(--u);line-height:1.5}
+.muted{color:var(--muted)}
+.menu-grid{display:grid;gap:var(--u);max-width:340px;margin:0 auto}
+#menustats{grid-template-columns:1fr 1fr 1fr;margin-bottom:var(--u)}
+#hero{display:block;width:100%;max-width:520px;height:150px;margin:0 auto var(--u);
+  background:var(--panel);border-radius:var(--r-card);box-shadow:var(--sh)}
+.rowbtns{display:flex;gap:var(--u);flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);text-align:center;margin-top:calc(var(--u)*2);line-height:1.6}
+kbd{
+  font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--grid);
+  border-radius:4px;padding:1px 5px;
+}
+
+/* ---------- level grids ---------- */
+.camp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:var(--u)}
+.camp{
+  text-align:left;background:var(--panel);border:1px solid var(--grid);border-radius:var(--r-card);
+  box-shadow:var(--sh);padding:var(--u) calc(var(--u)*1.5);display:flex;flex-direction:column;gap:4px;
+}
+.camp:hover{border-color:var(--accent)}
+.camp b{font-size:15px}
+.camp code{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.lvl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:var(--u);margin-bottom:calc(var(--u)*2)}
+.lvl{
+  position:relative;background:var(--panel);border:1px solid var(--grid);border-radius:var(--r-ctl);
+  box-shadow:var(--sh);padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-weight:700;color:var(--text);min-height:70px;justify-content:center;
+}
+.lvl:hover{border-color:var(--accent)}
+.lvl.locked{color:#B6BDC7;background:#FAFBFC;cursor:not-allowed;box-shadow:none}
+.lvl .st{font-size:11px;letter-spacing:1px;height:14px;color:var(--gold)}
+.lvl .tm{font-size:10px;color:var(--muted);font-family:var(--mono);font-weight:400}
+.lvl .medal{position:absolute;top:4px;right:4px;width:9px;height:9px;border-radius:50%}
+.tierhead{display:flex;align-items:center;gap:var(--u);margin:calc(var(--u)*2) 0 var(--u)}
+.tierhead h3{margin:0}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--bg);color:var(--muted)}
+
+/* ---------- game layout ---------- */
+.game{flex-direction:row;min-height:0;overflow:hidden}
+#sidebar{
+  flex:0 0 35%;max-width:480px;min-width:300px;background:var(--panel);
+  box-shadow:var(--sh);overflow-y:auto;padding:var(--u) var(--u) calc(var(--u)*4);z-index:5;
+  display:flex;flex-direction:column;gap:var(--u);
+}
+#graphwrap{flex:1 1 auto;position:relative;min-width:0;min-height:0;background:var(--panel);touch-action:none}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#tip{
+  position:absolute;pointer-events:none;background:rgba(31,41,55,.9);color:#fff;
+  font-family:var(--mono);font-size:11px;padding:3px 6px;border-radius:6px;
+  transform:translate(10px,-26px);white-space:nowrap;display:none;z-index:6;
+}
+#hud{
+  position:absolute;top:10px;left:10px;display:flex;gap:6px;align-items:center;z-index:6;
+  font-family:var(--mono);font-weight:700;font-size:18px;pointer-events:none;
+}
+#hud .chip{background:rgba(255,255,255,.92);border:1px solid var(--grid);border-radius:var(--r-ctl);padding:4px 10px;box-shadow:var(--sh)}
+#hud .chip.small{font-size:12px;font-weight:400;color:var(--muted)}
+#countdown{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  font-size:96px;font-weight:800;color:var(--accent);pointer-events:none;z-index:7;
+  text-shadow:0 2px 10px rgba(255,255,255,.9);
+}
+#countdown.show{display:flex}
+#countdown.tick{animation:cd .9s ease-out}
+@keyframes cd{0%{transform:scale(.5);opacity:0}25%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:.95}}
+#zoomctl{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:6}
+
+/* ---------- sidebar widgets ---------- */
+.panel{border:1px solid var(--grid);border-radius:var(--r-card);padding:var(--u)}
+.panel.info{background:#F8FAFF;border-color:#DDE6FB}
+.panel.info code{font-family:var(--mono);color:var(--accent);font-size:13px}
+.seg{border:1px solid var(--grid);border-left:5px solid var(--accent);border-radius:var(--r-card);padding:var(--u);margin-bottom:var(--u)}
+.seg .top{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.seg .dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.seg .name{font-weight:700;font-size:12px;color:var(--muted);flex:1 1 auto}
+.fx{display:flex;align-items:center;gap:6px}
+.fx label{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+input[type=text],input[type=number]{
+  font-family:var(--mono);font-size:14px;color:var(--text);background:var(--panel);
+  border:1px solid var(--grid);border-radius:var(--r-ctl);padding:7px 8px;width:100%;
+}
+input[type=text]:focus,input[type=number]:focus{outline:none;border-color:var(--accent)}
+input.bad{border-color:var(--error);background:#FEF2F2}
+.dom{display:flex;gap:6px;margin-top:6px}
+.dom .f{flex:1 1 0;min-width:0}
+.dom .f span{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+.dom input{padding:5px 6px;font-size:13px}
+.rs{position:relative;height:28px;margin:8px 2px 2px;touch-action:none}
+.rs .track{position:absolute;top:11px;left:0;right:0;height:6px;border-radius:999px;background:var(--grid)}
+.rs .fill{position:absolute;top:11px;height:6px;border-radius:999px;background:var(--accent);opacity:.85}
+.rs .h{
+  position:absolute;top:5px;width:18px;height:18px;margin-left:-9px;border-radius:50%;
+  background:var(--accent);border:2px solid #fff;box-shadow:var(--sh);cursor:ew-resize;
+}
+.rs .h:active{transform:scale(1.15)}
+.params{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.prow{display:flex;align-items:center;gap:6px}
+.prow b{font-family:var(--mono);width:14px;color:var(--accent)}
+.prow input[type=range]{flex:1 1 auto;-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;background:var(--grid);outline:none}
+.prow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:var(--sh);cursor:pointer}
+.prow input[type=range]::-moz-range-thumb{width:14px;height:14px;border:2px solid #fff;border-radius:50%;background:var(--accent);cursor:pointer}
+.prow .v{font-family:var(--mono);font-size:12px;width:44px;text-align:right;color:var(--muted)}
+.tpls{display:flex;flex-wrap:wrap;gap:6px}
+.tpls .btn{padding:5px 9px;font-size:12px}
+.actions{position:sticky;bottom:-4px;background:var(--panel);padding:8px 0 6px;
+  box-shadow:0 -6px 10px -6px rgba(0,0,0,.12);z-index:3}
+.readout{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.readout .r{display:flex;justify-content:space-between;gap:var(--u)}
+.readout .r b{font-family:var(--mono)}
+#msg{border-radius:var(--r-ctl);padding:8px 10px;font-size:13px;line-height:1.4;background:#F0FDF4;color:#15803D}
+#msg.err{background:#FEF2F2;color:#B91C1C}
+#msg.shake{animation:sh .35s}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.starline{letter-spacing:2px;color:var(--gold);font-size:15px}
+
+/* ---------- overlay ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(31,41,55,.45);z-index:50;
+  display:flex;align-items:center;justify-content:center;padding:var(--u);
+}
+.overlay.hidden{display:none}
+.overlay .box{
+  background:var(--panel);border-radius:var(--r-card);box-shadow:0 8px 30px rgba(0,0,0,.2);
+  padding:calc(var(--u)*3);max-width:520px;width:100%;max-height:90vh;overflow:auto;
+  animation:pop .18s ease-out;
+}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.overlay h2{text-align:center}
+.bigtime{font-family:var(--mono);font-size:40px;font-weight:700;text-align:center;margin:4px 0}
+.medalbadge{
+  display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:18px;
+  margin:var(--u) 0;
+}
+.medaldot{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 -3px 6px rgba(0,0,0,.15)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--u);margin:var(--u) 0}
+.stat{background:var(--bg);border-radius:var(--r-ctl);padding:var(--u);text-align:center}
+.stat span{display:block;font-size:11px;color:var(--muted)}
+.stat b{font-family:var(--mono);font-size:17px}
+.tabs{display:flex;gap:6px;margin-bottom:var(--u)}
+.tabs .btn{flex:1 1 0}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:var(--u)}
+.item{
+  border:1px solid var(--grid);border-radius:var(--r-ctl);padding:var(--u);text-align:center;
+  background:var(--panel);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.item.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,111,237,.2)}
+.item.lock{opacity:.5;cursor:not-allowed}
+.sw{width:34px;height:20px;border-radius:5px;background:var(--accent)}
+#carprev{width:100%;height:90px;background:var(--bg);border-radius:var(--r-ctl);display:block}
+#toasts{position:fixed;left:0;right:0;bottom:16px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:60;pointer-events:none}
+.toast{
+  background:#1F2937;color:#fff;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);animation:tin .25s ease-out;
+}
+@keyframes tin{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  .game{flex-direction:column}
+  #graphwrap{flex:0 0 52%;order:1}
+  #sidebar{flex:1 1 auto;order:2;max-width:none;min-width:0;width:100%;box-shadow:none;border-top:1px solid var(--grid)}
+  h1.title{font-size:26px}
+  #countdown{font-size:64px}
+  .screen.game.active{display:flex}
+}
+@media (max-width:560px){
+  #hdr{gap:6px;padding:6px 8px}
+  #hdr .brand{font-size:14px}
+  .xpwrap{min-width:64px}
+  #xptext{display:none}
+  #hud{font-size:15px}
+  .wrap{padding:16px 12px 48px}
+  .overlay .box{padding:16px}
+  .bigtime{font-size:32px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hdr">
+    <button class="iconbtn" id="btn-home" title="Hlavní menu (Esc)" aria-label="Hlavní menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    </button>
+    <div class="brand">Rychle a <span>Funkčně</span></div>
+    <div class="sp"></div>
+    <div id="stars">★ <span id="stars-n">0</span></div>
+    <div class="xpwrap" title="Zkušenosti">
+      <span class="lvlbadge" id="plvl">1</span>
+      <span class="xpbar"><i id="xpfill" style="width:0%"></i></span>
+      <span class="muted" id="xptext" style="font-size:11px;font-family:var(--mono)">0/100</span>
+    </div>
+    <button class="iconbtn" id="btn-mute" title="Zvuk" aria-label="Zvuk"></button>
+  </header>
+  <main>
+    <section class="screen active" id="screen-menu">
+      <div class="wrap">
+        <h1 class="title">Rychle a <span>Funkčně</span></h1>
+        <p class="subtitle">Napiš funkci, projeď brankami, poraz autorský čas.</p>
+        <canvas id="hero"></canvas>
+        <div class="menu-grid" id="menustats"></div>
+        <div class="menu-grid">
+          <button class="btn big" data-go="tutorial">Tutoriál</button>
+          <button class="btn big" data-go="campaigns">Kampaně</button>
+          <button class="btn big" data-go="endless">Nekonečný režim</button>
+          <button class="btn big ghost" data-go="garage">Garáž</button>
+        </div>
+        <p class="hint">
+          Ovládání: <kbd>Enter</kbd> start jízdy · <kbd>R</kbd> restart · <kbd>G</kbd> mřížka · <kbd>Esc</kbd> menu<br>
+          Graf: tažením posuneš, kolečkem přiblížíš.
+        </p>
+      </div>
+    </section>
+    <section class="screen" id="screen-list"><div class="wrap" id="list-body"></div></section>
+    <section class="screen game" id="screen-game">
+      <aside id="sidebar"></aside>
+      <div id="graphwrap">
+        <canvas id="cv"></canvas>
+        <div id="tip"></div>
+        <div id="hud"></div>
+        <div id="countdown"></div>
+        <div id="zoomctl">
+          <button class="iconbtn" id="zin" aria-label="Přiblížit"><svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="iconbtn" id="zout" aria-label="Oddálit"><svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <button class="iconbtn" id="zfit" aria-label="Zobrazit celou trasu"><svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg></button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="overlay hidden" id="overlay"><div class="box" id="overlay-box"></div></div>
+<div id="toasts"></div>
+<script>
+"use strict";
+/* =========================================================================
+   Rychle a Funkčně — jednosouborová vzdělávací minihra (Canvas 2D + Web Audio)
+   ========================================================================= */
+
+/* ------------------------------- konstanty ------------------------------- */
+const RACE_SPEED = 3;        // světové jednotky za sekundu
+const TOL = 0.5;             // svislá tolerance branky
+const GATE_X_TOL = 0.6;      // vodorovná poloviční šířka branky
+const AUTHOR_TOL = 1.02;     // 2 % tolerance na autorskou medaili
+const EPS = 1e-6;
+const CONT_TOL = 0.1;        // tolerance spojitosti mezi úseky
+const MAX_ABS_Y = 1e4;
+const SEG_COLORS = ['#E63946','#F4A300','#FFD60A','#06D6A0','#118AB2','#3A86FF','#8338EC','#FF006E'];
+const MEDAL_COLORS = {author:'#FFD700',gold:'#FFD700',silver:'#C0C0C0',bronze:'#CD7F32'};
+const MEDAL_NAMES = {author:'Autorská medaile',gold:'Zlatá medaile',silver:'Stříbrná medaile',bronze:'Bronzová medaile'};
+
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const fmtT=t=>(Math.round(t*100)/100).toFixed(2);
+const fmtN=n=>{const r=Math.round(n*100)/100;return String(r)};
+const r2=n=>Math.round(n*100)/100;
+const q=s=>document.querySelector(s);
+const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
+
+/* ------------------------------ perzistence ------------------------------ */
+const SKEY='rychle-a-funkcne-v1';
+const DEF_SAVE=()=>({best:{},medals:{},stars:{},xp:0,plevel:1,unlocked:['car:0','trail:cara','fx:konfety'],
+  car:'car:0',trail:'trail:cara',fx:'fx:konfety',mute:false,grid:true,endlessMax:1,seenTut:{}});
+let SAVE=DEF_SAVE();
+function loadSave(){
+  try{
+    const raw=localStorage.getItem(SKEY);
+    if(!raw)return;
+    const o=JSON.parse(raw);
+    if(o&&typeof o==='object'){
+      const d=DEF_SAVE();
+      for(const k in d){
+        const v=o[k];
+        if(v===undefined||v===null)continue;
+        if(Array.isArray(d[k])){if(Array.isArray(v))d[k]=v.filter(x=>typeof x==='string')}
+        else if(typeof d[k]==='object'){if(typeof v==='object'&&!Array.isArray(v))d[k]=v}
+        else if(typeof d[k]===typeof v)d[k]=v;
+      }
+      if(!Number.isFinite(d.xp)||d.xp<0)d.xp=0;
+      if(!Number.isFinite(d.plevel)||d.plevel<1)d.plevel=1;
+      for(const id of ['car:0','trail:cara','fx:konfety'])if(!d.unlocked.includes(id))d.unlocked.push(id);
+      SAVE=d;
+    }
+  }catch(e){SAVE=DEF_SAVE()}
+}
+function persist(){try{localStorage.setItem(SKEY,JSON.stringify(SAVE))}catch(e){}}
+loadSave();
+
+/* =========================== 1. PARSER VÝRAZŮ ============================ */
+/* Rekurzivní sestup — žádný eval ani Function. */
+const FUNCS={abs:Math.abs,sqrt:Math.sqrt,sin:Math.sin,cos:Math.cos,exp:Math.exp,log:Math.log};
+const FUNC_NAMES=Object.keys(FUNCS);
+
+class ParseError extends Error{}
+
+function tokenize(src){
+  const t=[];let i=0;
+  while(i<src.length){
+    const c=src[i];
+    if(c===' '||c==='\t'){i++;continue}
+    if(c>='0'&&c<='9'||c==='.'){
+      let j=i,dot=false;
+      while(j<src.length&&((src[j]>='0'&&src[j]<='9')||(src[j]==='.'&&!dot))){if(src[j]==='.')dot=true;j++}
+      const num=Number(src.slice(i,j));
+      if(!Number.isFinite(num))throw new ParseError('Neplatné číslo „'+src.slice(i,j)+'“.');
+      t.push({k:'num',v:num});i=j;continue;
+    }
+    if(/[a-zA-Zá-žÁ-Ž_]/.test(c)){
+      let j=i;while(j<src.length&&/[a-zA-Z0-9_]/.test(src[j]))j++;
+      const name=src.slice(i,j);
+      if(name.length>1&&!FUNC_NAMES.includes(name.toLowerCase()))
+        throw new ParseError('Neznámý symbol „'+name+'“. Povoleno: x, čísla, a–z, abs, sqrt, sin, cos, exp, log.');
+      t.push({k:'id',v:name.length>1?name.toLowerCase():name});i=j;continue;
+    }
+    if('+-*/^(),'.includes(c)){t.push({k:c});i++;continue}
+    throw new ParseError('Nepovolený znak „'+c+'“.');
+  }
+  return t;
+}
+
+/* AST: {t:'n',v} {t:'x'} {t:'p',n} {t:'u',a} {t:'b',op,l,r} {t:'f',n,a} */
+function parse(src){
+  if(typeof src!=='string'||src.trim()==='')throw new ParseError('Zadej předpis funkce.');
+  if(src.length>200)throw new ParseError('Předpis je příliš dlouhý.');
+  const ts=tokenize(src);
+  let p=0;
+  const peek=()=>ts[p];
+  const eat=k=>{if(ts[p]&&ts[p].k===k){p++;return true}return false};
+  function expr(){
+    let l=term();
+    for(;;){
+      if(eat('+'))l={t:'b',op:'+',l,r:term()};
+      else if(eat('-'))l={t:'b',op:'-',l,r:term()};
+      else return l;
+    }
+  }
+  function term(){
+    let l=unary();
+    for(;;){
+      if(eat('*'))l={t:'b',op:'*',l,r:unary()};
+      else if(eat('/'))l={t:'b',op:'/',l,r:unary()};
+      else return l;
+    }
+  }
+  function unary(){
+    if(eat('-'))return{t:'u',a:unary()};
+    if(eat('+'))return unary();
+    return power();
+  }
+  function power(){
+    const b=atom();
+    if(eat('^'))return{t:'b',op:'^',l:b,r:unary()};
+    return b;
+  }
+  function atom(){
+    const tk=peek();
+    if(!tk)throw new ParseError('Neúplný výraz — něco chybí na konci.');
+    if(tk.k==='num'){p++;return{t:'n',v:tk.v}}
+    if(tk.k==='id'){
+      p++;
+      if(FUNC_NAMES.includes(tk.v)){
+        if(!eat('('))throw new ParseError('Za funkcí '+tk.v+' musí následovat „(“.');
+        const a=expr();
+        if(!eat(')'))throw new ParseError('Chybí uzavírací „)“ u funkce '+tk.v+'.');
+        return{t:'f',n:tk.v,a};
+      }
+      if(tk.v==='x')return{t:'x'};
+      if(/^[a-z]$/.test(tk.v))return{t:'p',n:tk.v};
+      if(/^[A-Z]$/.test(tk.v))return{t:'p',n:tk.v.toLowerCase()};
+      throw new ParseError('Neznámý symbol „'+tk.v+'“.');
+    }
+    if(tk.k==='('){p++;const e=expr();if(!eat(')'))throw new ParseError('Chybí uzavírací „)“.');return e}
+    if(tk.k===')')throw new ParseError('Přebývá uzavírací „)“.');
+    throw new ParseError('Neočekávaný znak „'+tk.k+'“ ve výrazu.');
+  }
+  const ast=expr();
+  if(p<ts.length)throw new ParseError('Výrazu nerozumím od pozice '+(p+1)+' — zkontroluj operátory.');
+  return ast;
+}
+
+function evalAst(a,x,pr){
+  switch(a.t){
+    case 'n':return a.v;
+    case 'x':return x;
+    case 'p':{const v=pr?pr[a.n]:undefined;return typeof v==='number'?v:NaN}
+    case 'u':return -evalAst(a.a,x,pr);
+    case 'f':{
+      const v=evalAst(a.a,x,pr);
+      if(!Number.isFinite(v))return NaN;
+      if(a.n==='sqrt'&&v<0)return NaN;
+      if(a.n==='log'&&v<=0)return NaN;
+      const r=FUNCS[a.n](v);
+      return Number.isFinite(r)?r:NaN;
+    }
+    case 'b':{
+      const l=evalAst(a.l,x,pr),r=evalAst(a.r,x,pr);
+      if(!Number.isFinite(l)||!Number.isFinite(r))return NaN;
+      let v;
+      switch(a.op){
+        case '+':v=l+r;break;
+        case '-':v=l-r;break;
+        case '*':v=l*r;break;
+        case '/':if(Math.abs(r)<1e-12)return NaN;v=l/r;break;
+        case '^':{
+          if(l<0&&Math.abs(r-Math.round(r))>1e-9)return NaN;
+          v=Math.pow(l,r);break;
+        }
+      }
+      return Number.isFinite(v)?v:NaN;
+    }
+  }
+  return NaN;
+}
+
+function paramsOf(ast,out){
+  out=out||[];
+  if(!ast)return out;
+  if(ast.t==='p'){if(!out.includes(ast.n))out.push(ast.n)}
+  else if(ast.t==='u'||ast.t==='f')paramsOf(ast.a,out);
+  else if(ast.t==='b'){paramsOf(ast.l,out);paramsOf(ast.r,out)}
+  return out.sort();
+}
+
+const _pcache=new Map();
+function parseCached(src){
+  if(_pcache.has(src)){const c=_pcache.get(src);if(c.err)throw new ParseError(c.err);return c.ast}
+  try{const ast=parse(src);_pcache.set(src,{ast});return ast}
+  catch(e){_pcache.set(src,{err:e.message});throw e}
+}
+
+/* ============================ 2. RODINY FUNKCÍ =========================== */
+const FAMILIES={
+  lin:{key:'lin',name:'Lineární',short:'Lineární',form:'y = a*x + b',tpl:'a*x+b',def:{a:1,b:0},
+    help:'Přímka. <b>a</b> je směrnice (sklon): <b>a &gt; 0</b> přímka roste, <b>a &lt; 0</b> klesá — když u <b>a</b> změníš znaménko, přímka se převrátí (rostoucí ↔ klesající). <b>b</b> posouvá přímku svisle, je to y‑ová souřadnice v místě x = 0.'},
+  quad:{key:'quad',name:'Kvadratická',short:'Kvadratická',form:'y = a*(x-h)^2 + k',tpl:'a*(x-h)^2+k',def:{a:1,h:0,k:0},
+    help:'Parabola s vrcholem v bodě <b>(h, k)</b>. <b>a &gt; 0</b> otevírá se nahoru, <b>a &lt; 0</b> dolů; větší |a| = užší a strmější. <b>h</b> posouvá vodorovně, <b>k</b> svisle.'},
+  sin:{key:'sin',name:'Sinus',short:'Sinus',form:'y = a*sin(b*(x-h)) + c',tpl:'a*sin(b*(x-h))+c',def:{a:1,b:1,h:0,c:0},
+    help:'Vlna. <b>a</b> je amplituda (jak vysoké jsou vlny; záporné <b>a</b> vlnu překlopí). <b>b</b> mění frekvenci — perioda je 2π/b, takže menší <b>b</b> = delší vlny. <b>h</b> posouvá vlnu vodorovně, <b>c</b> svisle.'},
+  abs:{key:'abs',name:'Absolutní hodnota',short:'Abs. hodnota',form:'y = a*abs(x-h) + k',tpl:'a*abs(x-h)+k',def:{a:1,h:0,k:0},
+    help:'Véčko s hrotem v bodě <b>(h, k)</b>. <b>a &gt; 0</b> ramena míří nahoru (V), <b>a &lt; 0</b> dolů (stříška). |a| je sklon ramen. <b>h</b> posouvá hrot vodorovně, <b>k</b> svisle.'},
+  exp:{key:'exp',name:'Exponenciální',short:'Exponenciální',form:'y = a*exp(b*(x-h)) + k',tpl:'a*exp(b*(x-h))+k',def:{a:1,b:0.5,h:0,k:0},
+    help:'Exponenciála — roste (nebo klesá) velmi rychle. <b>b &gt; 0</b> roste, <b>b &lt; 0</b> klesá; větší |b| = divočejší nárůst. <b>a</b> mění velikost a znaménkem překlápí, <b>h</b> posouvá vodorovně, <b>k</b> svisle.'},
+  log:{key:'log',name:'Logaritmická',short:'Logaritmická',form:'y = a*log(x-h) + k',tpl:'a*log(x-h)+k',def:{a:1,h:-1,k:0},
+    help:'Logaritmus je definovaný jen pro <b>x &gt; h</b> — vlevo od <b>h</b> funkce neexistuje, hlídej si obor! Nejdřív roste rychle, pak se zplošťuje. <b>a</b> mění strmost (záporné překlápí), <b>k</b> posouvá svisle.'},
+  sqrt:{key:'sqrt',name:'Odmocnina',short:'Odmocnina',form:'y = a*sqrt(x-h) + k',tpl:'a*sqrt(x-h)+k',def:{a:1,h:0,k:0},
+    help:'Odmocnina je definovaná pro <b>x ≥ h</b>. Křivka začíná v bodě <b>(h, k)</b> a roste, ale postupně se zplošťuje. <b>a</b> mění strmost a znaménkem překlápí.'}
+};
+const FAM_ORDER=['lin','quad','sin','abs','exp','log','sqrt'];
+
+/* Povolené funkce a mocniny podle rodin dostupných v úrovni. */
+const FAM_FUNCS={lin:[],quad:[],sin:['sin','cos'],abs:['abs'],exp:['exp'],log:['log'],sqrt:['sqrt']};
+function astUses(ast,acc){
+  acc=acc||{funcs:[],pow:false};
+  if(!ast)return acc;
+  if(ast.t==='f'){if(!acc.funcs.includes(ast.n))acc.funcs.push(ast.n);astUses(ast.a,acc)}
+  else if(ast.t==='u')astUses(ast.a,acc);
+  else if(ast.t==='b'){
+    if(ast.op==='^'){
+      const d=dependsOnX(ast.l)||dependsOnX(ast.r);
+      if(d)acc.pow=true;
+    }
+    astUses(ast.l,acc);astUses(ast.r,acc);
+  }
+  return acc;
+}
+function dependsOnX(a){
+  if(!a)return false;
+  if(a.t==='x')return true;
+  if(a.t==='u'||a.t==='f')return dependsOnX(a.a);
+  if(a.t==='b')return dependsOnX(a.l)||dependsOnX(a.r);
+  return false;
+}
+function familyCheck(ast,allowed){
+  if(!allowed||allowed.length===0)return null;
+  const okFuncs=[];
+  for(const f of allowed)for(const n of FAM_FUNCS[f]||[])okFuncs.push(n);
+  const names=allowed.map(f=>FAMILIES[f].name).join(', ');
+  const u=astUses(ast);
+  for(const fn of u.funcs)if(!okFuncs.includes(fn))
+    return 'Funkce '+fn+'(…) tady není povolená. Použij jen: '+names+'.';
+  if(u.pow&&!allowed.includes('quad'))
+    return 'Mocniny s x tady nejsou povolené. Použij jen: '+names+'.';
+  return null;
+}
+
+/* ============================== 3. VERIFIKÁTOR =========================== */
+/* Jediný ověřovač pro referenční řešení, generované úrovně i jízdu hráče. */
+function compileSegs(segs,allowed){
+  const out=[];
+  for(let i=0;i<segs.length;i++){
+    const s=segs[i];
+    let ast;
+    try{ast=parseCached(s.expr)}
+    catch(e){return{err:'Úsek '+(i+1)+': '+e.message}}
+    if(allowed){
+      const fe=familyCheck(ast,allowed);
+      if(fe)return{err:'Úsek '+(i+1)+': '+fe};
+    }
+    const need=paramsOf(ast);
+    const pr=s.params||{};
+    for(const p of need)if(typeof pr[p]!=='number'||!Number.isFinite(pr[p]))
+      return{err:'Úsek '+(i+1)+': parametr '+p+' nemá platnou hodnotu.'};
+    if(!Number.isFinite(s.x0)||!Number.isFinite(s.x1))
+      return{err:'Úsek '+(i+1)+': neplatný rozsah x.'};
+    if(s.x1-s.x0<0.05)return{err:'Úsek '+(i+1)+': rozsah x je prázdný (od &lt; do).'};
+    out.push({ast,pr,x0:s.x0,x1:s.x1,i});
+  }
+  return{list:out};
+}
+
+function segValueAt(c,x){return evalAst(c.ast,x,c.pr)}
+
+/* Aktivní úsek pro dané x (řazený seznam). */
+function pickSeg(list,x){
+  for(let i=0;i<list.length;i++){const c=list[i];if(x>=c.x0-EPS&&x<=c.x1+EPS)return c}
+  return null;
+}
+
+function verify(segs,level,opts){
+  opts=opts||{};
+  const res={ok:false,msg:'',arc:0,gates:(level.checkpoints||[]).map(()=>false),samples:[],failX:null,reason:''};
+  if(!segs||segs.length===0){res.msg='Přidej alespoň jeden úsek funkce.';return res}
+  const cc=compileSegs(segs,opts.allowed);
+  if(cc.err){res.msg=cc.err;return res}
+  const list=cc.list.slice().sort((a,b)=>a.x0-b.x0);
+  res.list=list;
+  const sX=level.startX,fX=level.finishX;
+
+  /* překryv + mezery */
+  for(let i=0;i<list.length-1;i++){
+    const a=list[i],b=list[i+1];
+    if(b.x0<a.x1-0.02){res.msg='Úseky se překrývají v okolí x = '+fmtN(b.x0)+'. Uprav rozsahy tak, aby na sebe navazovaly.';return res}
+    if(b.x0>a.x1+0.02){res.msg='Mezera v křivce mezi x = '+fmtN(a.x1)+' a x = '+fmtN(b.x0)+'. Křivka musí být celá.';return res}
+  }
+  /* pokrytí */
+  if(list[0].x0>sX+0.02){res.msg='Křivka nezačíná na startu — první úsek musí platit už od x = '+fmtN(sX)+'.';return res}
+  if(list[list.length-1].x1<fX-0.02){res.msg='Křivka nedosáhla do cíle — poslední úsek musí platit až do x = '+fmtN(fX)+'.';return res}
+  /* spojitost */
+  for(let i=0;i<list.length-1;i++){
+    const xb=(list[i].x1+list[i+1].x0)/2;
+    const ya=segValueAt(list[i],list[i].x1),yb=segValueAt(list[i+1],list[i+1].x0);
+    if(!Number.isFinite(ya)||!Number.isFinite(yb)){
+      res.msg='Funkce není definovaná na hranici úseků v x = '+fmtN(xb)+' (obor hodnot, dělení nulou nebo odmocnina/logaritmus mimo obor).';
+      res.failX=xb;return res;
+    }
+    if(Math.abs(ya-yb)>CONT_TOL){
+      res.msg='Křivka není spojitá v x = '+fmtN(xb)+': levý úsek končí na y = '+fmtN(ya)+', pravý začíná na y = '+fmtN(yb)+'. Musí se potkat.';
+      res.failX=xb;return res;
+    }
+  }
+  /* vzorkování + délka */
+  const span=fX-sX;
+  const N=clamp(Math.ceil(span/0.004),400,20000);
+  const pts=new Array(N+1);
+  let arc=0,prevX=0,prevY=0;
+  for(let i=0;i<=N;i++){
+    const x=sX+span*i/N;
+    const c=pickSeg(list,x);
+    if(!c){res.msg='V bodě x = '+fmtN(x)+' není definovaný žádný úsek.';res.failX=x;return res}
+    const y=segValueAt(c,x);
+    if(!Number.isFinite(y)){
+      res.msg='Funkce nemá hodnotu v x = '+fmtN(x)+'. Zkontroluj obor definice (sqrt jen pro nezáporné, log jen pro kladné, dělení nulou).';
+      res.failX=x;return res;
+    }
+    if(Math.abs(y)>MAX_ABS_Y){
+      res.msg='Hodnoty funkce jsou v x = '+fmtN(x)+' příliš velké (y = '+y.toExponential(1)+'). Zmenši parametry.';
+      res.failX=x;return res;
+    }
+    pts[i]={x,y};
+    if(i>0)arc+=Math.hypot(x-prevX,y-prevY);
+    prevX=x;prevY=y;
+  }
+  res.samples=pts;res.arc=arc;
+
+  /* branky */
+  const cps=level.checkpoints||[];
+  const hit=cps.map(()=>false);
+  for(let i=0;i<=N;i++){
+    const p=pts[i];
+    for(let g=0;g<cps.length;g++){
+      if(hit[g])continue;
+      const cp=cps[g];
+      if(Math.abs(p.x-cp.x)<=GATE_X_TOL+EPS&&Math.abs(p.y-cp.y)<=TOL+EPS)hit[g]=true;
+    }
+  }
+  res.gates=hit;
+  const missIdx=hit.indexOf(false);
+  if(missIdx>=0&&!opts.skipGates){
+    const mc=cps[missIdx];
+    res.msg='Křivka míjí branku '+(mc.label||('č. '+(missIdx+1)))+' na x = '+fmtN(mc.x)+' (potřebné y ≈ '+fmtN(mc.y)+', tolerance ±'+TOL+').';
+    res.failX=cps[missIdx].x;res.missIdx=missIdx;res.structOk=true;return res;
+  }
+  res.ok=true;res.structOk=true;
+  res.msg='Trasa je v pořádku — můžeš startovat!';
+  return res;
+}
+
+/* Hodnota referenční křivky v bodě x (z ní se počítají cíle branek). */
+function refValueAt(level,x){
+  const cc=compileSegs(level.refPieces);
+  if(cc.err)return NaN;
+  const list=cc.list.slice().sort((a,b)=>a.x0-b.x0);
+  const c=pickSeg(list,x);
+  return c?segValueAt(c,x):NaN;
+}
+function mkSeg(expr,x0,x1,params){return{expr,x0,x1,params:params||{}}}
+
+/* ============================ 4. ÚROVNĚ (tutoriál) ======================= */
+function finishLevel(L){
+  /* branky se počítají z referenční křivky, nikdy se nezadávají ručně */
+  L.startY=refValueAt(L,L.startX);
+  L.finishY=refValueAt(L,L.finishX);
+  L.checkpoints=[{x:L.startX,y:L.startY,kind:'start',label:'START'}]
+    .concat(L.cpX.map((x,i)=>({x,y:refValueAt(L,x),kind:'cp',label:'č. '+(i+1)})))
+    .concat([{x:L.finishX,y:L.finishY,kind:'finish',label:'CÍL'}]);
+  const rv=verify(L.refPieces,L,{skipGates:true});
+  L.authorTime=rv.arc/RACE_SPEED;
+  let mn=1e9,mx=-1e9;
+  for(const p of rv.samples){if(p.y<mn)mn=p.y;if(p.y>mx)mx=p.y}
+  L.refMinY=Number.isFinite(mn)?mn:-4;L.refMaxY=Number.isFinite(mx)?mx:4;
+  if(!L.template){
+    const fam=FAMILIES[L.family||L.allowed[0]];
+    const w=Math.min(4,(L.finishX-L.startX)/2);
+    L.template=[{expr:fam.tpl,x0:L.startX,x1:r2(L.startX+w),params:Object.assign({},fam.def)}];
+  }
+  return L;
+}
+
+const TUTORIALS=[
+  {id:'t1',n:1,family:'lin',allowed:['lin','sqrt'],title:'1. Lineární funkce',
+   help:'Přímky na sebe navazují jako hřebeny kopců. Změň <b>a</b>, aby úsek stoupal nebo klesal, a <b>b</b>, aby začínal ve správné výšce.',
+   startX:0,finishX:12,cpX:[2,6,10],
+   refPieces:[mkSeg('0.5*x',0,4),mkSeg('-0.5*x+4',4,8),mkSeg('x-8',8,12)]},
+  {id:'t2',n:2,family:'quad',allowed:['lin','quad','sqrt'],title:'2. Kvadratická funkce',
+   help:'Parabola je nejrychlejší způsob, jak plynule vystoupat a zase se vrátit. Vrchol dej přesně tam, kam potřebuješ — do bodu (h, k).',
+   startX:0,finishX:12,cpX:[2,4,6,10],
+   refPieces:[mkSeg('-0.25*(x-4)^2+4',0,8),mkSeg('0.25*(x-8)^2',8,12)]},
+  {id:'t3',n:3,family:'sin',allowed:['lin','quad','sin','sqrt'],title:'3. Sinus',
+   help:'Sinusovka se vlní pravidelně. Amplituda <b>a</b> ladí výšku vln, <b>b</b> jejich délku. Na konci trasu dokonči přímkou.',
+   startX:0,finishX:16,cpX:[3,6,9,14],
+   refPieces:[mkSeg('2*sin(0.5*x)',0,12),mkSeg('x-12+2*sin(6)',12,16)]},
+  {id:'t4',n:4,family:'abs',allowed:['lin','quad','sin','abs','sqrt'],title:'4. Absolutní hodnota',
+   help:'Absolutní hodnota vytvoří ostré véčko s hrotem v bodě (h, k). Znaménko <b>a</b> rozhoduje, jestli je to kopec, nebo dolina.',
+   startX:0,finishX:12,cpX:[2,4,6,10],
+   refPieces:[mkSeg('-abs(x-4)+4',0,8),mkSeg('abs(x-10)-2',8,12)]},
+  {id:'t5',n:5,family:'exp',allowed:['lin','quad','sin','abs','exp','sqrt'],title:'5. Exponenciální funkce',
+   help:'Exponenciála zpočátku téměř spí, pak vystřelí vzhůru. Drž <b>b</b> malé, jinak ti trasa uletí ze grafu.',
+   startX:0,finishX:8,cpX:[1,2.5,6],
+   refPieces:[mkSeg('exp(0.5*x)-1',0,4),mkSeg('-2*(x-4)+exp(2)-1',4,8)]},
+  {id:'t6',n:6,family:'log',allowed:['lin','quad','sin','abs','exp','log','sqrt'],title:'6. Logaritmická funkce',
+   help:'Logaritmus je zrcadlem exponenciály: nejdřív rychlý nástup, pak se zklidní. Pozor na obor — potřebuje <b>x &gt; h</b>.',
+   startX:0,finishX:12,cpX:[2,5,10],
+   refPieces:[mkSeg('3*log(x+1)',0,8),mkSeg('-1*(x-8)+3*log(9)',8,12)]}
+].map(L=>{L.mode='tutorial';L.diff='tut';return finishLevel(L)});
+
+/* ======================= 5. GENERÁTOR ÚROVNÍ (seed) ====================== */
+function mulberry32(a){
+  return function(){
+    a|=0;a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;
+  };
+}
+const ri=(rng,a,b)=>a+Math.floor(rng()*(b-a+1));
+const rpick=(rng,arr)=>arr[Math.floor(rng()*arr.length)];
+const rq=(rng,lo,hi)=>{const n=Math.round((hi-lo)/0.25);return r2(lo+ri(rng,0,n)*0.25)};
+const nf=v=>String(Math.round(v*10000)/10000);
+const par=v=>'('+nf(v)+')';
+
+function pieceFor(fam,x0,x1,prevY,rng){
+  const w=x1-x0;
+  switch(fam){
+    case 'lin':{
+      let a=rpick(rng,[-1.5,-1.25,-1,-0.75,-0.5,0.5,0.75,1,1.25,1.5]);
+      return nf(a)+'*x+'+par(prevY-a*x0);
+    }
+    case 'quad':{
+      const a=rpick(rng,[-0.75,-0.5,-0.25,0.25,0.5,0.75]);
+      const h=r2(x0+rq(rng,0,w));
+      return nf(a)+'*(x-'+par(h)+')^2+'+par(prevY-a*(x0-h)*(x0-h));
+    }
+    case 'sin':{
+      const a=rpick(rng,[-2.5,-2,-1.5,-1,1,1.5,2,2.5]);
+      const b=rpick(rng,[0.25,0.5,0.75]);
+      return nf(a)+'*sin('+nf(b)+'*(x-'+par(x0)+'))+'+par(prevY);
+    }
+    case 'abs':{
+      const a=rpick(rng,[-1.5,-1.25,-1,-0.75,-0.5,0.5,0.75,1,1.25,1.5]);
+      const h=w>1.5?r2(x0+rq(rng,0.5,w-0.5)):x0;
+      return nf(a)+'*abs(x-'+par(h)+')+'+par(prevY-a*Math.abs(x0-h));
+    }
+    case 'exp':{
+      const b=rpick(rng,[-0.5,-0.25,0.25,0.5]);
+      const a=rpick(rng,[-0.75,-0.5,-0.25,0.25,0.5,0.75]);
+      return nf(a)+'*exp('+nf(b)+'*(x-'+par(x0)+'))+'+par(prevY-a);
+    }
+    case 'log':{
+      const a=rpick(rng,[-2,-1.5,-1,-0.5,0.5,1,1.5,2]);
+      const h=r2(x0-1);
+      return nf(a)+'*log(x-'+par(h)+')+'+par(prevY);
+    }
+    case 'sqrt':{
+      const a=rpick(rng,[-2,-1.5,-1,-0.5,0.5,1,1.5,2]);
+      return nf(a)+'*sqrt(x-'+par(x0)+')+'+par(prevY);
+    }
+  }
+  return '0*x+'+par(prevY);
+}
+
+function pieceOk(expr,x0,x1){
+  let ast;
+  try{ast=parseCached(expr)}catch(e){return null}
+  let last=NaN;
+  for(let i=0;i<=24;i++){
+    const x=x0+(x1-x0)*i/24;
+    const y=evalAst(ast,x,{});
+    if(!Number.isFinite(y)||Math.abs(y)>9)return null;
+    last=y;
+  }
+  return last;
+}
+
+const DIFFS={
+  lehka:{name:'Lehká',pieces:[1,2],cps:[2,3],w:[3,4]},
+  stredni:{name:'Střední',pieces:[2,3],cps:[4,5],w:[3,4,5]},
+  tezka:{name:'Těžká',pieces:[3,5],cps:[6,8],w:[3,4,5]}
+};
+
+function genLevel(cfg){
+  /* cfg: {id, seed, family|null, diff, title, mode, n} */
+  for(let attempt=0;attempt<40;attempt++){
+    const seed=cfg.seed+attempt*100000;
+    const rng=mulberry32(seed>>>0);
+    const D=DIFFS[cfg.diff];
+    const np=ri(rng,D.pieces[0],D.pieces[1]);
+    const pieces=[];
+    let x=0,y=rpick(rng,[-2,-1,0,0,1,2]);
+    let bad=false;
+    for(let i=0;i<np;i++){
+      const w=rpick(rng,D.w);
+      const x1=r2(x+w);
+      let expr=null,endY=null;
+      for(let t=0;t<30;t++){
+        const fam=cfg.family||rpick(rng,FAM_ORDER);
+        const e=pieceFor(fam,x,x1,y,rng);
+        const v=pieceOk(e,x,x1);
+        if(v!==null){expr=e;endY=v;break}
+      }
+      if(expr===null){
+        const a=rpick(rng,[-0.5,0.5]);
+        expr=nf(a)+'*x+'+par(y-a*x);endY=r2(y+a*(x1-x));
+        if(cfg.family&&cfg.family!=='lin'){bad=true;break}
+      }
+      pieces.push(mkSeg(expr,x,x1));
+      x=x1;y=endY;
+    }
+    if(bad)continue;
+    const startX=0,finishX=x;
+    /* branky rozmístíme až na hotové referenční křivce */
+    const lo=startX+1,hi=finishX-1;
+    if(hi-lo<1)continue;
+    const gap=2*GATE_X_TOL+0.3;                 /* branky se nesmí překrývat */
+    const maxFit=Math.max(1,Math.floor((hi-lo)/gap)+1);
+    const ncp=clamp(ri(rng,D.cps[0],D.cps[1]),1,maxFit);
+    const cpX=[];
+    for(let i=0;i<ncp;i++){
+      const base=lo+(hi-lo)*(i+0.5)/ncp;
+      const jit=(rng()-0.5)*(hi-lo)/(ncp*2.6);
+      let cx=r2(Math.round((base+jit)*2)/2);
+      cx=clamp(cx,lo,hi);
+      if(cpX.some(v=>Math.abs(v-cx)<gap))continue;
+      cpX.push(cx);
+    }
+    if(cpX.length<Math.min(D.cps[0],maxFit))continue;
+    cpX.sort((a,b)=>a-b);
+    const fam0=cfg.family||'lin';
+    const L=finishLevel({
+      id:cfg.id,n:cfg.n,mode:cfg.mode,diff:cfg.diff,seed,
+      family:cfg.family,allowed:cfg.family?[cfg.family]:FAM_ORDER.slice(),
+      title:cfg.title,
+      help:cfg.family
+        ? 'Použij jen rodinu <b>'+FAMILIES[cfg.family].name+'</b>. Skládej úseky za sebe tak, aby na sebe plynule navazovaly.'
+        : 'Můžeš kombinovat všechny rodiny funkcí. Čím kratší křivka, tím rychlejší čas.',
+      startX,finishX,cpX,refPieces:pieces
+    });
+    if(!Number.isFinite(L.authorTime)||L.authorTime<=0)continue;
+    if(L.checkpoints.some(c=>!Number.isFinite(c.y)))continue;
+    const v=verify(L.refPieces,L);
+    if(!v.ok)continue;
+    L.template=[{expr:FAMILIES[fam0].tpl,x0:startX,x1:r2(startX+Math.min(4,(finishX-startX)/2)),
+      params:Object.assign({},FAMILIES[fam0].def)}];
+    return L;
+  }
+  /* pojistka: triviální, vždy platná úroveň */
+  const L=finishLevel({id:cfg.id,n:cfg.n,mode:cfg.mode,diff:cfg.diff,seed:cfg.seed,
+    family:cfg.family,allowed:cfg.family?[cfg.family]:FAM_ORDER.slice(),title:cfg.title,
+    help:'Nováčkovská trasa.',startX:0,finishX:6,cpX:[2,4],
+    refPieces:[mkSeg('0.5*x',0,6)]});
+  return L;
+}
+
+const CAMP_TIERS=[
+  {key:'lehka',from:1,to:15,need:0,label:'15 lehkých'},
+  {key:'stredni',from:16,to:25,need:20,label:'10 středních'},
+  {key:'tezka',from:26,to:30,need:45,label:'5 těžkých'}
+];
+function tierOf(n){for(const t of CAMP_TIERS)if(n>=t.from&&n<=t.to)return t;return CAMP_TIERS[0]}
+function campLevelId(fi,n){return 'c'+fi+'-'+n}
+const _lcache=new Map();
+function getCampLevel(fi,n){
+  const id=campLevelId(fi,n);
+  if(_lcache.has(id))return _lcache.get(id);
+  const fam=FAM_ORDER[fi];
+  const L=genLevel({id,seed:10000+fi*1000+n,family:fam,diff:tierOf(n).key,mode:'campaign',
+    n,title:FAMILIES[fam].name+' — úroveň '+n});
+  L.campIdx=fi;
+  _lcache.set(id,L);
+  return L;
+}
+function getEndlessLevel(n){
+  const id='e'+n;
+  if(_lcache.has(id))return _lcache.get(id);
+  const diff=n<=5?'lehka':(n<=15?'stredni':'tezka');
+  const L=genLevel({id,seed:90000+n,family:null,diff,mode:'endless',n,title:'Nekonečný režim — level '+n});
+  _lcache.set(id,L);
+  return L;
+}
+
+/* ============================== 6. ZVUK ================================== */
+const Audio_={ctx:null,ready:false};
+function initAudio(){
+  if(Audio_.ctx)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    Audio_.ctx=new AC();Audio_.ready=true;
+  }catch(e){Audio_.ctx=null}
+}
+function tone(freq,dur,type,vol,delay){
+  if(SAVE.mute||!Audio_.ctx)return;
+  const ctx=Audio_.ctx;
+  if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  const t0=ctx.currentTime+(delay||0);
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(freq,t0);
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(vol==null?0.18:vol,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g);g.connect(ctx.destination);
+  o.start(t0);o.stop(t0+dur+0.02);
+}
+function noise(dur,vol,delay){
+  if(SAVE.mute||!Audio_.ctx)return;
+  const ctx=Audio_.ctx,t0=ctx.currentTime+(delay||0);
+  const n=Math.floor(ctx.sampleRate*dur);
+  const buf=ctx.createBuffer(1,n,ctx.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=420;
+  const g=ctx.createGain();g.gain.value=vol==null?0.3:vol;
+  src.connect(f);f.connect(g);g.connect(ctx.destination);src.start(t0);
+}
+const SFX={
+  blip:i=>tone(i>=3?880:520+i*90,0.14,'square',0.13),
+  go:()=>{tone(880,0.18,'square',0.16);tone(1320,0.22,'square',0.12,0.08)},
+  ding:()=>{tone(1046,0.1,'triangle',0.14);tone(1568,0.14,'triangle',0.1,0.05)},
+  thud:()=>{noise(0.35,0.35);tone(90,0.3,'sawtooth',0.16)},
+  star:()=>{tone(1200,0.09,'triangle',0.12);tone(1600,0.1,'triangle',0.1,0.06)},
+  click:()=>tone(440,0.05,'sine',0.07),
+  lvlup:()=>{[523,659,784,1046].forEach((f,i)=>tone(f,0.22,'triangle',0.13,i*0.09))},
+  fanfare:tier=>{
+    const seq={bronze:[392,523],silver:[392,523,659],gold:[523,659,784,1046],author:[523,659,784,1046,1319]}[tier]||[392];
+    seq.forEach((f,i)=>tone(f,0.3,'triangle',0.15,i*0.13));
+  }
+};
+
+/* ========================= 7. POSTUP, MEDAILE, XP ======================== */
+const COSMETICS=(()=>{
+  const cars=SEG_COLORS.map((c,i)=>({id:'car:'+i,kind:'car',color:c,name:'Barva '+(i+1)}))
+    .concat([{id:'car:8',kind:'car',color:MEDAL_COLORS.bronze,name:'Bronz'},
+             {id:'car:9',kind:'car',color:MEDAL_COLORS.silver,name:'Stříbro'},
+             {id:'car:10',kind:'car',color:MEDAL_COLORS.gold,name:'Zlato'}]);
+  const trails=[['cara','Čára'],['jiskry','Jiskry'],['duha','Duha'],['plamen','Plamen']]
+    .map(([k,n])=>({id:'trail:'+k,kind:'trail',key:k,name:n}));
+  const fx=[['konfety','Konfety'],['prstenec','Prstenec'],['hvezdy','Hvězdy']]
+    .map(([k,n])=>({id:'fx:'+k,kind:'fx',key:k,name:n}));
+  return{cars,trails,fx,all:cars.concat(trails,fx)};
+})();
+const UNLOCK_ORDER=(()=>{
+  const o=[],cars=COSMETICS.cars.slice(1),tr=COSMETICS.trails.slice(1),fx=COSMETICS.fx.slice(1);
+  let i=0;
+  while(cars.length||tr.length||fx.length){
+    if(cars.length)o.push(cars.shift().id);
+    if(i%1===0&&tr.length)o.push(tr.shift().id);
+    if(fx.length)o.push(fx.shift().id);
+    i++;
+  }
+  return o;
+})();
+const cosmeticById=id=>COSMETICS.all.find(c=>c.id===id)||COSMETICS.all[0];
+const isUnlocked=id=>SAVE.unlocked.includes(id);
+const carColor=()=>{const c=cosmeticById(SAVE.car);return c.color||SEG_COLORS[0]};
+
+function medalFor(playerT,authorT){
+  if(!Number.isFinite(playerT)||playerT<=0)return null;
+  if(playerT<=authorT*AUTHOR_TOL)return 'author';
+  const pct=authorT/playerT*100;
+  if(pct>80)return 'gold';
+  if(pct>65)return 'silver';
+  if(pct>50)return 'bronze';
+  return null;
+}
+const STARS_FOR={author:3,gold:3,silver:2,bronze:1};
+function xpNeed(){return 100*SAVE.plevel}
+
+function starsOf(id){return SAVE.stars[id]||0}
+function totalStars(){let s=0;for(const k in SAVE.stars)s+=SAVE.stars[k]||0;return s}
+function campStars(fi){
+  let s=0;
+  for(let n=1;n<=30;n++)s+=starsOf(campLevelId(fi,n));
+  return s;
+}
+function levelUnlocked(L){
+  if(L.mode==='tutorial')return L.n===1||!!SAVE.medals[TUTORIALS[L.n-2].id];
+  if(L.mode==='campaign'){
+    const t=tierOf(L.n);
+    if(campStars(L.campIdx)<t.need)return false;
+    if(L.n===t.from)return true;
+    return !!SAVE.medals[campLevelId(L.campIdx,L.n-1)];
+  }
+  return true;
+}
+
+function refreshHeader(){
+  q('#stars-n').textContent=totalStars();
+  q('#plvl').textContent=SAVE.plevel;
+  const need=xpNeed();
+  q('#xpfill').style.width=clamp(SAVE.xp/need*100,0,100)+'%';
+  q('#xptext').textContent=SAVE.xp+'/'+need;
+  const icon=SAVE.mute
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M17 9l4 6M21 9l-4 6"/></svg>'
+    :'<svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M16 8.5a5 5 0 010 7"/><path d="M19 6a9 9 0 010 12"/></svg>';
+  q('#btn-mute').innerHTML=icon;
+  const mb2=q('#btn-mute2');if(mb2)mb2.innerHTML=icon;
+}
+function toast(text){
+  const t=el('div','toast',text);
+  q('#toasts').appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .4s';t.style.opacity='0';setTimeout(()=>t.remove(),450)},2600);
+}
+function bumpStars(){
+  const e=q('#stars');e.classList.add('pop');
+  setTimeout(()=>e.classList.remove('pop'),200);
+  SFX.star();
+  const r=e.getBoundingClientRect();
+  for(let i=0;i<14;i++){
+    const d=el('div','burst');
+    const a=i/14*6.283,dist=30+Math.random()*26;
+    d.style.cssText='position:fixed;left:'+(r.left+r.width/2)+'px;top:'+(r.top+r.height/2)+
+      'px;width:6px;height:6px;border-radius:50%;background:'+MEDAL_COLORS.gold+
+      ';z-index:70;pointer-events:none;transition:transform .6s ease-out,opacity .6s ease-out';
+    document.body.appendChild(d);
+    requestAnimationFrame(()=>{
+      d.style.transform='translate('+Math.cos(a)*dist+'px,'+Math.sin(a)*dist+'px) scale(.3)';
+      d.style.opacity='0';
+    });
+    setTimeout(()=>d.remove(),700);
+  }
+}
+function grantXP(amount){
+  SAVE.xp+=amount;
+  let ups=0;
+  while(SAVE.xp>=xpNeed()&&ups<50){
+    SAVE.xp-=xpNeed();SAVE.plevel++;ups++;
+    const next=UNLOCK_ORDER.find(id=>!SAVE.unlocked.includes(id));
+    if(next){
+      SAVE.unlocked.push(next);
+      toast('Level '+SAVE.plevel+'! Odemčeno: '+cosmeticById(next).name+' (Garáž)');
+    }else toast('Level '+SAVE.plevel+'! Máš všechny odměny.');
+  }
+  if(ups>0)SFX.lvlup();
+  persist();refreshHeader();
+}
+
+/* ============================ 8. STAV HRY ================================ */
+const G={
+  level:null,segs:[],view:{cx:0,cy:0,scale:40},vr:null,
+  race:null,particles:[],trail:[],
+  campIdx:0,endlessN:1,anim:0
+};
+const cv=q('#cv'),ctx2=cv.getContext('2d');
+let CW=0,CH=0,DPR=1;
+
+function resizeCanvas(){
+  const w=cv.clientWidth||300,h=cv.clientHeight||200;
+  DPR=Math.min(window.devicePixelRatio||1,2.5);
+  CW=w;CH=h;
+  cv.width=Math.round(w*DPR);cv.height=Math.round(h*DPR);
+  ctx2.setTransform(DPR,0,0,DPR,0,0);
+}
+const sx=x=>CW/2+(x-G.view.cx)*G.view.scale;
+const sy=y=>CH/2-(y-G.view.cy)*G.view.scale;
+const wx=px=>G.view.cx+(px-CW/2)/G.view.scale;
+const wy=py=>G.view.cy-(py-CH/2)/G.view.scale;
+
+function fitView(){
+  const L=G.level;if(!L)return;
+  let minX=L.startX,maxX=L.finishX,minY=1e9,maxY=-1e9;
+  for(const c of L.checkpoints){minY=Math.min(minY,c.y);maxY=Math.max(maxY,c.y)}
+  if(Number.isFinite(L.refMinY)){minY=Math.min(minY,L.refMinY);maxY=Math.max(maxY,L.refMaxY)}
+  if(!Number.isFinite(minY)||!Number.isFinite(maxY)){minY=-4;maxY=4}
+  minY=clamp(minY,-40,40);maxY=clamp(maxY,-40,40);
+  const padX=(maxX-minX)*0.12+1,padY=Math.max((maxY-minY)*0.25,1.5);
+  minX-=padX;maxX+=padX;minY-=padY;maxY+=padY;
+  const sxs=CW/Math.max(maxX-minX,1),sys=CH/Math.max(maxY-minY,1);
+  G.view.scale=clamp(Math.min(sxs,sys),4,300);
+  G.view.cx=(minX+maxX)/2;G.view.cy=(minY+maxY)/2;
+}
+
+/* ------------------------------ vykreslení ------------------------------- */
+const NICE=[0.1,0.2,0.25,0.5,1,2,2.5,5,10,20,25,50,100,200,500,1000];
+function gridStep(){
+  for(const s of NICE)if(s*G.view.scale>=52)return s;
+  return NICE[NICE.length-1];
+}
+function drawGrid(){
+  const st=gridStep();
+  ctx2.lineWidth=1;
+  ctx2.font='11px '+getComputedStyle(document.body).fontFamily;
+  const x0=Math.floor(wx(0)/st)*st,x1=wx(CW),y0=Math.floor(wy(CH)/st)*st,y1=wy(0);
+  if(SAVE.grid){
+    ctx2.strokeStyle='#E4E8ED';ctx2.beginPath();
+    for(let x=x0;x<=x1;x+=st){const p=Math.round(sx(x))+0.5;ctx2.moveTo(p,0);ctx2.lineTo(p,CH)}
+    for(let y=y0;y<=y1;y+=st){const p=Math.round(sy(y))+0.5;ctx2.moveTo(0,p);ctx2.lineTo(CW,p)}
+    ctx2.stroke();
+  }
+  /* osy */
+  const ax=clamp(sy(0),0,CH),ay=clamp(sx(0),0,CW);
+  ctx2.strokeStyle='#94A0AC';ctx2.lineWidth=1.5;ctx2.beginPath();
+  ctx2.moveTo(0,Math.round(ax)+0.5);ctx2.lineTo(CW,Math.round(ax)+0.5);
+  ctx2.moveTo(Math.round(ay)+0.5,0);ctx2.lineTo(Math.round(ay)+0.5,CH);
+  ctx2.stroke();
+  /* popisky */
+  ctx2.fillStyle='#6B7280';ctx2.textAlign='center';ctx2.textBaseline='top';
+  for(let x=x0;x<=x1;x+=st){
+    if(Math.abs(x)<st/100)continue;
+    ctx2.fillText(fmtN(x),sx(x),clamp(ax+4,2,CH-14));
+  }
+  ctx2.textAlign='right';ctx2.textBaseline='middle';
+  for(let y=y0;y<=y1;y+=st){
+    if(Math.abs(y)<st/100)continue;
+    ctx2.fillText(fmtN(y),clamp(ay-5,22,CW-3),sy(y));
+  }
+  ctx2.textAlign='left';ctx2.fillText('0',clamp(ay+4,2,CW-10),clamp(ax+9,8,CH-6));
+}
+function drawGates(){
+  const L=G.level;if(!L)return;
+  const gates=G.vr?G.vr.gates:null;
+  ctx2.save();
+  for(let i=0;i<L.checkpoints.length;i++){
+    const c=L.checkpoints[i],ok=gates?gates[i]:false;
+    const x0=sx(c.x-GATE_X_TOL),x1=sx(c.x+GATE_X_TOL),y1=sy(c.y+TOL),y0=sy(c.y-TOL);
+    const w=x1-x0,h=y0-y1;
+    ctx2.globalAlpha=0.5;
+    ctx2.fillStyle=ok?'#22C55E':'#EF4444';
+    ctx2.fillRect(x0,y1,w,h);
+    ctx2.globalAlpha=1;
+    ctx2.strokeStyle=ok?'#22C55E':'#EF4444';ctx2.lineWidth=2;
+    ctx2.strokeRect(x0,y1,w,h);
+    if(c.kind!=='cp'){
+      ctx2.fillStyle=ok?'#15803D':'#B91C1C';
+      ctx2.font='700 12px '+getComputedStyle(document.body).fontFamily;
+      ctx2.textAlign='center';ctx2.textBaseline='bottom';
+      ctx2.fillText(c.kind==='start'?'START':'CÍL',(x0+x1)/2,y1-4);
+    }else{
+      ctx2.fillStyle='rgba(31,41,55,.55)';
+      ctx2.font='600 10px '+getComputedStyle(document.body).fontFamily;
+      ctx2.textAlign='center';ctx2.textBaseline='bottom';
+      ctx2.fillText(String(i),(x0+x1)/2,y1-3);
+    }
+  }
+  ctx2.restore();
+}
+function drawSegments(){
+  const L=G.level;if(!L)return;
+  ctx2.lineWidth=3;ctx2.lineJoin='round';ctx2.lineCap='round';
+  for(let i=0;i<G.segs.length;i++){
+    const s=G.segs[i];
+    let ast=null;
+    try{ast=parseCached(s.expr)}catch(e){continue}
+    if(!(s.x1>s.x0))continue;
+    ctx2.strokeStyle=SEG_COLORS[i%8];
+    const vx0=Math.max(s.x0,wx(-30)),vx1=Math.min(s.x1,wx(CW+30));
+    if(vx1<=vx0)continue;
+    ctx2.beginPath();
+    const steps=clamp(Math.ceil((vx1-vx0)*G.view.scale),2,4000);
+    let pen=false;
+    for(let k=0;k<=steps;k++){
+      const xx=vx0+(vx1-vx0)*k/steps;
+      const y=evalAst(ast,xx,s.params);
+      if(!Number.isFinite(y)||Math.abs(y)>1e5){pen=false;continue}
+      const py=sy(y);
+      if(py<-8000||py>CH+8000){pen=false;continue}
+      if(!pen){ctx2.moveTo(sx(xx),py);pen=true}else ctx2.lineTo(sx(xx),py);
+    }
+    ctx2.stroke();
+    /* koncové body úseku */
+    for(const bx of [s.x0,s.x1]){
+      const by=evalAst(ast,bx,s.params);
+      if(!Number.isFinite(by))continue;
+      ctx2.fillStyle=SEG_COLORS[i%8];
+      ctx2.beginPath();ctx2.arc(sx(bx),sy(by),3.5,0,6.284);ctx2.fill();
+    }
+  }
+}
+function drawTrail(){
+  if(G.trail.length<2)return;
+  const kind=cosmeticById(SAVE.trail).key||'cara';
+  const n=G.trail.length;
+  if(kind==='cara'||kind==='duha'){
+    ctx2.lineWidth=kind==='duha'?5:6;ctx2.lineCap='round';
+    for(let i=1;i<n;i++){
+      const a=G.trail[i-1],b=G.trail[i];
+      ctx2.globalAlpha=(kind==='duha'?0.18:0.1)+0.5*(i/n);
+      ctx2.strokeStyle=kind==='duha'?'hsl('+Math.round((i*9+G.anim*0.06)%360)+',85%,55%)':carColor();
+      ctx2.beginPath();ctx2.moveTo(sx(a.x),sy(a.y));ctx2.lineTo(sx(b.x),sy(b.y));ctx2.stroke();
+    }
+    ctx2.globalAlpha=1;
+  }else{
+    for(let i=0;i<n;i++){
+      const p=G.trail[i],f=i/n;
+      ctx2.globalAlpha=0.1+0.6*f;
+      ctx2.fillStyle=kind==='plamen'?'hsl('+Math.round(12+35*f)+',95%,'+Math.round(45+15*(1-f))+'%)':'#FFD60A';
+      const r=(kind==='plamen'?5:3)*(0.4+f);
+      ctx2.beginPath();ctx2.arc(sx(p.x)+(i%3-1),sy(p.y)+(i%2?1:-1),r,0,6.284);ctx2.fill();
+    }
+    ctx2.globalAlpha=1;
+  }
+}
+function drawCar(x,y,ang){
+  const s=G.view.scale,L=clamp(s*0.5,12,30),W=L*0.58;
+  ctx2.save();
+  ctx2.translate(sx(x),sy(y));ctx2.rotate(-ang);
+  ctx2.fillStyle='rgba(0,0,0,.16)';
+  ctx2.beginPath();ctx2.ellipse(0,W*0.5,L*0.55,W*0.42,0,0,6.284);ctx2.fill();
+  ctx2.fillStyle='#1F2937';
+  ctx2.fillRect(-L*0.42,-W*0.62,L*0.26,W*1.24);
+  ctx2.fillRect(L*0.18,-W*0.62,L*0.26,W*1.24);
+  ctx2.fillStyle=carColor();
+  const r=Math.min(4,L*0.2);
+  ctx2.beginPath();
+  if(ctx2.roundRect)ctx2.roundRect(-L/2,-W/2,L,W,r);else ctx2.rect(-L/2,-W/2,L,W);
+  ctx2.fill();
+  ctx2.fillStyle='rgba(255,255,255,.85)';
+  ctx2.fillRect(-L*0.05,-W*0.3,L*0.22,W*0.6);
+  ctx2.restore();
+}
+/* ------------------------------- částice -------------------------------- */
+function spawnParticles(x,y,style,color,n){
+  const kind=style||(cosmeticById(SAVE.fx).key||'konfety');
+  n=n||18;
+  if(kind==='prstenec'){G.particles.push({ring:true,x,y,t:0,life:0.6,color:color||'#22C55E'})}
+  for(let i=0;i<n;i++){
+    const a=Math.random()*6.284,sp=1.5+Math.random()*4;
+    G.particles.push({
+      x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp+1.5,t:0,life:0.5+Math.random()*0.6,
+      color:color||(kind==='hvezdy'?'#FFD60A':SEG_COLORS[Math.floor(Math.random()*8)]),
+      star:kind==='hvezdy',sz:kind==='hvezdy'?4:3
+    });
+  }
+}
+function updateParticles(dt){
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i];p.t+=dt;
+    if(p.t>=p.life){G.particles.splice(i,1);continue}
+    if(!p.ring){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=6*dt}
+  }
+  if(G.particles.length>600)G.particles.splice(0,G.particles.length-600);
+}
+function drawParticles(){
+  for(const p of G.particles){
+    const f=1-p.t/p.life;
+    ctx2.globalAlpha=clamp(f,0,1);
+    if(p.ring){
+      ctx2.strokeStyle=p.color;ctx2.lineWidth=3*f+1;
+      ctx2.beginPath();ctx2.arc(sx(p.x),sy(p.y),(1-f)*G.view.scale*1.1+4,0,6.284);ctx2.stroke();
+      continue;
+    }
+    ctx2.fillStyle=p.color;
+    const px=sx(p.x),py=sy(p.y),r=p.sz*(0.5+f);
+    if(p.star){
+      ctx2.save();ctx2.translate(px,py);ctx2.rotate(p.t*6);
+      ctx2.beginPath();
+      for(let k=0;k<5;k++){
+        const a1=k*1.2566-1.5708,a2=a1+0.6283;
+        ctx2.lineTo(Math.cos(a1)*r*1.8,Math.sin(a1)*r*1.8);
+        ctx2.lineTo(Math.cos(a2)*r*0.8,Math.sin(a2)*r*0.8);
+      }
+      ctx2.closePath();ctx2.fill();ctx2.restore();
+    }else ctx2.fillRect(px-r/2,py-r/2,r,r);
+  }
+  ctx2.globalAlpha=1;
+}
+function render(){
+  if(!CW||!CH)return;
+  ctx2.clearRect(0,0,CW,CH);
+  ctx2.fillStyle='#FFFFFF';ctx2.fillRect(0,0,CW,CH);
+  drawGrid();
+  drawGates();
+  drawSegments();
+  drawTrail();
+  drawParticles();
+  const R=G.race;
+  if(R&&R.pos)drawCar(R.pos.x,R.pos.y,R.pos.ang);
+  else if(G.level&&G.vr&&G.vr.samples&&G.vr.samples.length){
+    const p=G.vr.samples[0],p2=G.vr.samples[1]||p;
+    drawCar(p.x,p.y,Math.atan2(p2.y-p.y,p2.x-p.x));
+  }
+}
+
+/* --------------------------- interakce s grafem -------------------------- */
+let drag=null,pointers=new Map(),pinch=null;
+cv.addEventListener('pointerdown',e=>{
+  initAudio();
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){
+    const [a,b]=[...pointers.values()];
+    pinch={d:Math.hypot(a.x-b.x,a.y-b.y),scale:G.view.scale};
+    drag=null;
+  }else drag={px:e.clientX,py:e.clientY,cx:G.view.cx,cy:G.view.cy};
+});
+cv.addEventListener('pointermove',e=>{
+  const r=cv.getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&pointers.size===2){
+    const [a,b]=[...pointers.values()];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(pinch.d>10)G.view.scale=clamp(pinch.scale*d/pinch.d,4,400);
+    return;
+  }
+  if(drag){
+    G.view.cx=drag.cx-(e.clientX-drag.px)/G.view.scale;
+    G.view.cy=drag.cy+(e.clientY-drag.py)/G.view.scale;
+    q('#tip').style.display='none';
+    return;
+  }
+  const tip=q('#tip');
+  if(mx<0||my<0||mx>r.width||my>r.height){tip.style.display='none';return}
+  tip.style.display='block';
+  tip.style.left=mx+'px';tip.style.top=my+'px';
+  tip.textContent='('+wx(mx).toFixed(2)+', '+wy(my).toFixed(2)+')';
+});
+const endPtr=e=>{
+  pointers.delete(e.pointerId);
+  if(pointers.size<2)pinch=null;
+  if(pointers.size===0)drag=null;
+};
+cv.addEventListener('pointerup',endPtr);
+cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('pointerleave',()=>{q('#tip').style.display='none'});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const wxb=wx(mx),wyb=wy(my);
+  const f=Math.exp(-e.deltaY*0.0018);
+  G.view.scale=clamp(G.view.scale*f,4,400);
+  G.view.cx=wxb-(mx-CW/2)/G.view.scale;
+  G.view.cy=wyb+(my-CH/2)/G.view.scale;
+},{passive:false});
+q('#zin').onclick=()=>{G.view.scale=clamp(G.view.scale*1.25,4,400)};
+q('#zout').onclick=()=>{G.view.scale=clamp(G.view.scale/1.25,4,400)};
+q('#zfit').onclick=()=>fitView();
+
+/* ========================= 9. EDITOR / SIDEBAR =========================== */
+function gateStatus(segs,level){
+  const st=level.checkpoints.map(()=>false);
+  for(const s of segs){
+    let ast;
+    try{ast=parseCached(s.expr)}catch(e){continue}
+    if(!(s.x1>s.x0))continue;
+    const n=clamp(Math.ceil((s.x1-s.x0)/0.01),50,4000);
+    for(let i=0;i<=n;i++){
+      const x=s.x0+(s.x1-s.x0)*i/n;
+      const y=evalAst(ast,x,s.params);
+      if(!Number.isFinite(y))continue;
+      for(let g=0;g<st.length;g++){
+        if(st[g])continue;
+        const c=level.checkpoints[g];
+        if(Math.abs(x-c.x)<=GATE_X_TOL+EPS&&Math.abs(y-c.y)<=TOL+EPS)st[g]=true;
+      }
+    }
+  }
+  return st;
+}
+function segValue(s,x){
+  try{return evalAst(parseCached(s.expr),x,s.params)}catch(e){return NaN}
+}
+function makeTemplateSeg(fam,x0,x1,prevY){
+  const F=FAMILIES[fam],p=Object.assign({},F.def);
+  if('h' in p)p.h=fam==='log'?r2(x0-1):r2(x0);
+  const s={expr:F.tpl,x0:r2(x0),x1:r2(x1),params:p,fam};
+  if(Number.isFinite(prevY)){
+    const key=['b','c','k'].find(k=>k in p);
+    if(key){
+      const v=segValue(s,s.x0);
+      if(Number.isFinite(v))p[key]=r2(clamp(p[key]+(prevY-v),-999,999));
+    }
+  }
+  return s;
+}
+function paramRange(name){
+  const L=G.level;
+  if(name==='h'&&L)return[Math.floor(L.startX)-4,Math.ceil(L.finishX)+4];
+  return[-10,10];
+}
+
+let explainFam='lin';
+function recompute(){
+  if(!G.level)return;
+  const vr=verify(G.segs,G.level,{allowed:G.level.allowed});
+  vr.gates=gateStatus(G.segs,G.level);
+  G.vr=vr;
+  updateReadout();
+}
+function updateReadout(){
+  const L=G.level,vr=G.vr;if(!L||!vr)return;
+  const m=q('#msg');
+  const gatesOk=vr.gates.filter(Boolean).length;
+  const gEl=q('#gatecount');
+  if(gEl)gEl.textContent=gatesOk+'/'+vr.gates.length;
+  const arcEl=q('#arclen'),tEl=q('#esttime');
+  const structural=vr.ok||vr.structOk;
+  if(arcEl)arcEl.textContent=structural&&vr.arc>0?fmtN(r2(vr.arc)):'—';
+  if(tEl)tEl.textContent=structural&&vr.arc>0?fmtT(vr.arc/RACE_SPEED)+' s':'—';
+  if(m){
+    m.textContent=vr.msg;
+    m.classList.toggle('err',!vr.ok);
+  }
+  const sb=q('#btn-start');
+  if(sb)sb.disabled=!vr.structOk||!!(G.race&&G.race.active);
+}
+function shakeMsg(){
+  const m=q('#msg');if(!m)return;
+  m.classList.remove('shake');void m.offsetWidth;m.classList.add('shake');
+}
+
+function dualSlider(seg,onChange){
+  const L=G.level;
+  const lo=L.startX-2,hi=L.finishX+2,span=hi-lo;
+  const box=el('div','rs');
+  box.innerHTML='<div class="track"></div><div class="fill"></div><div class="h" data-k="0"></div><div class="h" data-k="1"></div>';
+  const fill=box.querySelector('.fill'),hs=box.querySelectorAll('.h');
+  function paint(){
+    const a=clamp((seg.x0-lo)/span,0,1),b=clamp((seg.x1-lo)/span,0,1);
+    hs[0].style.left=(a*100)+'%';hs[1].style.left=(b*100)+'%';
+    fill.style.left=(a*100)+'%';fill.style.width=((b-a)*100)+'%';
+  }
+  let act=null;
+  const val=cx=>{
+    const r=box.getBoundingClientRect();
+    return r2(Math.round((lo+span*clamp((cx-r.left)/Math.max(r.width,1),0,1))*4)/4);
+  };
+  box.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    const v=val(e.clientX);
+    act=Math.abs(v-seg.x0)<=Math.abs(v-seg.x1)?0:1;
+    box.setPointerCapture(e.pointerId);
+    move(e);
+  });
+  function move(e){
+    if(act===null)return;
+    const v=val(e.clientX);
+    if(act===0)seg.x0=Math.min(v,r2(seg.x1-0.25));
+    else seg.x1=Math.max(v,r2(seg.x0+0.25));
+    paint();onChange();
+  }
+  box.addEventListener('pointermove',e=>{if(act!==null){e.preventDefault();move(e)}});
+  const up=()=>{act=null};
+  box.addEventListener('pointerup',up);box.addEventListener('pointercancel',up);
+  box.repaint=paint;paint();
+  return box;
+}
+
+function renderSegs(){
+  const host=q('#seglist');if(!host)return;
+  host.innerHTML='';
+  G.segs.forEach((s,i)=>{
+    const color=SEG_COLORS[i%8];
+    const card=el('div','seg');
+    card.style.borderLeftColor=color;
+    const top=el('div','top');
+    const dot=el('span','dot');dot.style.background=color;
+    top.appendChild(dot);
+    top.appendChild(el('span','name','Úsek '+(i+1)));
+    const del=el('button','iconbtn');
+    del.style.width='28px';del.style.height='28px';
+    del.title='Odstranit úsek';
+    del.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    del.disabled=G.segs.length<=1;
+    del.onclick=()=>{SFX.click();G.segs.splice(i,1);renderSegs();recompute()};
+    top.appendChild(del);
+    card.appendChild(top);
+
+    const fx=el('div','fx');
+    fx.appendChild(el('label',null,'y ='));
+    const inp=el('input');inp.type='text';inp.value=s.expr;inp.spellcheck=false;
+    inp.setAttribute('aria-label','Předpis funkce úseku '+(i+1));
+    fx.appendChild(inp);
+    card.appendChild(fx);
+
+    const dom=el('div','dom');
+    const f0=el('div','f'),f1=el('div','f');
+    f0.appendChild(el('span',null,'Platí od x ='));
+    f1.appendChild(el('span',null,'do x ='));
+    const n0=el('input'),n1=el('input');
+    n0.type='number';n1.type='number';n0.step='0.25';n1.step='0.25';
+    n0.value=s.x0;n1.value=s.x1;
+    f0.appendChild(n0);f1.appendChild(n1);
+    dom.appendChild(f0);dom.appendChild(f1);
+    card.appendChild(dom);
+
+    const sl=dualSlider(s,()=>{n0.value=r2(s.x0);n1.value=r2(s.x1);recompute()});
+    card.appendChild(sl);
+
+    const pbox=el('div','params');
+    card.appendChild(pbox);
+    let curKeys='';
+    function buildParams(){
+      let names=[];
+      try{names=paramsOf(parseCached(s.expr))}catch(e){names=[]}
+      const key=names.join(',');
+      if(key===curKeys)return;
+      curKeys=key;pbox.innerHTML='';
+      for(const nm of names){
+        if(typeof s.params[nm]!=='number')s.params[nm]=(FAMILIES[s.fam||'lin'].def[nm]!==undefined?FAMILIES[s.fam||'lin'].def[nm]:1);
+        const row=el('div','prow');
+        row.appendChild(el('b',null,nm));
+        const [mn,mx]=paramRange(nm);
+        const r=el('input');r.type='range';r.min=mn;r.max=mx;r.step='0.1';r.value=clamp(s.params[nm],mn,mx);
+        r.setAttribute('aria-label','Parametr '+nm);
+        const v=el('span','v',fmtN(s.params[nm]));
+        const setStep=e=>{r.step=e.shiftKey?'0.01':'0.1'};
+        r.addEventListener('pointerdown',setStep);
+        r.addEventListener('keydown',setStep);
+        r.addEventListener('input',()=>{
+          s.params[nm]=Number(r.value);
+          v.textContent=fmtN(s.params[nm]);
+          recompute();
+        });
+        row.appendChild(r);row.appendChild(v);
+        pbox.appendChild(row);
+      }
+      if(names.length===0){
+        const t=el('div','muted');t.style.fontSize='12px';
+        t.textContent='Bez parametrů — piš čísla přímo do předpisu.';
+        pbox.appendChild(t);
+      }
+    }
+    buildParams();
+
+    inp.addEventListener('input',()=>{
+      s.expr=inp.value;
+      let bad=false;
+      try{parseCached(s.expr)}catch(e){bad=true}
+      inp.classList.toggle('bad',bad);
+      buildParams();recompute();
+    });
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();startRace()}
+    });
+    const numChange=()=>{
+      const a=Number(n0.value),b=Number(n1.value);
+      if(Number.isFinite(a))s.x0=r2(a);
+      if(Number.isFinite(b))s.x1=r2(b);
+      if(s.x1<s.x0+0.25)s.x1=r2(s.x0+0.25);
+      n1.value=r2(s.x1);
+      sl.repaint();recompute();
+    };
+    n0.addEventListener('change',numChange);
+    n1.addEventListener('change',numChange);
+    n0.addEventListener('input',()=>{const a=Number(n0.value);if(Number.isFinite(a)){s.x0=r2(a);sl.repaint();recompute()}});
+    n1.addEventListener('input',()=>{const b=Number(n1.value);if(Number.isFinite(b)){s.x1=r2(b);sl.repaint();recompute()}});
+
+    host.appendChild(card);
+  });
+}
+
+function setExplain(fam){
+  explainFam=fam;
+  const F=FAMILIES[fam],box=q('#explain');
+  if(box)box.innerHTML='<h3>'+F.name+'</h3><p><code>'+F.form+'</code></p><p style="margin:0">'+F.help+'</p>';
+}
+function addSegment(fam){
+  const L=G.level;
+  const last=G.segs[G.segs.length-1];
+  let x0=last?Math.max(last.x1,L.startX):L.startX;
+  if(x0>L.finishX-0.5)x0=r2(L.finishX-0.5);
+  const x1=Math.min(L.finishX,r2(x0+Math.min(4,Math.max(1,(L.finishX-L.startX)/2))));
+  const prevY=last?segValue(last,last.x1):NaN;
+  const s=makeTemplateSeg(fam,x0,Math.max(x1,r2(x0+0.5)),prevY);
+  G.segs.push(s);
+  setExplain(fam);
+  renderSegs();recompute();
+  SFX.click();
+}
+
+function buildSidebar(){
+  const L=G.level,sb=q('#sidebar');
+  sb.innerHTML='';
+  const head=el('div');
+  head.appendChild(el('h2',null,L.title));
+  const hp=el('p','muted');hp.style.fontSize='13px';hp.innerHTML=L.help;
+  head.appendChild(hp);
+  sb.appendChild(head);
+
+  const ex=el('div','panel info');ex.id='explain';
+  sb.appendChild(ex);
+
+  const gi=el('div','readout');
+  gi.innerHTML='<div class="r"><span>Branky projeté</span><b id="gatecount">0/0</b></div>'+
+    '<div class="r"><span>Délka křivky</span><b id="arclen">—</b></div>'+
+    '<div class="r"><span>Odhad tvého času</span><b id="esttime">—</b></div>'+
+    '<div class="r"><span>Autorský čas</span><b>'+fmtT(L.authorTime)+' s</b></div>'+
+    '<div class="r"><span>Rekord</span><b>'+(SAVE.best[L.id]?fmtT(SAVE.best[L.id])+' s':'—')+'</b></div>';
+  const gp=el('div','panel');gp.appendChild(gi);
+  sb.appendChild(gp);
+
+  const seglist=el('div');seglist.id='seglist';
+  sb.appendChild(seglist);
+
+  const addRow=el('div','rowbtns');
+  const addB=el('button','btn sm','+ Přidat úsek');
+  addB.onclick=()=>addSegment(explainFam);
+  addRow.appendChild(addB);
+  sb.appendChild(addRow);
+
+  const tw=el('div','panel');
+  tw.appendChild(el('h3',null,'Šablony funkcí'));
+  const tpls=el('div','tpls');
+  for(const f of L.allowed){
+    const F=FAMILIES[f];
+    const b=el('button','btn ghost',F.short+': '+F.tpl);
+    b.title='Přidat úsek: '+F.form;
+    b.onclick=()=>addSegment(f);
+    tpls.appendChild(b);
+  }
+  tw.appendChild(tpls);
+  const note=el('p','muted');note.style.cssText='font-size:12px;margin:8px 0 0';
+  note.textContent=L.allowed.length===1
+    ?'V této úrovni smíš použít jen rodinu '+FAMILIES[L.allowed[0]].name+'.'
+    :'Povolené rodiny: '+L.allowed.map(f=>FAMILIES[f].name).join(', ')+'.';
+  tw.appendChild(note);
+  sb.appendChild(tw);
+
+  const msg=el('div');msg.id='msg';
+  sb.appendChild(msg);
+
+  const btns=el('div','rowbtns actions');
+  const start=el('button','btn','Start');start.id='btn-start';
+  start.style.flex='1 1 auto';
+  start.onclick=()=>startRace();
+  btns.appendChild(start);
+  const rst=el('button','iconbtn');rst.title='Restart (R)';
+  rst.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+  rst.onclick=()=>resetRace();
+  btns.appendChild(rst);
+  const gb=el('button','iconbtn');gb.title='Mřížka (G)';gb.id='btn-grid';
+  gb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>';
+  gb.classList.toggle('on',SAVE.grid);
+  gb.onclick=()=>{SAVE.grid=!SAVE.grid;gb.classList.toggle('on',SAVE.grid);persist()};
+  btns.appendChild(gb);
+  const mb=el('button','iconbtn');mb.title='Zvuk';mb.id='btn-mute2';
+  mb.onclick=()=>toggleMute();
+  btns.appendChild(mb);
+  const hb=el('button','iconbtn');hb.title='Menu (Esc)';
+  hb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>';
+  hb.onclick=()=>go('menu');
+  btns.appendChild(hb);
+  sb.appendChild(btns);
+
+  setExplain(L.family||'lin');
+  renderSegs();
+  refreshHeader();
+}
+
+/* =============================== 10. JÍZDA =============================== */
+function buildPath(samples){
+  const cum=new Float64Array(samples.length);
+  for(let i=1;i<samples.length;i++)
+    cum[i]=cum[i-1]+Math.hypot(samples[i].x-samples[i-1].x,samples[i].y-samples[i-1].y);
+  return cum;
+}
+function posAt(R,s){
+  const pts=R.samples,cum=R.cum;
+  let lo=0,hi=pts.length-1;
+  if(s<=0)lo=0;
+  else if(s>=cum[hi])lo=hi-1;
+  else{
+    while(hi-lo>1){const m=(lo+hi)>>1;if(cum[m]<=s)lo=m;else hi=m}
+  }
+  const a=pts[lo],b=pts[Math.min(lo+1,pts.length-1)];
+  const d=cum[Math.min(lo+1,pts.length-1)]-cum[lo];
+  const f=d>1e-9?clamp((s-cum[lo])/d,0,1):0;
+  return{x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,ang:Math.atan2(b.y-a.y,b.x-a.x)};
+}
+function setHUD(){
+  const R=G.race,L=G.level;
+  const t=R?(R.phase==='count'?0:R.s/RACE_SPEED):0;
+  q('#hud').innerHTML='<span class="chip">'+fmtT(t)+' s</span>'+
+    '<span class="chip small">autor '+fmtT(L.authorTime)+' s</span>'+
+    '<span class="chip small">branky '+(R?R.hitCount:0)+'/'+L.checkpoints.length+'</span>';
+}
+function resetRace(){
+  G.race=null;G.trail=[];G.particles=[];
+  q('#countdown').classList.remove('show');
+  q('#hud').innerHTML='';
+  recompute();
+}
+function startRace(){
+  initAudio();
+  if(!G.level)return;
+  if(G.race&&G.race.active)return;
+  recompute();
+  const vr=G.vr;
+  if(!vr.structOk){shakeMsg();SFX.thud();return}
+  const samples=vr.samples;
+  if(!samples||samples.length<2){shakeMsg();return}
+  G.trail=[];G.particles=[];
+  G.race={
+    active:true,phase:'count',cd:3,cdT:0,s:0,total:vr.arc,
+    samples,cum:buildPath(samples),gates:vr.gates.slice(),nextGate:0,hitCount:0,
+    pos:posAt({samples,cum:buildPath(samples)},0),failed:false
+  };
+  const cd=q('#countdown');
+  cd.classList.add('show');cd.textContent='3';
+  cd.classList.remove('tick');void cd.offsetWidth;cd.classList.add('tick');
+  SFX.blip(0);
+  updateReadout();setHUD();
+}
+function updateRace(dt){
+  const R=G.race,L=G.level;
+  if(!R||!R.active)return;
+  if(R.phase==='count'){
+    R.cdT+=dt;
+    if(R.cdT>=(R.cd>0?1:0.45)){
+      R.cdT=0;R.cd--;
+      const cd=q('#countdown');
+      if(R.cd>0){cd.textContent=String(R.cd);SFX.blip(3-R.cd)}
+      else if(R.cd===0){cd.textContent='Start';SFX.go()}
+      else{cd.classList.remove('show');R.phase='run'}
+      cd.classList.remove('tick');void cd.offsetWidth;cd.classList.add('tick');
+    }
+    setHUD();return;
+  }
+  R.s+=RACE_SPEED*dt;
+  const done=R.s>=R.total;
+  R.s=Math.min(R.s,R.total);
+  R.pos=posAt(R,R.s);
+  G.trail.push({x:R.pos.x,y:R.pos.y});
+  if(G.trail.length>90)G.trail.shift();
+  /* branky v pořadí podle x */
+  while(R.nextGate<L.checkpoints.length&&R.pos.x>=L.checkpoints[R.nextGate].x-EPS){
+    const i=R.nextGate,c=L.checkpoints[i];
+    if(R.gates[i]){
+      R.hitCount++;R.nextGate++;
+      SFX.ding();
+      spawnParticles(c.x,c.y,null,'#22C55E',14);
+    }else{
+      R.active=false;R.failed=true;R.phase='crash';
+      SFX.thud();
+      spawnParticles(R.pos.x,R.pos.y,'konfety','#EF4444',26);
+      setHUD();
+      showResult(null,'Minul jsi branku '+(c.label||('č. '+i))+' na x = '+fmtN(c.x)+'. Potřebné y ≈ '+fmtN(c.y)+'.');
+      return;
+    }
+  }
+  setHUD();
+  if(done){
+    R.active=false;R.phase='done';
+    const time=R.total/RACE_SPEED;
+    spawnParticles(L.finishX,L.finishY,null,'#2F6FED',30);
+    showResult(time,null);
+  }
+}
+
+/* ========================== 11. VÝSLEDEK A ODMĚNY ======================== */
+const MEDAL_RANK={bronze:1,silver:2,gold:3,author:4};
+function award(L,time){
+  const medal=medalFor(time,L.authorTime);
+  const stars=medal?STARS_FOR[medal]:0;
+  const prevStars=starsOf(L.id);
+  const prevBest=SAVE.best[L.id];
+  let rec=false;
+  if(medal){
+    if(prevBest==null||time<prevBest){SAVE.best[L.id]=r2(time*100)/100;rec=true}
+    const pm=SAVE.medals[L.id];
+    if(!pm||MEDAL_RANK[medal]>(MEDAL_RANK[pm]||0))SAVE.medals[L.id]=medal;
+    if(stars>prevStars){SAVE.stars[L.id]=stars;bumpStars()}
+    if(L.mode==='endless')SAVE.endlessMax=Math.max(SAVE.endlessMax||1,L.n+1);
+  }
+  persist();
+  grantXP(20*stars+(medal==='author'?40:0));
+  if(medal)SFX.fanfare(medal);
+  return{medal,stars,rec,prevBest};
+}
+const TIER_LINE={
+  author:'Famózní! Trefil jsi autorské řešení — dokonalá trasa.',
+  gold:'Famózní výkon!',
+  silver:'Skvělé! Ještě o pár desetin zkrať křivku a máš zlato.',
+  bronze:'Dobrý start! Kratší a plynulejší trasa = lepší čas.',
+  fail:'Skoro! Uprav parametry a zkus to znovu.'
+};
+function nextLevelOf(L){
+  if(L.mode==='tutorial')return L.n<TUTORIALS.length?TUTORIALS[L.n]:null;
+  if(L.mode==='campaign')return L.n<30?getCampLevel(L.campIdx,L.n+1):null;
+  return getEndlessLevel(L.n+1);
+}
+function showResult(time,failReason){
+  const L=G.level;
+  let r={medal:null,stars:0,rec:false,prevBest:SAVE.best[L.id]};
+  if(time!=null)r=award(L,time);
+  const medal=r.medal;
+  const line=failReason?TIER_LINE.fail:(TIER_LINE[medal]||TIER_LINE.fail);
+  const best=SAVE.best[L.id];
+  const nxt=nextLevelOf(L);
+  const canNext=!!medal&&!!nxt;
+  const pct=time!=null?Math.round(L.authorTime/time*100):0;
+  let html='<h2>'+(failReason?'Nedojel jsi':(medal?'V cíli!':'Dojezd bez medaile'))+'</h2>';
+  if(failReason){
+    html+='<p style="text-align:center;color:#B91C1C">'+failReason+'</p>';
+  }else{
+    html+='<div class="bigtime">'+fmtT(time)+' s</div>';
+    html+='<div class="medalbadge">';
+    if(medal){
+      html+='<span class="medaldot" style="background:'+MEDAL_COLORS[medal]+'"></span>';
+      if(medal==='author')html+='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#CD7F32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M17 5h3a3 3 0 01-3 3M7 5H4a3 3 0 003 3"/></svg>';
+      html+='<span>'+MEDAL_NAMES[medal]+'</span>';
+    }else html+='<span class="muted">Bez medaile — potřebuješ aspoň 50 % autorského času.</span>';
+    html+='</div>';
+    html+='<div class="grid2">'+
+      '<div class="stat"><span>Tvůj čas</span><b>'+fmtT(time)+' s</b></div>'+
+      '<div class="stat"><span>Autorský čas</span><b>'+fmtT(L.authorTime)+' s</b></div>'+
+      '<div class="stat"><span>Účinnost</span><b>'+pct+' %</b></div>'+
+      '<div class="stat"><span>Rekord</span><b>'+(best?fmtT(best)+' s':'—')+'</b></div>'+
+      '</div>';
+    html+='<p style="text-align:center" class="starline">'+(r.stars?'★'.repeat(r.stars)+'<span style="color:#E4E8ED">'+'★'.repeat(3-r.stars)+'</span>':'<span style="color:#E4E8ED">★★★</span>')+
+      '</p><p style="text-align:center;font-size:12px" class="muted">'+(r.stars?'Získáno '+r.stars+' ★ · +'+(20*r.stars+(medal==='author'?40:0))+' XP':'Bez ★')+
+      (r.rec?' · nový rekord!':'')+'</p>';
+  }
+  html+='<p style="text-align:center;font-weight:600">'+line+'</p>';
+  html+='<div class="rowbtns" style="margin-top:16px">'+
+    '<button class="btn" id="rs-again" style="flex:1 1 0">Zkusit znovu</button>'+
+    '<button class="btn'+(canNext?'':' ghost')+'" id="rs-next" style="flex:1 1 0"'+(canNext?'':' disabled')+'>Další</button>'+
+    '<button class="btn ghost" id="rs-back">Přehled</button></div>';
+  if(!canNext&&nxt)html+='<p class="hint">Další úroveň odemkneš alespoň bronzovou medailí.</p>';
+  showOverlay(html,box=>{
+    box.querySelector('#rs-again').onclick=()=>{hideOverlay();resetRace()};
+    box.querySelector('#rs-back').onclick=()=>{hideOverlay();backToList()};
+    const nb=box.querySelector('#rs-next');
+    if(canNext)nb.onclick=()=>{hideOverlay();loadLevel(nxt)};
+  });
+}
+
+/* ============================== 12. OVERLAY ============================== */
+function showOverlay(html,wire){
+  const ov=q('#overlay'),box=q('#overlay-box');
+  box.innerHTML=html;
+  ov.classList.remove('hidden');
+  if(wire)wire(box);
+}
+function hideOverlay(){q('#overlay').classList.add('hidden');q('#overlay-box').innerHTML=''}
+const overlayOpen=()=>!q('#overlay').classList.contains('hidden');
+
+/* ---------------------- ukázková animace v hlavním menu ------------------ */
+function drawHero(){
+  const c=q('#hero');if(!c||!c.clientWidth)return;
+  const g=c.getContext('2d'),dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=c.clientWidth,h=150;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){
+    c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);
+  }
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+  const X0=-0.6,X1=12.6,sc=w/(X1-X0),mid=h/2;
+  const px=x=>(x-X0)*sc,py=y=>mid-y*sc*0.42;
+  const f=x=>1.6*Math.sin(0.62*x);
+  g.strokeStyle='#E4E8ED';g.lineWidth=1;g.beginPath();
+  for(let x=0;x<=12;x+=2){g.moveTo(px(x),0);g.lineTo(px(x),h)}
+  for(let y=-3;y<=3;y+=1.5){g.moveTo(0,py(y));g.lineTo(w,py(y))}
+  g.stroke();
+  g.strokeStyle='#94A0AC';g.beginPath();g.moveTo(0,py(0));g.lineTo(w,py(0));g.stroke();
+  const t=(performance.now()/1000)%6.5,carX=clamp(t/5.2*12,0,12);
+  const gates=[0,3,6,9,12];
+  gates.forEach((x,i)=>{
+    const passed=carX>=x;
+    g.globalAlpha=0.5;g.fillStyle=passed?'#22C55E':'#EF4444';
+    g.fillRect(px(x-GATE_X_TOL),py(f(x)+TOL),2*GATE_X_TOL*sc,(TOL*2)*sc*0.42);
+    g.globalAlpha=1;g.strokeStyle=passed?'#22C55E':'#EF4444';g.lineWidth=1.5;
+    g.strokeRect(px(x-GATE_X_TOL),py(f(x)+TOL),2*GATE_X_TOL*sc,(TOL*2)*sc*0.42);
+    if(i===0||i===gates.length-1){
+      g.fillStyle=passed?'#15803D':'#B91C1C';g.font='700 10px '+getComputedStyle(document.body).fontFamily;
+      g.textAlign='center';g.fillText(i===0?'START':'CÍL',px(x),py(f(x)+TOL)-4);
+    }
+  });
+  g.strokeStyle='#3A86FF';g.lineWidth=3;g.lineCap='round';g.beginPath();
+  for(let i=0;i<=240;i++){
+    const x=12*i/240;
+    if(x>carX+0.02)break;
+    const X=px(x),Y=py(f(x));
+    i===0?g.moveTo(X,Y):g.lineTo(X,Y);
+  }
+  g.stroke();
+  g.setLineDash([4,5]);g.strokeStyle='#C7CDD6';g.lineWidth=2;g.beginPath();
+  for(let i=0;i<=240;i++){
+    const x=12*i/240;
+    if(x<carX)continue;
+    const X=px(x),Y=py(f(x));
+    x<=carX+0.06?g.moveTo(X,Y):g.lineTo(X,Y);
+  }
+  g.stroke();g.setLineDash([]);
+  const dy=(f(carX+0.05)-f(carX-0.05))*sc*0.42;
+  g.save();g.translate(px(carX),py(f(carX)));g.rotate(Math.atan2(dy,0.1*sc));
+  g.fillStyle='#1F2937';g.fillRect(-9,-7,5,14);g.fillRect(4,-7,5,14);
+  g.fillStyle=carColor();
+  g.beginPath();if(g.roundRect)g.roundRect(-11,-5.5,22,11,3);else g.rect(-11,-5.5,22,11);g.fill();
+  g.fillStyle='rgba(255,255,255,.85)';g.fillRect(-1,-3,5,6);
+  g.restore();
+  g.fillStyle='#6B7280';g.font='11px '+getComputedStyle(document.body).fontFamily;
+  g.textAlign='left';g.fillText('y = 1.6*sin(0.62*x)',8,14);
+}
+function renderMenuStats(){
+  const box=q('#menustats');if(!box)return;
+  const med=Object.keys(SAVE.medals).length;
+  box.innerHTML='<div class="stat"><span>Celkem ★</span><b>'+totalStars()+'</b></div>'+
+    '<div class="stat"><span>Medaile</span><b>'+med+'</b></div>'+
+    '<div class="stat"><span>Odměny</span><b>'+SAVE.unlocked.length+'/'+COSMETICS.all.length+'</b></div>';
+}
+
+/* ========================== 13. OBRAZOVKY / MENU ========================= */
+let lastList={kind:'menu'};
+function showScreen(id){
+  for(const s of document.querySelectorAll('.screen'))s.classList.toggle('active',s.id===id);
+}
+function go(where,arg){
+  hideOverlay();
+  if(where==='menu'){
+    G.level=null;G.race=null;lastList={kind:'menu'};
+    showScreen('screen-menu');refreshHeader();renderMenuStats();return;
+  }
+  if(where==='tutorial'){lastList={kind:'tutorial'};renderTutorialList();showScreen('screen-list');return}
+  if(where==='campaigns'){lastList={kind:'campaigns'};renderCampaigns();showScreen('screen-list');return}
+  if(where==='campaign'){lastList={kind:'campaign',fi:arg};renderCampaign(arg);showScreen('screen-list');return}
+  if(where==='endless'){renderEndlessList();lastList={kind:'endless'};showScreen('screen-list');return}
+  if(where==='garage'){openGarage();return}
+  if(where==='game'){showScreen('screen-game');return}
+}
+function backToList(){
+  const l=lastList;
+  if(l.kind==='campaign')go('campaign',l.fi);
+  else if(l.kind==='tutorial')go('tutorial');
+  else if(l.kind==='endless')go('endless');
+  else if(l.kind==='campaigns')go('campaigns');
+  else go('menu');
+}
+function medalDot(id){
+  const m=SAVE.medals[id];
+  return m?'<span class="medal" style="background:'+MEDAL_COLORS[m]+'"></span>':'';
+}
+function lvlCard(L,unlocked,label){
+  const b=el('button','lvl'+(unlocked?'':' locked'));
+  const st=starsOf(L.id);
+  b.innerHTML=(unlocked?'':'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#B6BDC7" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>')+
+    '<span>'+(label!=null?label:L.n)+'</span>'+
+    '<span class="st">'+(st?'★'.repeat(st):'')+'</span>'+
+    '<span class="tm">'+(SAVE.best[L.id]?fmtT(SAVE.best[L.id])+' s':'')+'</span>'+medalDot(L.id);
+  if(unlocked)b.onclick=()=>{SFX.click();loadLevel(L)};
+  return b;
+}
+function pageHead(title,sub,backTo,backArg){
+  const w=el('div');
+  const row=el('div','rowbtns');row.style.marginBottom='12px';
+  const bb=el('button','btn ghost sm','← Zpět');
+  bb.onclick=()=>go(backTo,backArg);
+  row.appendChild(bb);
+  w.appendChild(row);
+  w.appendChild(el('h2',null,title));
+  if(sub){const p=el('p','muted');p.innerHTML=sub;w.appendChild(p)}
+  return w;
+}
+function renderTutorialList(){
+  const b=q('#list-body');b.innerHTML='';
+  b.appendChild(pageHead('Tutoriál','Šest lekcí, šest rodin funkcí. Každá lekce odemkne novou rodinu do dalších tratí.','menu'));
+  const g=el('div','lvl-grid');
+  for(const L of TUTORIALS)g.appendChild(lvlCard(L,levelUnlocked(L)));
+  b.appendChild(g);
+  const list=el('div','camp-grid');
+  for(const L of TUTORIALS){
+    const c=el('div','camp');
+    c.innerHTML='<b>'+L.title+'</b><code>'+FAMILIES[L.family].form+'</code>'+
+      '<span class="muted" style="font-size:12px">'+(levelUnlocked(L)?(SAVE.medals[L.id]?MEDAL_NAMES[SAVE.medals[L.id]]:'Nedokončeno'):'Zamčeno')+'</span>';
+    list.appendChild(c);
+  }
+  b.appendChild(list);
+}
+function renderCampaigns(){
+  const b=q('#list-body');b.innerHTML='';
+  b.appendChild(pageHead('Kampaně','Sedm kampaní, každá o 30 úrovních. V kampani smíš použít jen její rodinu funkcí.','menu'));
+  const g=el('div','camp-grid');
+  FAM_ORDER.forEach((f,fi)=>{
+    const F=FAMILIES[f],st=campStars(fi);
+    const c=el('button','camp');
+    c.innerHTML='<b>'+F.name+'</b><code>'+F.form+'</code>'+
+      '<span class="muted" style="font-size:12px">★ '+st+' / 90 · 30 úrovní</span>';
+    c.onclick=()=>{SFX.click();go('campaign',fi)};
+    g.appendChild(c);
+  });
+  b.appendChild(g);
+}
+function renderCampaign(fi){
+  const b=q('#list-body');b.innerHTML='';
+  const F=FAMILIES[FAM_ORDER[fi]],st=campStars(fi);
+  b.appendChild(pageHead(F.name,'<code style="font-family:var(--mono)">'+F.form+'</code> — '+F.help,'campaigns'));
+  const prog=el('div','panel');
+  prog.innerHTML='<div class="readout"><div class="r"><span>Získané ★ v kampani</span><b>'+st+' / 90</b></div>'+
+    '<div class="r"><span>Střední úrovně (od 20 ★)</span><b>'+(st>=20?'odemčeno':st+'/20')+'</b></div>'+
+    '<div class="r"><span>Těžké úrovně (od 45 ★)</span><b>'+(st>=45?'odemčeno':st+'/45')+'</b></div></div>';
+  b.appendChild(prog);
+  for(const t of CAMP_TIERS){
+    const head=el('div','tierhead');
+    head.appendChild(el('h3',null,{lehka:'Lehké úrovně',stredni:'Střední úrovně',tezka:'Těžké úrovně'}[t.key]));
+    head.appendChild(el('span','tag',t.label));
+    if(st<t.need)head.appendChild(el('span','tag','zamčeno — potřebuješ '+t.need+' ★'));
+    b.appendChild(head);
+    const g=el('div','lvl-grid');
+    for(let n=t.from;n<=t.to;n++){
+      const L=getCampLevel(fi,n);
+      g.appendChild(lvlCard(L,levelUnlocked(L)));
+    }
+    b.appendChild(g);
+  }
+}
+function renderEndlessList(){
+  const b=q('#list-body');b.innerHTML='';
+  const maxN=Math.max(1,SAVE.endlessMax||1);
+  b.appendChild(pageHead('Nekonečný režim','Nekonečná řada generovaných tratí. Všechny rodiny funkcí, obtížnost stoupá s číslem levelu.','menu'));
+  const p=el('div','panel');
+  p.innerHTML='<div class="readout"><div class="r"><span>Nejdál jsi na levelu</span><b>'+maxN+'</b></div></div>';
+  b.appendChild(p);
+  const row=el('div','rowbtns');row.style.margin='12px 0';
+  const cont=el('button','btn','Pokračovat na level '+maxN);
+  cont.onclick=()=>{SFX.click();loadLevel(getEndlessLevel(maxN))};
+  row.appendChild(cont);
+  b.appendChild(row);
+  const g=el('div','lvl-grid');
+  for(let n=1;n<=Math.max(20,maxN+4);n++){
+    const L=getEndlessLevel(n);
+    g.appendChild(lvlCard(L,true));
+  }
+  b.appendChild(g);
+}
+
+/* ============================== 14. GARÁŽ ================================ */
+let garageTab='car';
+function drawCarPreview(){
+  const c=q('#carprev');if(!c)return;
+  const g=c.getContext('2d'),dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=c.clientWidth||240,h=90;
+  c.width=w*dpr;c.height=h*dpr;g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+  const t=performance.now()/1000;
+  const trail=cosmeticById(SAVE.trail).key,fxk=cosmeticById(SAVE.fx).key;
+  const px=w*0.5+Math.sin(t*1.1)*w*0.24,py=h/2+Math.sin(t*2.2)*8;
+  for(let i=24;i>0;i--){
+    const tt=t-i*0.035;
+    const qx=w*0.5+Math.sin(tt*1.1)*w*0.24,qy=h/2+Math.sin(tt*2.2)*8;
+    const f=1-i/24;
+    g.globalAlpha=0.12+0.6*f;
+    if(trail==='duha')g.fillStyle='hsl('+Math.round((i*14+t*90)%360)+',85%,55%)';
+    else if(trail==='plamen')g.fillStyle='hsl('+Math.round(12+35*f)+',95%,55%)';
+    else if(trail==='jiskry')g.fillStyle='#FFD60A';
+    else g.fillStyle=carColor();
+    const r=trail==='cara'?2.5:3.2*(0.4+f);
+    g.beginPath();g.arc(qx,qy,r,0,6.284);g.fill();
+  }
+  g.globalAlpha=1;
+  if(fxk==='prstenec'){
+    const rr=(t*40)%36;
+    g.strokeStyle='#22C55E';g.globalAlpha=1-rr/36;g.lineWidth=2;
+    g.beginPath();g.arc(w*0.5,h/2,rr+6,0,6.284);g.stroke();g.globalAlpha=1;
+  }
+  g.save();g.translate(px,py);
+  g.fillStyle='#1F2937';g.fillRect(-12,-9,7,18);g.fillRect(5,-9,7,18);
+  g.fillStyle=carColor();
+  g.beginPath();
+  if(g.roundRect)g.roundRect(-14,-7,28,14,4);else g.rect(-14,-7,28,14);
+  g.fill();
+  g.fillStyle='rgba(255,255,255,.85)';g.fillRect(-1,-4,6,8);
+  g.restore();
+  if(fxk==='hvezdy'){
+    g.fillStyle='#FFD60A';
+    for(let i=0;i<5;i++){
+      const a=t*2+i*1.256;
+      g.beginPath();g.arc(px+Math.cos(a)*26,py+Math.sin(a)*16,2,0,6.284);g.fill();
+    }
+  }
+  if(fxk==='konfety'){
+    for(let i=0;i<8;i++){
+      g.fillStyle=SEG_COLORS[i];
+      const a=t*1.5+i;
+      g.fillRect(px+Math.cos(a)*30-1.5,py+Math.sin(a*1.3)*20-1.5,3,3);
+    }
+  }
+}
+function openGarage(){
+  const tabs=[['car','Barva'],['trail','Trail'],['fx','Efekt']];
+  const build=()=>{
+    let html='<h2>Garáž</h2><canvas id="carprev"></canvas><div class="tabs">';
+    for(const [k,n] of tabs)html+='<button class="btn '+(garageTab===k?'':'ghost')+'" data-tab="'+k+'">'+n+'</button>';
+    html+='</div><div class="items">';
+    const list=garageTab==='car'?COSMETICS.cars:(garageTab==='trail'?COSMETICS.trails:COSMETICS.fx);
+    for(const it of list){
+      const un=isUnlocked(it.id);
+      const sel=SAVE[garageTab==='car'?'car':(garageTab==='trail'?'trail':'fx')]===it.id;
+      html+='<button class="item'+(sel?' sel':'')+(un?'':' lock')+'" data-id="'+it.id+'"'+(un?'':' disabled')+'>'+
+        (it.color?'<span class="sw" style="background:'+it.color+'"></span>':
+          '<span class="sw" style="background:'+(it.key==='duha'?'linear-gradient(90deg,#E63946,#FFD60A,#06D6A0,#3A86FF)':
+            it.key==='plamen'?'linear-gradient(90deg,#F4A300,#E63946)':
+            it.key==='jiskry'?'#FFD60A':it.key==='prstenec'?'#06D6A0':it.key==='hvezdy'?'#FFD60A':'#2F6FED')+'"></span>')+
+        '<span>'+it.name+'</span>'+(un?'':'<span class="muted">zamčeno</span>')+'</button>';
+    }
+    html+='</div><p class="hint">Další kousky odemkneš postupem hráčské úrovně (XP za medaile).</p>'+
+      '<div class="rowbtns" style="margin-top:12px"><button class="btn" id="gclose" style="flex:1 1 0">Hotovo</button></div>';
+    showOverlay(html,box=>{
+      box.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{garageTab=b.dataset.tab;build()});
+      box.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{
+        const id=b.dataset.id;
+        if(!isUnlocked(id))return;
+        if(id.startsWith('car:'))SAVE.car=id;
+        else if(id.startsWith('trail:'))SAVE.trail=id;
+        else SAVE.fx=id;
+        persist();SFX.click();build();
+      });
+      box.querySelector('#gclose').onclick=()=>{hideOverlay();if(!G.level)go('menu')};
+    });
+  };
+  build();
+}
+
+/* ============================ 15. START ÚROVNĚ =========================== */
+function loadLevel(L){
+  G.level=L;
+  G.segs=L.template.map(t=>({expr:t.expr,x0:t.x0,x1:t.x1,params:Object.assign({},t.params),
+    fam:t.fam||L.family||'lin'}));
+  G.race=null;G.trail=[];G.particles=[];
+  q('#countdown').classList.remove('show');
+  q('#hud').innerHTML='';
+  showScreen('screen-game');
+  resizeCanvas();
+  buildSidebar();
+  recompute();
+  fitView();
+  setHUD();
+  if(L.mode==='tutorial')showIntro(L);
+}
+function showIntro(L){
+  const F=FAMILIES[L.family];
+  let html='<h2>'+L.title+'</h2>';
+  html+='<div class="panel info" style="margin-bottom:12px"><p style="font-family:var(--mono);font-size:16px;color:#2F6FED;margin:0 0 8px">'+F.form+'</p><p style="margin:0">'+F.help+'</p></div>';
+  html+='<p>'+L.help+'</p>';
+  html+='<p class="muted" style="font-size:13px">Projeď všechny branky od <b>START</b> po <b>CÍL</b>. Úseky musí na sebe navazovat bez mezer i překryvů a v místě spojení mít stejné y. Kratší křivka = rychlejší čas.</p>';
+  html+='<div class="rowbtns"><button class="btn big" id="intro-go">Jdu na to</button></div>';
+  showOverlay(html,box=>{
+    box.querySelector('#intro-go').onclick=()=>{initAudio();hideOverlay()};
+  });
+}
+function toggleMute(){
+  SAVE.mute=!SAVE.mute;persist();refreshHeader();
+  if(!SAVE.mute){initAudio();SFX.click()}
+}
+
+/* ============================ 16. SMYČKA / VSTUP ========================= */
+let lastT=performance.now();
+function frame(now){
+  const dt=Math.min((now-lastT)/1000,0.05);
+  lastT=now;G.anim=now;
+  if(q('#screen-game').classList.contains('active')){
+    if(cv.clientWidth!==CW||cv.clientHeight!==CH)resizeCanvas();
+    updateRace(dt);
+    updateParticles(dt);
+    render();
+  }
+  else if(q('#screen-menu').classList.contains('active'))drawHero();
+  if(overlayOpen()&&q('#carprev'))drawCarPreview();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('keydown',e=>{
+  const tgt=e.target,typing=tgt&&(tgt.tagName==='INPUT'||tgt.tagName==='TEXTAREA');
+  if(e.key==='Escape'){
+    e.preventDefault();
+    if(overlayOpen())hideOverlay();
+    else go('menu');
+    return;
+  }
+  if(typing){
+    if(e.key==='Enter'&&G.level){e.preventDefault();startRace()}
+    return;
+  }
+  if(e.key==='Enter'&&G.level&&!overlayOpen()){e.preventDefault();startRace();return}
+  const k=e.key.toLowerCase();
+  if(k==='r'&&G.level){e.preventDefault();resetRace()}
+  else if(k==='g'){
+    e.preventDefault();SAVE.grid=!SAVE.grid;persist();
+    const gb=q('#btn-grid');if(gb)gb.classList.toggle('on',SAVE.grid);
+  }
+});
+document.addEventListener('pointerdown',()=>initAudio(),{once:true});
+window.addEventListener('resize',()=>{if(q('#screen-game').classList.contains('active'))resizeCanvas()});
+q('#btn-home').onclick=()=>go('menu');
+q('#btn-mute').onclick=()=>toggleMute();
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{initAudio();SFX.click();go(b.dataset.go)});
+
+refreshHeader();
+renderMenuStats();
+showScreen('screen-menu');
+requestAnimationFrame(frame);
+
+/* ============================ 17. AUTOTESTY ============================== */
+/* Spustí se jen s ?test=1 v URL; slouží k ověření logiky (parser, verifikátor,
+   referenční řešení, generátor, postupy). Ve hře samotné nemá žádný efekt. */
+function selfTest(){
+  const fails=[],ok=[];
+  const t=(name,cond,extra)=>{cond?ok.push(name):fails.push(name+(extra?' — '+extra:''))};
+  const ev=(src,x,pr)=>evalAst(parse(src),x,pr||{});
+  /* parser */
+  t('sčítání/priorita',ev('1+2*3',0)===7);
+  t('mocnina vpravo',ev('2^3^2',0)===512);
+  t('unární minus',ev('-x^2',3)===-9);
+  t('závorky',ev('(1+2)*3',0)===9);
+  t('parametry',ev('a*x+b',2,{a:3,b:1})===7);
+  t('funkce abs',ev('abs(0-5)',0)===5);
+  t('sqrt záporné → NaN',Number.isNaN(ev('sqrt(x)',-1)));
+  t('log nekladné → NaN',Number.isNaN(ev('log(x)',0)));
+  t('dělení nulou → NaN',Number.isNaN(ev('1/x',0)));
+  t('velká mocnina konečná',Number.isFinite(ev('2^10',0)));
+  for(const bad of ['','   ','1+','*2','sin','sin x','(1+2','1+2)','2$3','foo(2)','x**2','a+@']){
+    let threw=false;try{parse(bad)}catch(e){threw=e instanceof ParseError}
+    t('neplatný vstup „'+bad+'“ hlásí chybu',threw);
+  }
+  t('mezery a desetiny',Math.abs(ev(' 0.5 * x + .25 ',1)-0.75)<1e-9);
+  t('velká písmena jako parametr',ev('A*x',2,{a:2})===4);
+  /* referenční řešení tutoriálu */
+  TUTORIALS.forEach(L=>{
+    const v=verify(L.refPieces,L);
+    t('tutoriál '+L.n+': referenční řešení projede',v.ok,v.msg);
+    t('tutoriál '+L.n+': autorský čas > 0',L.authorTime>0);
+    const pt=L.template&&verify(L.segs||L.template,L);
+    t('tutoriál '+L.n+': výchozí šablona nedojede do cíle',!(pt&&pt.ok));
+    t('tutoriál '+L.n+': branky mají konečné y',L.checkpoints.every(c=>Number.isFinite(c.y)));
+    t('tutoriál '+L.n+': medaile za autorský čas',medalFor(L.authorTime,L.authorTime)==='author');
+  });
+  /* validace struktury */
+  const L1=TUTORIALS[0];
+  t('mezera odhalena',verify([mkSeg('0.5*x',0,3),mkSeg('-0.5*x+4',4,8),mkSeg('x-8',8,12)],L1).msg.indexOf('Mezera')===0);
+  t('překryv odhalen',verify([mkSeg('0.5*x',0,5),mkSeg('-0.5*x+4',4,8),mkSeg('x-8',8,12)],L1).msg.indexOf('Úseky se překrývají')===0);
+  t('nespojitost odhalena',verify([mkSeg('0.5*x',0,4),mkSeg('-0.5*x+9',4,8),mkSeg('x-8',8,12)],L1).msg.indexOf('Křivka není spojitá')===0);
+  t('nepokrytý cíl odhalen',verify([mkSeg('0.5*x',0,4)],L1).msg.indexOf('Křivka nedosáhla')===0);
+  t('nepokrytý start odhalen',verify([mkSeg('0.5*x',1,12)],L1).msg.indexOf('Křivka nezačíná')===0);
+  t('minutá branka odhalena',verify([mkSeg('0*x+0.5*x',0,12)],L1).msg.indexOf('Křivka míjí')===0);
+  t('prázdný seznam',verify([],L1).msg.length>0);
+  t('chybný předpis',verify([mkSeg('a*x+',0,12,{a:1})],L1).msg.indexOf('Úsek 1')===0);
+  t('chybějící parametr',verify([mkSeg('a*x',0,12,{})],L1).msg.indexOf('Úsek 1')===0);
+  t('mimo obor odhaleno',verify([mkSeg('log(x-100)',0,12)],L1).msg.length>0);
+  t('obří hodnoty odhaleny',verify([mkSeg('exp(5*x)',0,12)],L1).msg.length>0);
+  /* generované úrovně */
+  let genFails=0,gen=0;
+  for(let fi=0;fi<FAM_ORDER.length;fi++){
+    for(const n of [1,7,15,16,22,25,26,30]){
+      const L=getCampLevel(fi,n);gen++;
+      const v=verify(L.refPieces,L);
+      if(!v.ok||!(L.authorTime>0)||L.family!==FAM_ORDER[fi])genFails++;
+      if(L.refPieces.some(p=>{const fam=L.family;return false}))genFails++;
+    }
+  }
+  t('kampaňové úrovně jsou řešitelné ('+gen+' testů)',genFails===0,genFails+' selhalo');
+  let eFails=0;
+  for(let n=1;n<=30;n++){
+    const L=getEndlessLevel(n);
+    const v=verify(L.refPieces,L);
+    if(!v.ok||!(L.authorTime>0))eFails++;
+  }
+  t('nekonečné úrovně jsou řešitelné',eFails===0,eFails+' selhalo');
+  /* determinismus */
+  _lcache.clear();
+  const a1=getCampLevel(3,12),s1=JSON.stringify(a1.refPieces)+a1.authorTime;
+  _lcache.clear();
+  const a2=getCampLevel(3,12),s2=JSON.stringify(a2.refPieces)+a2.authorTime;
+  t('generátor je deterministický',s1===s2);
+  /* medaile */
+  t('autorská medaile v toleranci 2 %',medalFor(102,100)==='author');
+  t('zlatá',medalFor(120,100)==='gold');
+  t('stříbrná',medalFor(150,100)==='silver');
+  t('bronzová',medalFor(190,100)==='bronze');
+  t('bez medaile',medalFor(250,100)===null);
+  t('★ podle medaile',STARS_FOR.author===3&&STARS_FOR.gold===3&&STARS_FOR.silver===2&&STARS_FOR.bronze===1);
+  /* odemykání */
+  t('tutoriál 1 odemčen',levelUnlocked(TUTORIALS[0]));
+  t('kampaň: střední zamčené bez 20★',(()=>{const st=SAVE.stars;SAVE.stars={};const r=!levelUnlocked(getCampLevel(0,16));SAVE.stars=st;return r})());
+  t('kampaň: těžké zamčené bez 45★',(()=>{const st=SAVE.stars;SAVE.stars={};const r=!levelUnlocked(getCampLevel(0,26));SAVE.stars=st;return r})());
+  t('rodina omezena v kampani',getCampLevel(2,3).allowed.length===1&&getCampLevel(2,3).allowed[0]==='sin');
+  t('nekonečný režim má všechny rodiny',getEndlessLevel(3).allowed.length===7);
+  t('odmocnina dostupná od tutoriálu 1',TUTORIALS[0].allowed.includes('sqrt'));
+  /* délka oblouku */
+  const arcLin=verify([mkSeg('0*x+0',0,12)],{startX:0,finishX:12,checkpoints:[]},{skipGates:true}).arc;
+  t('délka vodorovné úsečky = 12',Math.abs(arcLin-12)<0.01,String(arcLin));
+  const arc45=verify([mkSeg('x',0,10)],{startX:0,finishX:10,checkpoints:[]},{skipGates:true}).arc;
+  t('délka úhlopříčky ≈ 14.14',Math.abs(arc45-Math.SQRT2*10)<0.02,String(arc45));
+  const out={ok:ok.length,fail:fails.length,fails};
+  if(fails.length){console.error('AUTOTESTY: '+fails.length+' selhalo z '+(ok.length+fails.length));fails.forEach(f=>console.error(' × '+f))}
+  else console.log('AUTOTESTY: všech '+ok.length+' testů prošlo.');
+  return out;
+}
+window.__selftest=selfTest;
+if(location.search.indexOf('test=1')>=0){
+  try{window.__testResult=selfTest()}
+  catch(e){console.error('AUTOTESTY havarovaly:',e);window.__testResult={fail:-1,error:String(e)}}
+}
+
+</script>
+</body>
+</html>
