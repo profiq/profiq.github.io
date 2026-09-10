@@ -1,0 +1,732 @@
+<!doctype html>
+<!--
+TELEMARK — a procedural ski-jumping simulation in one file.
+Features: four fictional hills; full equipment/flight workshop and live trade-offs;
+continuous wind, 240 Hz physics, slope-aware landings, five-judge scoring, wind/gate
+compensation and equipment control; Training, two-round Competition, resumable
+four-hill Tour, local personal bests, slow-motion replay, procedural sound;
+clear/snow/fog/night, keyboard, gamepad and touch. Three.js 0.164.1 is the only dependency.
+Controls: Space = release / takeoff / telemark; W/S or Up/Down = pitch correction;
+A/D or Left/Right = roll correction; C = camera; Esc = pause; M = mute.
+Gamepad: A = action, left stick = needles, Start = pause. Touch: tap the scene to
+act, drag to correct needles. Open this file directly in a modern desktop browser.
+An internet connection is needed to load the pinned Three.js module.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101e29"><title>TELEMARK — Find your flight</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101e29'/%3E%3Cpath d='M6 23L17 7h5L11 23zm10 0L27 7v8l-6 8z' fill='%23d6fa74'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0c1720;--panel:rgba(15,29,40,.94);--line:rgba(214,232,242,.13);--ink:#f1f5f5;--muted:#91a3ad;--accent:#d6fa74;--red:#ff807b;--blue:#98cddc;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--display:Impact,'Arial Narrow',sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:13px;overflow:hidden}button,input,select{font:inherit}button{cursor:pointer;color:inherit}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:4px}button{border:0}button,select{touch-action:manipulation}button:hover{filter:brightness(1.1)}[hidden]{display:none!important}h1,h2,h3,p{margin:0}.mono{font-family:var(--mono)}.eyebrow{font:10px var(--mono);letter-spacing:1.7px;text-transform:uppercase;color:var(--muted)}.accent{color:var(--accent)}.muted{color:var(--muted)}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.tiny{font-size:10px}.tag{display:inline-flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--line);border-radius:3px;font:10px var(--mono);letter-spacing:.5px}.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;box-shadow:0 0 12px #d6fa7433}.icon{width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:transparent;display:grid;place-items:center;font-size:15px}.text-btn{background:transparent;color:var(--muted);font:11px var(--mono);padding:8px}.text-btn:hover{color:var(--ink)}.primary{background:var(--accent);color:#182416;font-weight:750;letter-spacing:.5px;padding:17px 20px;border-radius:3px;display:flex;justify-content:space-between;gap:18px;align-items:center}.primary .arrow{font-size:23px;font-weight:400}.secondary{background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:3px;padding:13px 17px}.danger{color:var(--red)}
+#scene{position:fixed;inset:0;width:100%;height:100%;outline:none;touch-action:none}.scene-shade{position:fixed;inset:0;background:linear-gradient(90deg,rgba(7,19,29,.74),rgba(7,19,29,.55) 37%,rgba(7,19,29,.12) 68%,transparent 85%),linear-gradient(0deg,rgba(7,19,29,.86),transparent 29%,transparent 73%,rgba(7,19,29,.74));pointer-events:none}.app-header{position:relative;height:84px;margin:0 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);z-index:2}.brand{display:flex;align-items:center;gap:13px}.brand svg{width:30px;height:37px}.brand-word{font:italic 30px var(--display);letter-spacing:2px}.brand-sub{font:8px var(--mono);letter-spacing:3px;color:var(--muted);margin-top:2px}.header-center{display:flex;gap:28px;height:100%;align-items:center}.mode-tab{align-self:stretch;position:relative;background:transparent;padding:0 5px;font-size:12px;font-weight:600;color:#9cabb5}.mode-tab.active{color:var(--ink)}.mode-tab.active:after{position:absolute;content:'';height:2px;background:var(--accent);bottom:-1px;left:5px;right:5px}.mode-tab small{font:9px var(--mono);color:var(--muted);margin-left:5px}.header-tools{display:flex;align-items:center;gap:13px}.system-status{font:9px var(--mono);letter-spacing:1px;color:#9dafb8;display:flex;gap:8px;align-items:center}.topline{position:relative;display:flex;justify-content:space-between;align-items:center;margin:21px 32px 0;z-index:2}.session-name{font:10px var(--mono);letter-spacing:1.5px}.session-name span{color:var(--muted);margin-right:14px}.scene-location{display:flex;gap:8px;font:10px var(--mono);color:#dae7ee;letter-spacing:1px}.scene-location .muted{color:#a2b6c2}.workshop{position:absolute;top:150px;bottom:61px;left:32px;width:326px;background:var(--panel);border:1px solid var(--line);border-radius:6px;z-index:3;display:flex;flex-direction:column;box-shadow:0 16px 48px #05101930;backdrop-filter:blur(16px)}.workshop-head{padding:22px 22px 17px}.workshop-head h2{font-size:23px;letter-spacing:-.7px;margin:9px 0 7px}.workshop-head p{font-size:11px;line-height:1.5;color:var(--muted)}.workshop-tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--line);gap:17px}.workshop-tab{background:transparent;padding:14px 0 12px;color:var(--muted);font-size:11px;border-bottom:2px solid transparent;white-space:nowrap}.workshop-tab.active{border-color:var(--accent);color:var(--accent)}.workshop-content{overflow-y:auto;min-height:0;padding:22px;flex:1;scrollbar-width:thin;scrollbar-color:#3b4f5c transparent}.field{margin-bottom:23px}.field:last-child{margin-bottom:0}.field-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:11px;gap:10px}.field-head output{font:11px var(--mono);color:var(--ink)}.field small{display:block;color:var(--muted);font-size:10px;line-height:1.5;margin-top:7px}.field-scale{display:flex;justify-content:space-between;color:#627985;font:9px var(--mono);margin-top:7px}.two-fields{display:grid;grid-template-columns:1fr 1fr;gap:18px}.two-fields .field{margin-bottom:21px}.range{width:100%;height:3px;border-radius:2px;appearance:none;-webkit-appearance:none;background:linear-gradient(to right,var(--accent) 0%,var(--accent) var(--fill,50%),#354551 var(--fill,50%),#354551 100%);display:block;margin:0;padding:0;cursor:pointer}.range::-webkit-slider-thumb{appearance:none;width:10px;height:10px;border:2px solid var(--accent);background:#13252e;border-radius:50%;box-shadow:0 0 0 3px #d6fa7408}.range::-moz-range-thumb{width:7px;height:7px;border:2px solid var(--accent);background:#13252e;border-radius:50%}.segmented{display:flex;border:1px solid var(--line);padding:3px;border-radius:4px;gap:3px}.segmented button{background:transparent;flex:1;font-size:10px;color:var(--muted);padding:8px 5px;border-radius:2px}.segmented button.active{background:#2f4148;color:var(--ink)}.select{width:100%;border:1px solid #354551;background:#182c38;color:var(--ink);border-radius:3px;padding:10px;font-size:11px}.select option{background:#13252e}.preview{padding:18px 22px 20px;border-top:1px solid var(--line);background:rgba(0,0,0,.11)}.preview-heading{display:flex;justify-content:space-between;align-items:center}.preview-heading .eyebrow{font-size:9px;letter-spacing:1px}.estimate{font-family:var(--mono);font-size:31px;letter-spacing:-1.5px;margin:10px 0 16px;color:var(--accent)}.estimate small{font-size:12px;color:var(--muted);letter-spacing:0;margin-left:4px}.estimate-note{font:9px var(--mono);color:var(--muted);letter-spacing:0;float:right;padding-top:15px}.preview-stats{display:grid;grid-template-columns:1fr 1fr;gap:20px}.preview-stat .row{font-size:9px;gap:2px}.mini-track{height:3px;margin-top:8px;background:#34434a}.mini-track i{display:block;height:100%;background:var(--accent);width:60%}.mini-track.risk i{background:var(--blue)}.preview-note{font-size:10px;line-height:1.5;color:var(--muted);margin:12px 0 0}.hill-picker{position:absolute;top:150px;left:385px;right:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;z-index:2}.hill-card{text-align:left;border:1px solid rgba(224,241,247,.14);border-radius:4px;padding:14px 15px;background:rgba(17,36,49,.56);backdrop-filter:blur(8px);transition:background .15s}.hill-card.active{border-color:var(--accent);background:rgba(36,53,53,.87)}.hill-card-top{display:flex;justify-content:space-between;align-items:center;font:9px var(--mono);color:#b5c5cc;text-transform:uppercase;letter-spacing:1px}.hill-card.active .hill-card-top{color:var(--accent)}.hill-card b{font-size:15px;display:block;margin:10px 0 6px;font-weight:500}.hill-card-foot{font:9px var(--mono);color:#94a9b5;display:flex;justify-content:space-between}.hill-card.active .hill-card-foot{color:#b4c2c0}.hill-shape{width:33px;height:20px;opacity:.8}.hero-copy{position:absolute;left:393px;top:285px;pointer-events:none;z-index:1}.hero-copy .eyebrow{color:#a4bdcd;font-size:9px}.hero-copy h1{font:italic clamp(36px,4.7vw,68px)/.95 var(--display);letter-spacing:.7px;text-transform:uppercase;margin:15px 0 12px;max-width:620px;text-shadow:0 2px 30px #10233122}.hero-copy h1 span{color:var(--accent)}.hero-copy p{font-size:11px;color:#b6cbd8;line-height:1.7;max-width:285px}.scene-label{position:absolute;right:38px;bottom:216px;pointer-events:none;border-left:2px solid var(--accent);padding:12px 15px;background:#0c202a77;border-radius:0 3px 3px 0}.scene-label strong{display:block;font:28px var(--mono);letter-spacing:-1px}.scene-label span{display:block;font:9px var(--mono);letter-spacing:1px;color:#c0d0d5;margin-top:4px}.start-dock{position:absolute;bottom:84px;left:393px;right:32px;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;gap:25px}.briefing{display:flex;gap:22px}.briefing-item{max-width:119px}.briefing-item .num{font:10px var(--mono);color:var(--accent);margin-bottom:7px}.briefing-item b{font-size:11px;font-weight:500;display:block}.briefing-item p{font-size:10px;line-height:1.6;color:#9eafb9;margin-top:5px}.start-action{min-width:235px}.start-action .primary{width:100%;font-size:11px}.start-meta{display:flex;justify-content:space-between;font:9px var(--mono);color:#a4b7c1;margin-top:11px}.bottom-bar{position:absolute;bottom:0;left:32px;right:32px;border-top:1px solid var(--line);height:43px;display:flex;align-items:center;justify-content:space-between;z-index:2;font:9px var(--mono);color:#99afbb;letter-spacing:.5px}.conditions-strip{display:flex;gap:22px}.conditions-strip b{color:#dce7eb;font-weight:400}.footer-controls{display:flex;gap:15px}.key{border:1px solid #64778266;border-bottom-width:2px;border-radius:3px;padding:3px 5px;font:9px var(--mono);color:#d0dce2;display:inline-block}.footer-controls .key{margin-right:5px}.toast{position:fixed;top:105px;left:50%;transform:translateX(-50%);padding:12px 19px;background:#1d3442;border:1px solid #5c7682;border-radius:4px;font-size:12px;z-index:30;pointer-events:none;max-width:80vw;text-align:center}
+/* Broadcast HUD */
+#playHUD{position:absolute;inset:110px 32px 66px;pointer-events:none;z-index:4}.broadcast-left{position:absolute;left:0;top:0;width:236px}.broadcast-pill{background:var(--accent);color:#182517;padding:9px 12px;font:10px var(--mono);display:flex;align-items:center;justify-content:space-between;letter-spacing:1px}.broadcast-name{background:var(--panel);padding:16px 15px;border:1px solid var(--line);border-top:0;border-radius:0 0 4px 4px}.broadcast-name h2{font-size:19px;margin-bottom:7px;font-weight:500}.broadcast-name .row{font:10px var(--mono);color:var(--muted)}.wind-panel{position:absolute;right:0;top:0;width:209px;padding:17px;background:var(--panel);border:1px solid var(--line);border-radius:4px}.wind-main{display:flex;align-items:baseline;gap:8px;margin:10px 0}.wind-main strong{font:32px var(--mono);letter-spacing:-1.5px}.wind-arrow{font-size:31px;color:var(--accent);width:31px;display:inline-block;transform-origin:center}.wind-main small{color:var(--muted);font:10px var(--mono)}.wind-track{height:4px;background:linear-gradient(90deg,#ff807b99,#687c84 50%,#d6fa7499);position:relative;margin:13px 0 7px}.wind-track i{height:12px;width:2px;position:absolute;top:-4px;background:white;left:50%}.wind-labels{display:flex;justify-content:space-between;font:8px var(--mono);color:var(--muted)}.live-readouts{position:absolute;bottom:10px;left:0;display:flex;gap:1px}.live-readout{background:var(--panel);padding:17px 20px;min-width:126px}.live-readout:first-child{border-radius:4px 0 0 4px}.live-readout:last-child{border-radius:0 4px 4px 0}.live-readout b{display:block;font:35px var(--mono);letter-spacing:-2px;margin:9px 0 4px}.live-readout small{font:9px var(--mono);color:var(--muted)}.action-cue{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);text-align:center;min-width:315px;max-width:480px;padding:16px 25px;border:1px solid var(--line);background:var(--panel);border-radius:4px}.action-cue .eyebrow{color:var(--accent);font-size:9px}.action-cue h2{font-size:19px;font-weight:500;margin:9px 0}.action-cue p{font-size:11px;color:var(--muted);line-height:1.5}.action-cue .key{font-size:11px;margin-right:6px}.timing-track{position:relative;height:7px;background:#536068;margin:13px 0 5px;border-radius:1px}.timing-zone{position:absolute;left:83%;width:14%;height:100%;background:var(--accent)}.timing-cursor{position:absolute;width:3px;height:17px;top:-5px;background:white;left:0}.needle-panel{position:absolute;bottom:10px;right:0;width:219px;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:4px}.needle{margin-top:17px}.needle .row{font:9px var(--mono);color:var(--muted)}.needle-track{position:relative;height:6px;margin:12px 0 4px;background:linear-gradient(90deg,#bb5f5b 0 18%,#718177 18% 35%,#aaca70 35% 65%,#718177 65% 82%,#bb5f5b 82%);border-radius:2px}.needle-track i{position:absolute;left:50%;top:-5px;height:16px;width:3px;background:#fff;box-shadow:0 0 5px #0005}.needle-danger{color:var(--red)!important}.light-timer{font:italic 83px var(--display);position:absolute;top:39%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--accent);text-shadow:0 5px 30px #112b3266}.light-timer small{font:10px var(--mono);letter-spacing:3px;display:block;color:#dce7e6;margin-top:8px}.landing-flash{position:absolute;top:35%;left:50%;transform:translateX(-50%);text-align:center;font:italic 53px var(--display);color:var(--accent);text-shadow:0 4px 20px #11232e}.flight-controls{position:absolute;right:0;top:175px;pointer-events:auto;display:flex;gap:8px}.flight-controls button{background:var(--panel);padding:10px 12px;border:1px solid var(--line);border-radius:3px;font:10px var(--mono)}
+/* Dialogs and results */
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(4,14,23,.64);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:28px}.dialog{background:#142631;border:1px solid #415460;border-radius:7px;box-shadow:0 40px 100px #0006;max-height:92vh;overflow:auto;width:470px;padding:32px}.dialog h2{font-size:29px;letter-spacing:-.8px;margin:12px 0}.dialog p{font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:18px}.dialog .primary,.dialog>.secondary{width:100%;margin-top:10px;text-align:left}.dialog-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}.dialog-head h2{margin:9px 0 0}.help-grid{display:grid;grid-template-columns:80px 1fr;gap:13px;font-size:11px;align-items:start;margin:24px 0}.help-grid span{line-height:1.5;color:#b7c5cc}.help-grid .key{width:max-content;color:var(--accent)}.result-dialog{width:760px;padding:0;overflow:auto}.result-top{padding:26px 30px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.result-top h2{font:italic 32px var(--display);letter-spacing:.5px;margin:8px 0 0}.result-main{display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:24px 30px}.result-distance{font:64px var(--mono);letter-spacing:-4px;margin:12px 0 6px}.result-distance small{font-size:18px;letter-spacing:0;color:var(--muted);margin-left:5px}.result-details{font:10px var(--mono);color:var(--muted);line-height:1.8}.judge-row{display:flex;gap:6px;margin-top:22px}.judge{flex:1;padding:10px 2px;border:1px solid var(--line);text-align:center;border-radius:3px;font:15px var(--mono)}.judge small{display:block;font:8px var(--mono);color:var(--muted);margin-bottom:6px}.judge.dropped{opacity:.45}.judge.dropped strong{text-decoration:line-through;font-weight:400}.judge strong{font-weight:400}.score-lines{margin:8px 0}.score-lines .row{padding:10px 0;border-bottom:1px solid var(--line);font-size:11px;color:#afc0c9}.score-lines b{font:13px var(--mono);color:var(--ink)}.total-row{display:flex;justify-content:space-between;align-items:end;margin-top:17px}.total-row b{font:35px var(--mono);color:var(--accent);letter-spacing:-1px}.equipment-control{margin:0 30px;border:1px solid #81925c55;background:#d6fa7407;border-radius:3px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:11px}.equipment-control.checking{border-color:#7793a977}.equipment-control.dq{border-color:#ff807b77;background:#ff807b0a}.control-state{font:10px var(--mono);color:var(--accent);white-space:nowrap}.checking .control-state{color:var(--blue)}.dq .control-state{color:var(--red)}.control-reason{font-size:10px;line-height:1.5;color:var(--muted);margin-top:5px}.wind-graph-wrap{margin:21px 30px 0}.graph-header{display:flex;justify-content:space-between;font:9px var(--mono);color:var(--muted);letter-spacing:.7px;margin-bottom:7px}#windGraph{width:100%;height:70px;display:block}.result-actions{padding:20px 30px 25px;display:flex;gap:9px}.result-actions .primary{margin:0;flex:1}.result-actions .secondary{margin:0;font-size:11px}.board-dialog{width:810px}.board-intro{display:flex;justify-content:space-between;align-items:end;margin:20px 0}.board-intro p{margin:0;max-width:370px}.board-table{width:100%;border-collapse:collapse;font-size:11px}.board-table th{font:9px var(--mono);text-align:right;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line)}.board-table th:nth-child(2){text-align:left}.board-table td{padding:12px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono)}.board-table td:nth-child(2){text-align:left;font:12px Arial,sans-serif}.board-table .player{background:#d6fa740c;color:var(--accent)}.board-table td:first-child{width:30px;color:var(--muted)}.board-table .player td:first-child{color:var(--accent)}.board-footer{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-top:22px}.board-footer p{margin:0;font-size:11px}.record-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0}.record-card{padding:22px;background:#0f202b;border:1px solid var(--line);border-radius:4px}.record-card h3{font-size:14px;font-weight:500;margin:9px 0 17px}.record-card strong{font:32px var(--mono);color:var(--accent);letter-spacing:-1.5px}.record-card small{font:10px var(--mono);color:var(--muted)}.record-card p{font-size:10px;margin:13px 0 0}.replay-badge{position:absolute;top:110px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:12px 18px;z-index:10;font:10px var(--mono);color:var(--accent);letter-spacing:2px}.replay-badge button{margin-left:20px;background:transparent;color:var(--muted);font:10px var(--mono)}.loading{position:fixed;inset:0;z-index:50;background:#0c1a24;display:grid;place-items:center}.loading-inner{text-align:center}.loading-logo{font:italic 57px var(--display);letter-spacing:3px}.loading p{font:10px var(--mono);letter-spacing:2px;color:var(--muted);margin-top:22px}.loader{height:2px;width:180px;background:#314550;margin:28px auto 0;overflow:hidden}.loader:after{content:'';display:block;width:50%;height:100%;background:var(--accent);animation:load 1.3s ease-in-out infinite}@keyframes load{from{transform:translateX(-100%)}to{transform:translateX(220%)}}.error-dialog{border-color:#7d5e59}.error-dialog h2{font-size:25px}.error-dialog code{display:block;white-space:pre-wrap;word-break:break-word;font:10px/1.6 var(--mono);color:#ddaaa6;max-height:90px;overflow:auto}.storage-warning{color:var(--red)}
+@media(min-width:1600px){.workshop{width:350px}.hill-picker{left:411px}.hero-copy,.start-dock{left:419px}.hero-copy{top:310px}.workshop-head{padding-top:26px}.workshop-content{padding-top:27px}.field{margin-bottom:29px}}
+@media(max-height:800px){.workshop{top:137px;bottom:55px}.hill-picker{top:137px}.workshop-head{padding:15px 20px 10px}.workshop-head h2{font-size:21px;margin:7px 0 4px}.workshop-head p{font-size:10px}.workshop-tabs{gap:14px}.workshop-tab{padding:11px 0}.workshop-content{padding:18px 20px}.preview{padding:14px 20px}.estimate{font-size:25px;margin:8px 0 12px}.field{margin-bottom:21px}.hero-copy{top:260px}.hero-copy h1{font-size:52px}.start-dock{bottom:73px}.scene-label{bottom:205px}.briefing{gap:16px}.briefing-item{max-width:101px}.hill-card{padding:12px}.topline{margin-top:18px}}
+@media(max-width:1180px){.system-status{display:none}.header-center{gap:18px}.workshop{left:22px;width:292px}.app-header{margin:0 22px}.topline{margin-left:22px;margin-right:22px}.hill-picker{left:333px;right:22px}.hero-copy,.start-dock{left:340px}.hero-copy h1{font-size:49px}.hill-card{padding:12px 10px}.hill-card b{font-size:13px}.briefing-item:nth-child(3){display:none}.start-action{min-width:218px}.start-dock{right:22px;gap:15px}.needle-panel{width:185px}.action-cue{min-width:285px}.live-readout{min-width:105px;padding:17px 14px}.bottom-bar{left:22px;right:22px}.conditions-strip{gap:14px}}
+@media(max-width:850px){.brand-sub{display:none}.brand-word{font-size:24px}.brand svg{width:24px}.app-header{height:69px;margin:0 16px}.header-center{gap:10px}.mode-tab{font-size:10px}.mode-tab small{display:none}.header-tools{gap:6px}.topline{margin:16px}.scene-location{display:none}.workshop{top:198px;left:16px;width:265px;bottom:58px}.hill-picker{left:16px;right:16px;top:111px;gap:5px}.hill-card{padding:9px}.hill-card b{font-size:12px;margin:7px 0}.hill-card-top{font-size:8px}.hill-shape{height:14px;width:20px}.hill-card-foot{font-size:8px}.hero-copy{left:304px;top:215px}.hero-copy h1{font-size:38px}.hero-copy p{max-width:190px}.hero-copy .eyebrow{font-size:8px}.start-dock{left:302px;bottom:78px;right:16px}.briefing{display:none}.start-action{min-width:0;width:100%}.scene-label{right:20px;bottom:200px}.footer-controls{display:none}.conditions-strip{gap:12px;font-size:8px}.bottom-bar{left:16px;right:16px}.workshop-head{padding:16px}.workshop-content{padding:17px}.workshop-tabs{padding:0 16px;gap:13px}.workshop-tab{font-size:10px}.preview{padding:14px 17px}.preview-note{font-size:9px}#playHUD{inset:87px 16px 58px}.broadcast-left{width:195px}.wind-panel{width:176px}.needle-panel{right:0;bottom:130px;width:176px}.action-cue{left:auto;right:0;transform:none;min-width:270px;max-width:270px}.live-readouts{bottom:10px}.live-readout{min-width:88px;padding:14px 11px}.live-readout b{font-size:27px}.live-readout:nth-child(3){display:none}.flight-controls{top:168px}.result-dialog{max-width:700px}}
+@media(max-width:560px){body{font-size:12px}.header-center{gap:8px}.mode-tab{font-size:9px}.brand-word{font-size:21px;letter-spacing:1px}.brand{gap:4px}.brand svg{width:20px}.header-tools .icon{width:28px;height:28px}.header-tools #helpButton{display:none}.workshop{width:244px}.hero-copy{left:279px;display:none}.start-dock{left:276px;right:13px;bottom:80px}.start-action .primary{padding:14px 10px;font-size:10px;line-height:1.7;flex-direction:column;gap:6px}.start-meta{font-size:8px;display:block;line-height:1.8}.start-meta span{display:block}.scene-label{right:17px;bottom:247px}.scene-label strong{font-size:23px}.scene-label span{font-size:8px;max-width:64px}.hill-card b{font-size:10px}.hill-card-foot{font-size:7px}.hill-shape{display:none}.hill-card-top{font-size:7px;letter-spacing:.5px}.workshop-head p{font-size:10px}.workshop-head h2{font-size:19px}.conditions-strip>span:nth-child(3){display:none}.result-main{gap:20px;padding:20px;grid-template-columns:1fr}.result-dialog{max-height:93vh}.result-top{padding:20px}.result-distance{font-size:48px}.judge-row{margin-top:15px}.equipment-control,.wind-graph-wrap{margin-left:20px;margin-right:20px}.result-actions{padding:20px;flex-wrap:wrap}.result-actions .primary{flex-basis:100%}.score-lines{margin:0}.result-main .score-lines .row{padding:7px 0}.dialog{padding:23px}.result-dialog{padding:0}.overlay{padding:12px}.broadcast-left{width:155px}.broadcast-name{padding:12px}.broadcast-name h2{font-size:15px}.wind-panel{width:150px;padding:13px}.wind-main strong{font-size:24px}.wind-main{gap:5px}.wind-arrow{font-size:22px;width:20px}.wind-panel .eyebrow{font-size:8px}.action-cue{min-width:0;width:100%;max-width:none;bottom:0}.live-readouts{bottom:141px}.needle-panel{bottom:141px;width:150px;padding:13px}.live-readout{padding:14px 10px;min-width:78px}.live-readout b{font-size:24px}.light-timer{top:38%;font-size:65px}.board-dialog{padding:17px}.board-table td,.board-table th{padding:9px 6px;font-size:10px}.board-table td:nth-child(2){font-size:11px}.board-footer{align-items:stretch;flex-direction:column;gap:10px}.board-intro{display:block}.record-grid{gap:10px}.record-card{padding:15px}.record-card strong{font-size:26px}.bottom-bar .mono{font-size:8px}}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Three-dimensional ski-jumping hill" tabindex="-1"></canvas><div class="scene-shade"></div>
+<header class="app-header"><div class="brand"><svg viewBox="0 0 34 42" aria-hidden="true"><path d="M2 35 23 6h8L10 35zM19 35l13-18v11l-5 7z" fill="#d6fa74"/></svg><div><div class="brand-word">TELEMARK</div><div class="brand-sub">FIND YOUR FLIGHT</div></div></div><nav class="header-center" aria-label="Game mode"><button class="mode-tab active" data-mode="training">Training</button><button class="mode-tab" data-mode="competition">Competition</button><button class="mode-tab" data-mode="tour">Four Hills Tour <small>04</small></button><button class="mode-tab" data-mode="records">Records</button></nav><div class="header-tools"><span class="system-status"><i class="dot"></i> 240 HZ PHYSICS</span><button id="muteButton" class="icon" aria-label="Enable sound" title="Sound · M">♪</button><button id="helpButton" class="icon" aria-label="How to play" title="How to play">?</button></div></header>
+<div id="workshopView"><div class="topline"><div class="session-name"><span>FREE PRACTICE</span><b id="sessionHeading">YOUR NEXT GREAT JUMP</b></div><div class="scene-location"><span id="locationName">NORDVIK RIDGE</span><span class="muted"> / </span><span id="locationAltitude">1,420 M ELEV.</span></div></div>
+<aside class="workshop"><div class="workshop-head"><div class="row"><span class="eyebrow">01 / The workshop</span><span class="tag" style="padding:4px 6px;font-size:8px"><i class="dot" style="width:4px;height:4px"></i> LIVE PREVIEW</span></div><h2>Find your balance.</h2><p>Style is set here. The mountain does the rest.</p></div><div class="workshop-tabs" role="tablist" aria-label="Workshop"><button class="workshop-tab active" data-workshop="equipment" role="tab" aria-selected="true">Equipment</button><button class="workshop-tab" data-workshop="style" role="tab" aria-selected="false">Flight style</button><button class="workshop-tab" data-workshop="conditions" role="tab" aria-selected="false">Conditions</button></div>
+<div class="workshop-content"><section id="equipmentPanel" role="tabpanel"><div class="two-fields"><div class="field"><div class="field-head"><label for="height">Height</label><output id="heightOut"></output></div><input class="range" id="height" type="range" min="160" max="195" step="1" value="180" data-setting="height"></div><div class="field"><div class="field-head"><label for="weight">Weight</label><output id="weightOut"></output></div><input class="range" id="weight" type="range" min="55" max="75" step="1" value="67" data-setting="weight"></div></div><div class="row" style="font:9px var(--mono);color:var(--muted);margin:-4px 0 23px"><span>BODY MASS INDEX</span><span id="bmiValue">20.7</span></div><div class="field"><div class="field-head"><label for="ski">Ski length</label><output id="skiOut"></output></div><input class="range" id="ski" type="range" min="90" max="145" step="1" value="140" data-setting="ski"><div class="field-scale"><span>90% / STABLE</span><span>145% / LIFT</span></div><small id="skiNote">Longer skis add lift and amplify drift.</small></div><div class="field"><div class="field-head"><label for="suit">Suit fit</label><output id="suitOut"></output></div><input class="range" id="suit" type="range" min="0" max="1" step=".01" value=".25" data-setting="suit"><div class="field-scale"><span>TAILORED</span><span>LOOSE</span></div></div><div class="field"><div class="field-head"><label>Wax profile</label><span class="muted tiny" id="waxHint">−5°C snow</span></div><div class="segmented" data-choice="wax"><button data-value="cold">Cold</button><button data-value="medium" class="active">Medium</button><button data-value="warm">Warm</button></div></div><div class="field"><div class="field-head"><label for="gate">Start gate</label><output id="gateOut"></output></div><input class="range" id="gate" type="range" min="4" max="12" step="1" value="8" data-setting="gate"><small id="gateNote"></small></div></section>
+<section id="stylePanel" role="tabpanel" hidden><div class="field"><div class="field-head"><label for="power">Takeoff power</label><output id="powerOut"></output></div><input class="range" id="power" type="range" min="70" max="100" value="85" data-setting="power"><div class="field-scale"><span>FORGIVING</span><span>EXPLOSIVE</span></div><small>More impulse. A smaller window at the table.</small></div><div class="field"><div class="field-head"><label for="vAngle">Ski V-angle</label><output id="vAngleOut"></output></div><input class="range" id="vAngle" type="range" min="0" max="40" value="28" data-setting="vAngle"><div class="field-scale"><span>PARALLEL</span><span>WIDE V</span></div><small>Lift peaks near 32°. Wider skis add drag.</small></div><div class="field"><div class="field-head"><label for="lean">Forward lean</label><output id="leanOut"></output></div><input class="range" id="lean" type="range" min="25" max="45" value="33" data-setting="lean"><div class="field-scale"><span>COMPOSED</span><span>AGGRESSIVE</span></div><small>Reach into the air for lift. Expect less stability.</small></div><div class="field"><div class="field-head"><label>Arm position</label></div><div class="segmented" data-choice="arms"><button class="active" data-value="tucked">Along body</button><button data-value="out">Slightly out</button></div><small>Arms out damp drift, with an aerodynamic cost.</small></div><div class="tag" style="line-height:1.6;letter-spacing:0;color:var(--muted)">In flight, correct the needles to hold this style.<br>W / S · pitch &nbsp; A / D · roll</div></section>
+<section id="conditionsPanel" role="tabpanel" hidden><div class="row" style="margin-bottom:22px"><span class="eyebrow" style="font-size:9px">Session forecast</span><button class="text-btn" id="randomConditions">↻ Randomize</button></div><div class="field"><div class="field-head"><label for="temperature">Snow temperature</label><output id="temperatureOut"></output></div><input class="range" id="temperature" type="range" min="-15" max="5" value="-5" data-condition="temperature"><div class="field-scale"><span>−15°C</span><span>+5°C</span></div></div><div class="field"><div class="field-head"><label for="snow">Snow surface</label></div><select class="select" id="snow" data-condition="snow"><option value="fresh">Fresh powder</option><option value="packed" selected>Groomed / packed</option><option value="icy">Icy track</option></select></div><div class="field"><div class="field-head"><label for="weather">Visibility</label></div><select class="select" id="weather" data-condition="weather"><option value="clear">Clear alpine sky</option><option value="snowfall">Snowfall</option><option value="fog">Valley fog</option><option value="night">Night / floodlights</option></select></div><div class="field"><div class="field-head"><label for="wind">Wind pattern</label></div><select class="select" id="wind" data-condition="wind"><option value="calm">Calm</option><option value="light" selected>Light variable</option><option value="gusty">Gusty</option><option value="headwind">Steady headwind</option><option value="tailwind">Tailwind</option></select><small>Headwind adds lift; crosswind tests your balance.</small></div></section></div>
+<div class="preview"><div class="preview-heading"><span class="eyebrow">Predicted calm-air flight</span><span class="eyebrow">↗</span></div><div class="estimate"><span id="predictedDistance">—</span><small>m</small><span class="estimate-note" id="previewSpeed">— KM/H</span></div><div class="preview-stats"><div class="preview-stat"><div class="row"><span class="muted">Stability</span><b id="stabilityValue">—</b></div><div class="mini-track"><i id="stabilityBar"></i></div></div><div class="preview-stat"><div class="row"><span class="muted">DQ risk</span><b id="riskValue">—</b></div><div class="mini-track risk"><i id="riskBar"></i></div></div></div><p class="preview-note" id="previewNote">A balanced setup. Ready for the green light.</p></div></aside>
+<div class="hill-picker" id="hillPicker" aria-label="Select hill"></div>
+<div class="hero-copy"><div class="eyebrow">A moment of stillness. A leap of faith.</div><h1>The quiet before<br><span>the flight.</span></h1><p>Read the wind. Trust your takeoff.<br>Leave your mark on the mountain.</p></div><div class="scene-label"><span>CONSTRUCTION POINT</span><strong id="heroK">K 125</strong><span id="heroHS">HILL SIZE 140 M</span></div>
+<div class="start-dock"><div class="briefing"><div class="briefing-item"><div class="num">01 — WAIT</div><b>Choose your wind</b><p>Release under green.<br>You have 10 seconds.</p></div><div class="briefing-item"><div class="num">02 — COMMIT</div><b>Time the table</b><p>One takeoff. Hold your<br>style in the air.</p></div><div class="briefing-item"><div class="num">03 — TOUCH DOWN</div><b>Find the telemark</b><p>Settle the needles.<br>Land with confidence.</p></div></div><div class="start-action"><button class="primary" id="startButton"><span>TAKE YOUR PLACE</span><span class="arrow">↗</span></button><div class="start-meta"><span id="startModeLabel">TRAINING · UNLIMITED JUMPS</span><span id="startShortcut">SPACE ↵</span></div></div></div></div>
+<div id="playHUD" hidden><div class="broadcast-left"><div class="broadcast-pill"><span id="hudMode">TRAINING</span><span>● LIVE</span></div><div class="broadcast-name"><h2 id="hudHill">Nordvik Ridge</h2><div class="row"><span id="hudHillSize">HS 140 / K 125</span><span id="hudGate">GATE 8</span></div></div></div><div class="wind-panel"><span class="eyebrow">LIVE WIND / M/S</span><div class="wind-main"><span class="wind-arrow" id="windArrow">↖</span><strong id="windValue">+0.0</strong><small id="windType">HEAD</small></div><div class="wind-track"><i id="windCursor"></i></div><div class="wind-labels"><span>TAIL −4</span><span>HEAD +4</span></div><div class="row" style="margin-top:14px;font:9px var(--mono);color:var(--muted)"><span>CROSSWIND</span><span id="crossValue">0.0 m/s</span></div></div><div class="flight-controls"><button id="cameraButton">C · TV CAMERA</button><button id="pauseButton" aria-label="Pause">Ⅱ</button></div><div class="light-timer" id="greenLight">10.0<small>GREEN LIGHT</small></div><div class="landing-flash" id="landingFlash" hidden></div><div class="live-readouts"><div class="live-readout"><span class="eyebrow">SPEED</span><b id="speedValue">0.0</b><small>KM/H</small></div><div class="live-readout"><span class="eyebrow">DISTANCE</span><b id="distanceValue">0.0</b><small>METRES</small></div><div class="live-readout"><span class="eyebrow">AIR TIME</span><b id="airtimeValue">0.0</b><small>SECONDS</small></div></div><div class="action-cue"><div class="eyebrow" id="phaseLabel">01 / START GATE</div><h2 id="actionTitle">Make the moment yours.</h2><p id="actionHint"><span class="key">SPACE</span> Release when the wind is right.</p><div class="timing-track" id="timingTrack" hidden><i class="timing-zone" id="timingZone"></i><i class="timing-cursor" id="timingCursor"></i></div></div><div class="needle-panel"><div class="row"><span class="eyebrow" style="font-size:9px">HOLD YOUR STYLE</span><span id="stabilityStatus" style="font:8px var(--mono);color:var(--accent)">STABLE</span></div><div class="needle"><div class="row"><span>PITCH</span><span>W / S</span></div><div class="needle-track"><i id="pitchNeedle"></i></div></div><div class="needle"><div class="row"><span>ROLL</span><span>A / D</span></div><div class="needle-track"><i id="rollNeedle"></i></div></div></div></div>
+<div class="bottom-bar"><div class="conditions-strip"><span>◌ &nbsp;<b id="footerWeather">CLEAR SKY</b></span><span><b id="footerTemp">−5°C</b> SNOW</span><span><b id="footerWind">LIGHT VARIABLE</b></span><span id="storageStatus">LOCAL RECORDS ON</span></div><div class="footer-controls"><span><span class="key">SPACE</span> ACTION</span><span><span class="key">W A S D</span> BALANCE</span><span><span class="key">ESC</span> PAUSE</span></div><span class="mono" id="footerVersion">VOL. 01 / WINTER</span></div>
+<div class="toast" id="toast" hidden></div>
+<div class="overlay" id="helpOverlay" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle"><div class="dialog-head"><div><span class="eyebrow">THE ART OF THE JUMP</span><h2 id="helpTitle">A little timing.<br>A lot of composure.</h2></div><button class="icon" data-close="helpOverlay" aria-label="Close help">×</button></div><p>Build a style in the workshop, then hold it steady. Your balance inputs correct deviations; they don't steer the flight.</p><div class="help-grid"><span class="key">SPACE</span><span>Release at green. Press again at the table edge. Press once more just before your feet reach the snow.</span><span class="key">W / S</span><span>Move the pitch needle left / right. Keep it centered in green.</span><span class="key">A / D</span><span>Move the roll needle left / right. Too long in red causes a fall.</span><span class="key">C · ESC · M</span><span>Change camera · pause · toggle sound.</span><span class="key">TOUCH</span><span>Tap the scene for an action. Drag left/right for roll; up/down for pitch.</span><span class="key">GAMEPAD</span><span>A to act, left stick to balance, Start to pause.</span></div><p>Distance is measured along the slope. Five judges mark your style; the highest and lowest are dropped. Wind and gate points level the field. Equipment is checked after every jump.</p><button class="primary" data-close="helpOverlay">GOT IT <span class="arrow">↗</span></button></div></div>
+<div class="overlay" id="pauseOverlay" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><span class="eyebrow">TIME OUT</span><h2 id="pauseTitle">Hold that thought.</h2><p id="pauseReason">The hill will be here when you're ready.</p><button class="primary" id="resumeButton">RESUME <span class="arrow">↗</span></button><button class="secondary" id="restartButton">Restart this attempt</button><button class="secondary" id="menuButton">Return to the workshop</button><button class="text-btn" id="pauseMuteButton" style="margin-top:15px">Enable sound</button></div></div>
+<div class="overlay" id="resultOverlay" hidden><div class="dialog result-dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle"><div class="result-top"><div><span class="eyebrow" id="resultHill">NORDVIK RIDGE / TRAINING</span><h2 id="resultTitle">A mark on the mountain.</h2></div><span class="tag" id="landingBadge">TELEMARK</span></div><div class="result-main"><div><span class="eyebrow">OFFICIAL DISTANCE</span><div class="result-distance"><span id="resultDistance">128.5</span><small>m</small></div><div class="result-details" id="resultMeta">93.2 km/h takeoff · 5.6 s in flight</div><div class="judge-row" id="judges"></div><div class="tiny muted" style="margin-top:8px">Highest and lowest marks dropped</div></div><div><div class="score-lines"><div class="row"><span id="distancePointLabel">Distance points</span><b id="distancePoints"></b></div><div class="row"><span>Judges' points</span><b id="stylePoints"></b></div><div class="row"><span id="windPointLabel">Wind compensation</span><b id="windPoints"></b></div><div class="row"><span id="gatePointLabel">Gate compensation</span><b id="gatePoints"></b></div></div><div class="total-row"><span class="eyebrow">TOTAL POINTS</span><b id="totalPoints">—</b></div></div></div><div class="equipment-control checking" id="equipmentControl"><div><span id="controlTitle">Equipment control…</span><div class="control-reason" id="controlReason">Checking ski length and suit conformity.</div></div><span class="control-state" id="controlState">INSPECTING ···</span></div><div class="wind-graph-wrap"><div class="graph-header"><span>WIND THROUGH YOUR FLIGHT</span><span id="windGraphLabel">HEADWIND ↑ / TAILWIND ↓</span></div><canvas id="windGraph" width="700" height="90" aria-label="Flight wind over time"></canvas></div><div class="result-actions"><button class="secondary" id="replayButton">↺ &nbsp; Replay · ½ speed</button><button class="secondary" id="resultWorkshopButton">Workshop</button><button class="primary" id="resultContinueButton" disabled>CHECKING EQUIPMENT…</button></div></div></div>
+<div class="overlay" id="boardOverlay" hidden><div class="dialog board-dialog" role="dialog" aria-modal="true" aria-labelledby="boardTitle"><div class="dialog-head"><div><span class="eyebrow" id="boardEyebrow">OFFICIAL STANDINGS</span><h2 id="boardTitle">The field.</h2></div><button class="icon" id="boardCloseButton" aria-label="Close standings">×</button></div><div class="board-intro"><p id="boardDescription"></p><span class="tag" id="boardRound"></span></div><table class="board-table"><thead><tr><th>#</th><th>JUMPER</th><th>ROUND 1</th><th>ROUND 2</th><th>TOTAL</th></tr></thead><tbody id="boardBody"></tbody></table><div class="board-footer"><p id="boardNote"></p><button class="primary" id="boardNextButton">NEXT ROUND <span class="arrow">↗</span></button></div></div></div>
+<div class="overlay" id="recordsOverlay" hidden><div class="dialog board-dialog" role="dialog" aria-modal="true" aria-labelledby="recordsTitle"><div class="dialog-head"><div><span class="eyebrow">YOUR PERSONAL ARCHIVE</span><h2 id="recordsTitle">Leave a little history.</h2></div><button class="icon" data-close="recordsOverlay" aria-label="Close records">×</button></div><p>Longest standing, equipment-approved jumps. Your best is painted on the slope the next time you visit.</p><div class="record-grid" id="recordGrid"></div><div class="row"><span class="tiny muted" id="recordCount">Every great flight starts somewhere.</span><button class="secondary" data-close="recordsOverlay">Back to the mountain</button></div></div></div>
+<div class="replay-badge" id="replayBadge" hidden>↺ REPLAY / ½ SPEED <button id="exitReplayButton">RETURN TO RESULT ×</button></div>
+<div class="loading" id="loading"><div class="loading-inner"><div class="loading-logo">TELEMARK<span class="accent">.</span></div><p>PREPARING THE MOUNTAIN</p><div class="loader"></div></div></div>
+<div class="overlay" id="errorOverlay" hidden style="z-index:60"><div class="dialog error-dialog" role="alert"><span class="eyebrow danger">UNABLE TO OPEN THE HILL</span><h2>The mountain is out of reach.</h2><p id="errorMessage">This simulation needs WebGL and a connection to load Three.js. Try a modern browser with hardware acceleration enabled.</p><code id="errorDetail"></code><button class="primary" onclick="location.reload()">TRY AGAIN <span class="arrow">↗</span></button></div></div>
+<script>
+window.telemarkReady=false;
+window.showFailure=function(message,detail){document.getElementById('loading').hidden=true;document.getElementById('errorOverlay').hidden=false;document.getElementById('errorMessage').textContent=message;document.getElementById('errorDetail').textContent=String(detail||'');};
+window.bootTimer=setTimeout(function(){if(!window.telemarkReady)window.showFailure('The graphics module could not load. Connect to the internet and allow cdn.jsdelivr.net, then try again.','Three.js 0.164.1 · WebGL required');},20000);
+</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"}}</script>
+<script type="module">
+try {
+const THREE = await import('three');
+const Engine = (() => {
+  'use strict';
+  // All model constants use metres, seconds, kilograms and radians internally.
+  const C = Object.freeze({g:9.81,rho:1.18,step:1/240,tableAngle:11*Math.PI/180,inrunDrag:.0030,baseFriction:.028,area:1.16,lift:.67,drag:.40,inducedDrag:.10,impulse:3.30,needleLimit:1,crashExposure:.5,pitchCorrection:1.04,rollCorrection:1.25,windRate:.05,windUpdraft:.25,gateSpeed:.28,landingLead:.39,landingWindow:.16});
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,Number.isFinite(+v)?+v:a));
+  const mix=(a,b,t)=>a+(b-a)*t;
+  const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
+  const HILLS = [
+    {id:'small',name:'Birch Hollow',label:'SMALL HILL',k:40,hs:50,targetSpeed:72,ppm:3.2,basePoints:60,windFactor:3,gateFactor:2.4,gateMin:3,gateMax:13,baseGate:8},
+    {id:'normal',name:'Frosthaven',label:'NORMAL HILL',k:95,hs:106,targetSpeed:87,ppm:2,basePoints:60,windFactor:7,gateFactor:3.8,gateMin:3,gateMax:13,baseGate:8},
+    {id:'large',name:'Silverpine',label:'LARGE HILL',k:125,hs:140,targetSpeed:93,ppm:1.8,basePoints:60,windFactor:10.5,gateFactor:4.8,gateMin:3,gateMax:13,baseGate:8},
+    {id:'flying',name:'Aurora Ridge',label:'SKI FLYING',k:200,hs:240,targetSpeed:103,ppm:1.2,basePoints:120,windFactor:14,gateFactor:6,gateMin:3,gateMax:13,baseGate:8}
+  ];
+  const defaults={height:180,weight:67,ski:140,suit:.25,wax:'medium',power:85,vAngle:28,lean:33,arms:'tucked',gate:8};
+  const CONDITIONS={temperature:-5,snow:'packed',weather:'clear',wind:'light'};
+  const rng=seed=>{let n=(Number(seed)||1)>>>0;return()=>{n+=0x6D2B79F5;let t=n;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};};
+  function cleanSetup(s={}){const t={...defaults,...s};return {...t,height:clamp(t.height,155,205),weight:clamp(t.weight,55,75),ski:clamp(t.ski,90,145),suit:clamp(t.suit,0,1),power:clamp(t.power,70,100),vAngle:clamp(t.vAngle,0,40),lean:clamp(t.lean,25,45),gate:Math.round(clamp(t.gate,1,16)),wax:['cold','medium','warm'].includes(t.wax)?t.wax:'medium',arms:t.arms==='out'?'out':'tucked'};}
+  function cleanConditions(c={}){return {...CONDITIONS,...c,temperature:clamp(c.temperature??CONDITIONS.temperature,-15,5)};}
+  const bmi=s=>{s=cleanSetup(s);return s.weight/(s.height/100)**2;};
+  const legalSki=s=>clamp(145-Math.max(0,21-bmi(s))*5,90,145);
+  const dqRisk=s=>{s=cleanSetup(s);return s.ski>legalSki(s)+.001?1:.4*s.suit**3;};
+  function gateRange(h,c){const w=cleanConditions(c).wind;return {min:h.gateMin,max:w==='head'||w==='headwind'?9:w==='gusty'?10:w==='tail'||w==='tailwind'?h.gateMax:12};}
+  function waxPenalty(s,c){const ideal=c.temperature<=-8?'cold':c.temperature>=0?'warm':'medium';if(s.wax===ideal)return 0;return (s.wax==='cold'&&ideal==='warm'||s.wax==='warm'&&ideal==='cold')?2:1.3;}
+  const geometry=new Map();
+  function geom(h){if(geometry.has(h.id))return geometry.get(h.id);
+    const count=1600,maxX=h.hs*2.05,dx=maxX/count,ys=new Float64Array(count+1),ds=new Float64Array(count+1);
+    // Small hills have a shallower knoll; flying hills provide a much deeper flight envelope.
+    const knoll={small:1.01,normal:.36,large:.23,flying:0}[h.id]??.23;
+    const knots=h.id==='small'?[[0,5],[h.k*.5,20],[h.k*.80,24],[h.k*.94,35],[h.hs*.88,35],[h.hs*1.10,26],[h.hs*1.45,8],[h.hs*1.9,0]]:[[0,12-8*knoll],[h.k*(.12+.4*knoll),22-8*knoll],[h.k*(.4+.28*knoll),32-3*knoll],[h.k*(.76+.08*knoll),35],[h.hs*.88,35],[h.hs*1.10,26],[h.hs*1.45,8],[h.hs*1.9,0]];
+    const angle=x=>{let j=0;while(j<knots.length-2&&x>knots[j+1][0])j++;return mix(knots[j][1],knots[j+1][1],smooth((x-knots[j][0])/(knots[j+1][0]-knots[j][0])))*Math.PI/180;};
+    ys[0]=-Math.max(1.8,h.k*.025);for(let i=1;i<=count;i++){const dy=-Math.tan(angle((i-.5)*dx))*dx;ys[i]=ys[i-1]+dy;ds[i]=ds[i-1]+Math.hypot(dx,dy);}
+    // Calibrate the physical track once so base-gate packed snow gives the hill's advertised speed.
+    function makeTrack(length){const arr=new Float64Array(501),arcs=new Float64Array(501);for(let i=499;i>=0;i--){const u=(i+.5)/500;const a=(36-25*smooth((u-.53)/.47))*Math.PI/180;arr[i]=arr[i+1]+Math.tan(a)*length/500;}for(let i=1;i<=500;i++)arcs[i]=arcs[i-1]+Math.hypot(length/500,arr[i]-arr[i-1]);return {arr,arcs,length};}
+    function exitSpeed(track){let vv=0;for(let i=1;i<=500;i++){const dy=track.arr[i-1]-track.arr[i],dx=track.length/500,dl=Math.hypot(dx,dy);vv=Math.max(0,vv+2*C.g*dy-2*C.baseFriction*C.g*dx-2*C.inrunDrag*vv*dl);}return Math.sqrt(vv);}
+    let lo=10,hi=190,track;for(let n=0;n<26;n++){track=makeTrack((lo+hi)/2);if(exitSpeed(track)<h.targetSpeed/3.6)lo=track.length;else hi=track.length;}track=makeTrack((lo+hi)/2);
+    const result={count,maxX,dx,ys,ds,track};geometry.set(h.id,result);return result;
+  }
+  function sampleArray(arr,p){const i=Math.floor(clamp(p,0,arr.length-1));return mix(arr[i],arr[Math.min(i+1,arr.length-1)],clamp(p-i,0,1));}
+  function profile(h,x){const g=geom(h);x=Math.max(0,Number(x)||0);return x>=g.maxX?g.ys[g.count]:sampleArray(g.ys,x/g.dx);}
+  function slope(h,x){const g=geom(h);const i=Math.min(g.count-1,Math.floor(clamp(x,0,g.maxX)/g.dx));return x>=g.maxX?0:(g.ys[i+1]-g.ys[i])/g.dx;}
+  function distanceAt(h,x){const g=geom(h);x=Math.max(0,Number(x)||0);return x>g.maxX?g.ds[g.count]+x-g.maxX:sampleArray(g.ds,x/g.dx);}
+  function xAtDistance(h,d){const g=geom(h);d=Math.max(0,Number(d)||0);if(d>=g.ds[g.count])return g.maxX+d-g.ds[g.count];let lo=0,hi=g.count;while(hi-lo>1){const m=(hi+lo)>>1;if(g.ds[m]<d)lo=m;else hi=m;}return (lo+(d-g.ds[lo])/(g.ds[hi]-g.ds[lo]))*g.dx;}
+  function inrun(h,u){const tr=geom(h).track;u=clamp(u,0,1);const i=Math.min(499,Math.floor(u*500));return {x:(u-1)*tr.length,y:sampleArray(tr.arr,u*500),slope:(tr.arr[i+1]-tr.arr[i])/(tr.length/500)};}
+  function createWind(cond,seed=1){cond=cleanConditions(cond);const r=rng(seed),p=Array.from({length:8},()=>r()*Math.PI*2);let mean=0,amp=.65,cross=.55;
+    if(cond.wind==='calm'){amp=.08;cross=.06;}else if(cond.wind==='gusty'){amp=2.4;cross=1.55;}else if(['head','headwind','steady headwind'].includes(cond.wind)){mean=2;amp=.4;cross=.32;}else if(['tail','tailwind'].includes(cond.wind)){mean=-1.65;amp=.35;cross=.42;}
+    return {sample(time=0){const t=Number(time)||0;return {head:clamp(mean+amp*(.52*Math.sin(t*.29+p[0])+.29*Math.sin(t*.91+p[1])+.19*Math.sin(t*2.13+p[2])),-4.5,4.5),cross:clamp(cross*(.58*Math.sin(t*.43+p[3])+.28*Math.sin(t*1.07+p[4])+.14*Math.sin(t*2.67+p[5])),-2.8,2.8)};}};
+  }
+  function stability(s){s=cleanSetup(s);return clamp(1.02-(s.lean-25)*.021-(s.ski-120)*.007+(s.arms==='out'?.17:0)-s.suit*.045,.30,1.15);}
+  function createJump(h,s=defaults,c=CONDITIONS,options={}){
+    s=cleanSetup(s);c=cleanConditions(c);const range=gateRange(h,c);s.gate=clamp(s.gate,range.min,range.max);const random=rng((options.seed||1)+991),windModel=createWind(c,options.seed||1),tr=geom(h).track;
+    const gateOffset=(s.gate-h.baseGate)*.9;
+    let u=clamp(-gateOffset/tr.length,0,.13),v=gateOffset>0?Math.sqrt(2*C.g*.57*gateOffset):.12;
+    const start=inrun(h,u),snowFriction=c.snow==='fresh'?.006:c.snow==='icy'?-.006:0;
+    const friction=clamp(C.baseFriction+snowFriction+waxPenalty(s,c)*.012*(72/h.targetSpeed),.02,.05);
+    const j={hill:h,setup:s,conditions:c,phase:'inrun',t:0,x:start.x,y:start.y,z:0,vx:0,vy:0,vz:0,speed:v,pitch:0,roll:0,takeoffQuality:0,takeoffSpeed:0,flightTime:0,flightWind:[],landing:null,distance:0,crashed:false,gate:s.gate,inrunProgress:u,tableETA:10,landingWindow:false,timeToLanding:Infinity,clearance:Infinity,wind:windModel.sample(options.windClock||0),needleExposure:0,meanDeviation:0,stability:stability(s),released:true};
+    let queued=false,applied=false,requestTime=null,outrunTime=0,windSampleTime=0,deviationSum=0,flightSteps=0,lastHead=j.wind.head,lastCross=j.wind.cross,fallTriggered=false;
+    const release=()=>{j.released=true;};
+    function quality(offset){const width=.21-(s.power-70)*.0027;return clamp(Math.exp(-((offset/width)**2)),0,1);}
+    function takeoff(){if(j.phase==='inrun'){queued=true;j.takeoffQuality=quality(j.tableETA);j.takeoffOffset=-j.tableETA;return true;}if(j.phase==='flight'&&j.flightTime<.14&&!applied){j.takeoffQuality=quality(j.flightTime);j.takeoffOffset=j.flightTime;applyImpulse(true);return true;}return false;}
+    function applyImpulse(late=false){if(applied)return;applied=true;const impulse=C.impulse*(s.power/85)*(.28+.72*j.takeoffQuality);j.vx+=Math.sin(C.tableAngle)*impulse;j.vy+=Math.cos(C.tableAngle)*impulse-(late?0:0);j.pitch+=(1-j.takeoffQuality)*(.48+(s.power-70)*.009)*(j.takeoffOffset>0?-1:1);}
+    function requestLanding(){if(j.phase!=='flight')return false;if(requestTime===null){requestTime=j.flightTime;j.landingRequested=true;}return true;}
+    function land(previous){const prevClear=previous.y-profile(h,previous.x),nowClear=j.y-profile(h,j.x),f=clamp(prevClear/(prevClear-nowClear),0,1);j.x=mix(previous.x,j.x,f);j.y=profile(h,j.x);j.z=mix(previous.z,j.z,f);j.distance=Math.round(distanceAt(h,j.x)*2)/2;
+      const sl=slope(h,j.x),impact=Math.max(0,-(j.vy-sl*j.vx)/Math.sqrt(1+sl*sl));const timing=requestTime===null?Infinity:j.flightTime-requestTime;
+      const deviation=Math.abs(j.pitch)+Math.abs(j.roll)*.8;const excess=Math.max(0,(j.distance-h.hs)/h.hs);const hazard=impact+excess*16+Math.max(0,j.speed-25)*excess*.7;
+      let type='two-footed';if(fallTriggered||hazard>8.5||deviation>1.62||(requestTime!==null&&timing>1.25&&hazard>6.4))type='fall';else if(deviation>1.02||hazard>7.1||(requestTime!==null&&timing>1.08))type='touch';else if(requestTime!==null&&Math.abs(timing-C.landingLead)<C.landingWindow&&deviation<.76&&hazard<7.1)type='telemark';
+      j.crashed=type==='fall';j.landing={type,impact,timing:Number.isFinite(timing)?timing:null,speed:j.speed};j.phase='outrun';const speed=Math.max(2,Math.hypot(j.vx,j.vy)*(type==='fall'?.42:.88));j.vx=speed/Math.sqrt(1+sl*sl);j.vy=sl*j.vx;j.vz*=.2;outrunTime=0;
+    }
+    function step(dt,controls={}){dt=clamp(dt,0,.05);if(!j.released||j.phase==='finished'||!dt)return j; j.t+=dt;j.wind=windModel.sample((options.windClock||0)+j.t);
+      if(j.phase==='inrun'){
+        const p=inrun(h,u),a=Math.atan(-p.slope);v=Math.max(.12,v+(C.g*Math.sin(a)-friction*C.g*Math.cos(a)-C.inrunDrag*v*v)*dt);u+=v*Math.cos(a)*dt/tr.length;j.inrunProgress=clamp(u,0,1);j.tableETA=Math.max(0,(1-u)*tr.length/Math.max(1,v*Math.cos(a)));const next=inrun(h,u);j.x=next.x;j.y=next.y;j.vx=v*Math.cos(a);j.vy=-v*Math.sin(a);j.speed=v;
+        if(u>=1){j.x=0;j.y=0;j.phase='flight';j.takeoffSpeed=v*3.6;j.vx=v*Math.cos(C.tableAngle);j.vy=-v*Math.sin(C.tableAngle);if(queued)applyImpulse();else {j.takeoffQuality=0;j.takeoffOffset=.2;/* a late key gets a brief, physical grace period */}}
+      }else if(j.phase==='flight'){
+        const previous={x:j.x,y:j.y,z:j.z};j.flightTime+=dt;if(!applied&&j.flightTime>=.14)applyImpulse();
+        const margin=j.stability,headRate=(j.wind.head-lastHead)/dt,crossRate=(j.wind.cross-lastCross)/dt;lastHead=j.wind.head;lastCross=j.wind.cross;
+        const pitchIn=clamp(controls.pitch||0,-1,1),rollIn=clamp(controls.roll||0,-1,1);
+        j.pitch=clamp(j.pitch+dt*((j.wind.head*.038+headRate*.052)/margin+C.pitchCorrection*pitchIn-j.pitch*.02),-2.4,2.4);
+        j.roll=clamp(j.roll+dt*((j.wind.cross*.15+crossRate*.08)/margin+C.rollCorrection*rollIn-j.roll*.11),-2.4,2.4);
+        const dev=Math.abs(j.pitch)+Math.abs(j.roll)*.8;deviationSum+=dev;flightSteps++;j.meanDeviation=deviationSum/flightSteps;
+        if(Math.abs(j.pitch)>C.needleLimit||Math.abs(j.roll)>C.needleLimit)j.needleExposure+=dt;else j.needleExposure=Math.max(0,j.needleExposure-dt*.7);if(j.needleExposure>C.crashExposure)fallTriggered=true;
+        // Air follows the terrain: uphill wind carries a modest vertical component.
+        const rx=j.vx+j.wind.head,ry=j.vy-j.wind.head*C.windUpdraft,rz=j.vz-j.wind.cross,air=Math.max(.1,Math.hypot(rx,ry,rz));const attack=clamp(30+(s.lean-25)*.15+j.pitch*16,5,65);
+        const liftCurve=attack<=33?(.62+.38*clamp((attack-10)/23,0,1)):Math.max(.18,1-(attack-33)*.034);
+        const vLift=.79+.21*Math.sin(Math.min(s.vAngle,32)/32*Math.PI/2);const area=C.area*(s.height/180)**.75*(s.ski/140)**.85*(1+s.suit*.04)*vLift;
+        const cl=C.lift*liftCurve*Math.max(.16,1-Math.abs(j.roll)*.26)*(fallTriggered?.18:1);
+        const cd=C.drag+C.inducedDrag*cl*cl+(s.vAngle>32?(s.vAngle-32)*.007:0)+(s.arms==='out'?.025:0)+Math.abs(j.pitch)*.014+(fallTriggered?.33:0);
+        const dynamic=.5*C.rho*air*air*area/s.weight,L=dynamic*cl,D=dynamic*cd;
+        const plane=Math.max(.1,Math.hypot(rx,ry));const ax=-D*rx/air+L*(-ry/plane),ay=-C.g-D*ry/air+L*(rx/plane),az=-D*rz/air+j.wind.cross*.028;
+        j.vx=clamp(j.vx+ax*dt,1,70);j.vy=clamp(j.vy+ay*dt,-70,30);j.vz=clamp(j.vz+az*dt,-8,8);j.x+=j.vx*dt;j.y+=j.vy*dt;j.z=clamp(j.z+j.vz*dt,-12,12);j.speed=Math.hypot(j.vx,j.vy,j.vz);j.distance=Math.round(distanceAt(h,j.x)*2)/2;
+        j.clearance=j.y-profile(h,j.x);
+        // Project onto the actual curved surface, not its current tangent: a knoll can fall away.
+        const projectedClearance=t=>j.y+j.vy*t+.5*ay*t*t-profile(h,j.x+j.vx*t+.5*ax*t*t);
+        j.timeToLanding=Infinity;
+        for(let n=1;n<=12;n++){const ahead=n*.1;if(projectedClearance(ahead)<=0){let lo=ahead-.1,hi=ahead;for(let k=0;k<7;k++){const mid=(lo+hi)/2;if(projectedClearance(mid)>0)lo=mid;else hi=mid;}j.timeToLanding=(lo+hi)/2;break;}}
+        j.landingWindow=j.timeToLanding>C.landingLead-C.landingWindow&&j.timeToLanding<C.landingLead+C.landingWindow;
+        windSampleTime+=dt;if(windSampleTime>=C.windRate){windSampleTime=0;j.flightWind.push({t:j.flightTime,head:j.wind.head,cross:j.wind.cross});}
+        if(j.clearance<=0||j.flightTime>20)land(previous);
+      }else if(j.phase==='outrun'){
+        outrunTime+=dt;const sl=slope(h,j.x),speed=Math.hypot(j.vx,j.vy);const brake=(j.crashed?8.5:5.8)+Math.max(0,-sl)*3;const next=Math.max(0,speed-brake*dt);j.vx=next/Math.sqrt(1+sl*sl);j.vy=sl*j.vx;j.x+=j.vx*dt;j.y=profile(h,j.x);j.speed=next;j.pitch*=Math.max(0,1-dt*2);j.roll*=Math.max(0,1-dt*2);if(outrunTime>4||next<1){j.phase='finished';j.speed=0;}
+      }
+      return j;
+    }
+    Object.assign(j,{release,takeoff,requestLanding,step});return j;
+  }
+  function score(j,seed=1){const random=rng(seed+0x2f934);const h=j.hill,s=j.setup;const distance=Math.round(Math.max(0,j.distance)*2)/2;const distancePoints=h.basePoints+(distance-h.k)*h.ppm;const meanWind=j.flightWind.length?j.flightWind.reduce((a,w)=>a+w.head,0)/j.flightWind.length:0;const windPoints=-meanWind*h.windFactor*(meanWind<0?1.2:1);const gatePoints=(h.baseGate-j.gate)*h.gateFactor;
+    const landing=j.landing?.type||'fall';const landingDeduction={telemark:0,'two-footed':2,touch:6,fall:11}[landing];const controlDeduction=clamp(j.meanDeviation*2.6+(1-j.takeoffQuality)*1.25,0,5);const judges=Array.from({length:5},()=>Math.round(clamp(20-landingDeduction-controlDeduction-(random()-.25)*1.1,0,20)*2)/2);const ordered=[...judges].sort((a,b)=>a-b),stylePoints=ordered[1]+ordered[2]+ordered[3];const illegal=s.ski>legalSki(s)+.001;const suitDQ=!illegal&&random()<.4*s.suit**3;const verdict=illegal||suitDQ?'DQ':'PASS';const rawTotal=distancePoints+stylePoints+windPoints+gatePoints;const one=v=>Math.round(v*10)/10;
+    return {distance,distancePoints:one(distancePoints),judges,stylePoints:one(stylePoints),windPoints:one(windPoints),gatePoints:one(gatePoints),total:verdict==='DQ'?0:one(rawTotal),rawTotal:one(rawTotal),meanWind:Math.round(meanWind*100)/100,verdict,reason:illegal?`Skis ${s.ski.toFixed(0)}% exceed ${legalSki(s).toFixed(1)}% permitted at BMI ${bmi(s).toFixed(1)}.`:suitDQ?'Suit air permeability / fit outside tolerance.':'Equipment compliant.',landing};
+  }
+  function simulateAI(h,s,c,seed=1,skill=.85){skill=clamp(skill,.15,1);const random=rng(seed+7159),j=createJump(h,s,c,{seed,aiSkill:skill,windClock:random()*65});const timing=.012+(1-skill)*.20+random()*.025;let fired=false,landed=false;for(let i=0;i<240*40&&j.phase!=='finished';i++){if(j.phase==='inrun'&&j.tableETA<timing&&!fired){j.takeoff();fired=true;}if(j.phase==='flight'&&!landed&&j.timeToLanding<C.landingLead+(random()-.5)*(1-skill)*.25){j.requestLanding();landed=true;}j.step(C.step,{pitch:clamp(-j.pitch*(2.0+skill*2.5),-1,1),roll:clamp(-j.roll*(2.5+skill*3),-1,1)});}return {...score(j,seed),takeoffSpeed:j.takeoffSpeed,flightTime:j.flightTime,takeoffQuality:j.takeoffQuality,jump:j};}
+  const previews=new Map();
+  function setupStats(h,s,c){s=cleanSetup(s);c=cleanConditions(c);const key=h.id+JSON.stringify(s)+JSON.stringify({temperature:c.temperature,snow:c.snow});if(previews.has(key))return previews.get(key);const sim=simulateAI(h,s,{...c,wind:'calm'},16453,1);const result={distance:sim.distance,stability:stability(s),dqRisk:dqRisk(s),bmi:bmi(s),legalSki:legalSki(s),speed:sim.takeoffSpeed};previews.set(key,result);if(previews.size>120)previews.delete(previews.keys().next().value);return result;}
+  return {C,HILLS,defaults,CONDITIONS,clamp,profile,slope,inrun,distanceAt,xAtDistance,legalSki,bmi,dqRisk,gateRange,setupStats,createWind,createJump,score,simulateAI};
+})();
+/* Procedural alpine scene. World coordinates: +X downhill, +Y up, +Z camera side. */
+class World {
+  constructor(canvas) {
+    this.canvas=canvas;
+    this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    this.renderer.shadowMap.enabled=window.innerWidth>800;
+    this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace=THREE.SRGBColorSpace;
+    this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure=1.12;
+    this.scene=new THREE.Scene();
+    this.camera=new THREE.PerspectiveCamera(40,1,0.2,4000);
+    this.camera.position.set(160,110,280);
+    this.focus=new THREE.Vector3();
+    this.desiredCamera=new THREE.Vector3();
+    this.desiredFocus=new THREE.Vector3();
+    this.lastMode='';
+    this.flags=[];
+    this.clock=0;
+    this.resize();
+  }
+  resize() {
+    const w=this.canvas.clientWidth||window.innerWidth,h=this.canvas.clientHeight||window.innerHeight;
+    this.width=w;this.height=h;
+    this.renderer.setSize(w,h,false);
+    this.camera.aspect=w/h;
+    this.camera.updateProjectionMatrix();
+  }
+  disposeScene() {
+    const geometries=new Set(),materials=new Set(),textures=new Set();
+    this.scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));});
+    materials.forEach(m=>{if(m.map)textures.add(m.map);m.dispose();});
+    geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());
+    this.scene.clear();this.flags=[];
+  }
+  material(color,opts={}) {return new THREE.MeshStandardMaterial({color,roughness:.86,metalness:0,flatShading:true,...opts});}
+  mesh(geo,mat,x=0,y=0,z=0,parent=this.scene) {
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+  }
+  box(x,y,z,w,h,d,mat,parent=this.scene) {return this.mesh(new THREE.BoxGeometry(w,h,d),mat,x,y,z,parent);}
+  rod(a,b,r,mat,parent=this.scene) {
+    const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),v=bv.clone().sub(av);
+    const m=this.mesh(new THREE.CylinderGeometry(r,r,v.length(),5),mat,0,0,0,parent);
+    m.position.copy(av).add(bv).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());return m;
+  }
+  makeText(text,{width=512,height=128,color='#183846',background='transparent',font=62}={}) {
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const c=canvas.getContext('2d');
+    if(background!=='transparent'){c.fillStyle=background;c.fillRect(0,0,width,height);}
+    c.fillStyle=color;c.textAlign='center';c.textBaseline='middle';c.font=`800 ${font}px Arial, sans-serif`;c.fillText(text,width/2,height/2+3);
+    const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());return tex;
+  }
+  textPlane(text,x,y,z,w,h,opts={}) {
+    const tex=this.makeText(text,opts);return this.mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,side:THREE.DoubleSide}),x,y,z);
+  }
+  ground(x,z) {
+    const k=this.hill.k, p=x<0?Engine.profile(this.hill,0)+Math.min(-x*.15,k*.2):Engine.profile(this.hill,x);
+    const away=Math.max(0,Math.abs(z)-this.trackHalf-4);
+    return p-away*.08+Math.sin(x*.028+z*.035)*Math.min(away*.04,k*.04)+Math.sin(z*.073)*Math.min(away*.03,k*.025);
+  }
+  build(hill,conditions={},recordDistance=0) {
+    this.disposeScene();this.hill=hill;this.conditions=conditions||{};
+    const k=hill.k,night=conditions.weather==='night',fog=conditions.weather==='fog';
+    this.trackHalf=Math.max(6.8,Math.min(12,k*.065));
+    const start=Engine.inrun(hill,0);
+    this.startPoint=start;
+    this.endX=Math.max(Engine.xAtDistance(hill,hill.hs)*1.6,k*1.9);
+    this.scene.background=new THREE.Color(night?0x101c2b:0x94b0c4);
+    this.scene.fog=new THREE.FogExp2(night?0x152536:fog?0xb6cbd3:0x8da9bb,fog?.32/k:.035/k);
+    this.mat={
+      snow:this.material(0xe1eced),track:this.material(0xf2f8f4),ice:this.material(0xadcbd5,{roughness:.4}),
+      metal:this.material(0x496471,{metalness:.45,roughness:.5}),dark:this.material(0x173241),
+      truss:this.material(0x7a8f98,{metalness:.45}),wood:this.material(0x6d7675),
+      accent:this.material(0xd6fa74),red:this.material(0xf05d60),green:this.material(0xb5dc6b),
+      glass:this.material(0x24424c,{metalness:.5,roughness:.2}),white:this.material(0xf0f5f3)
+    };
+    const ambient=new THREE.HemisphereLight(night?0x86afd5:0xdaedff,night?0x203244:0x5c7678,night?1.4:2.45);this.scene.add(ambient);
+    const sun=new THREE.DirectionalLight(night?0xcde7ff:0xffedcd,night?2.1:3.15);
+    sun.position.set(-k*.5,k*1.3,k*.55);sun.target.position.set(k*.25,-k*.2,0);
+    sun.castShadow=this.renderer.shadowMap.enabled;sun.shadow.mapSize.set(2048,2048);
+    const d=Math.max(90,k*1.05);Object.assign(sun.shadow.camera,{left:-d,right:d,top:d,bottom:-d,near:1,far:k*5+200});sun.shadow.bias=-.00015;sun.shadow.normalBias=.2;sun.shadow.radius=3;
+    this.scene.add(sun,sun.target);
+    this.buildSky(night);
+    this.buildTerrain();
+    this.buildMountains(night);
+    this.buildInrun();
+    this.buildMarkers(recordDistance);
+    this.buildForest();
+    this.buildVillage();
+    this.compactStatic();
+    this.buildJumper();
+    this.buildSnow();
+    this.heroTarget=new THREE.Vector3(k*.34,-k*.26,-3);
+    const span=Math.max(190,this.endX-start.x);
+    this.heroPosition=new THREE.Vector3(this.heroTarget.x+span*.46,this.heroTarget.y+span*.53,span*.91);
+    this.camera.position.copy(this.heroPosition);this.focus.copy(this.heroTarget);
+    this.lastMode='';this.camera.lookAt(this.focus);
+  }
+  compactStatic() {
+    // Batch static structures by material: the detailed tower costs only a few draw calls.
+    const groups=new Map(),animated=new Set([...this.flags,this.startLamp]);
+    this.scene.updateMatrixWorld(true);
+    this.scene.traverse(o=>{
+      if(!o.isMesh||o.isInstancedMesh||animated.has(o)||Array.isArray(o.material)||o.material.transparent||o.material.isShaderMaterial||o.material.map)return;
+      const key=o.material.uuid+':'+o.castShadow+':'+o.receiveShadow;
+      if(!groups.has(key))groups.set(key,[]);groups.get(key).push(o);
+    });
+    for(const list of groups.values()){
+      if(list.length<2)continue;
+      const chunks=list.map(o=>{const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);return g;});
+      const names=Object.keys(chunks[0].attributes).filter(name=>chunks.every(g=>g.attributes[name]));
+      const merged=new THREE.BufferGeometry();
+      for(const name of names){const first=chunks[0].attributes[name],size=chunks.reduce((n,g)=>n+g.attributes[name].array.length,0),values=new Float32Array(size);let offset=0;
+        for(const g of chunks){values.set(g.attributes[name].array,offset);offset+=g.attributes[name].array.length;}
+        merged.setAttribute(name,new THREE.BufferAttribute(values,first.itemSize,first.normalized));
+      }
+      const m=new THREE.Mesh(merged,list[0].material);m.castShadow=list[0].castShadow;m.receiveShadow=list[0].receiveShadow;this.scene.add(m);
+      list.forEach(o=>{o.removeFromParent();o.geometry.dispose();});chunks.forEach(g=>g.dispose());
+    }
+  }
+  buildSky(night) {
+    const mat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:new THREE.Color(night?0x081421:0x44647d)},bottom:{value:new THREE.Color(night?0x243b50:0xc3d6df)}},vertexShader:'varying vec3 vDir; void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'uniform vec3 top;uniform vec3 bottom;varying vec3 vDir;void main(){float h=smoothstep(-0.05,0.65,vDir.y);gl_FragColor=vec4(mix(bottom,top,h),1.0);}' });
+    const sky=this.mesh(new THREE.SphereGeometry(2200,24,12),mat);sky.castShadow=false;sky.receiveShadow=false;
+    if(night){
+      const r=()=>Math.random(),pos=[];for(let i=0;i<240;i++){const x=(r()-.5)*2400,z=(r()-.5)*2400;pos.push(x,550+r()*700,z);}
+      const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));this.scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:1.7,color:0xc4dfeb,transparent:true,opacity:.8,sizeAttenuation:true})));
+    }
+  }
+  buildTerrain() {
+    const k=this.hill.k,x0=this.startPoint.x-k*.65,x1=this.endX+k*.75,z0=-k*1.55,z1=k*1.3;
+    const xs=[];for(let i=0;i<=95;i++)xs.push(x0+(x1-x0)*i/95);
+    const zs=[z0,-k*.9,-k*.55,-k*.32,-this.trackHalf-13,-this.trackHalf-3,-this.trackHalf,0,this.trackHalf,this.trackHalf+3,this.trackHalf+13,k*.35,k*.65,k*.95,z1].sort((a,b)=>a-b);
+    const vertices=[],colors=[],indices=[];
+    const snowA=new THREE.Color(0xc2d7dd),snowB=new THREE.Color(0xe6f0ec);
+    xs.forEach((x,ix)=>zs.forEach((z,iz)=>{
+      const y=this.ground(x,z);vertices.push(x,y,z);
+      const mix=.45+.2*Math.sin(ix*.7+iz*2.1)+.1*Math.cos(iz*.8);const c=snowA.clone().lerp(snowB,mix);colors.push(c.r,c.g,c.b);
+    }));
+    for(let i=0;i<xs.length-1;i++)for(let j=0;j<zs.length-1;j++){const a=i*zs.length+j,b=a+zs.length;indices.push(a,a+1,b,b,a+1,b+1);}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setIndex(indices);geo.computeVertexNormals();
+    const terrain=this.mesh(geo,this.material(0xffffff,{vertexColors:true}));terrain.castShadow=false;
+    // A smooth, separate snow ribbon keeps the surveyed landing profile readable.
+    const p=[],ind=[];for(let i=0;i<=150;i++){const x=this.endX*i/150,y=Engine.profile(this.hill,x)+.075;p.push(x,y,-this.trackHalf,x,y,this.trackHalf);}
+    for(let i=0;i<150;i++){const a=i*2;ind.push(a,a+1,a+2,a+1,a+3,a+2);}
+    const ribbon=new THREE.BufferGeometry();ribbon.setAttribute('position',new THREE.Float32BufferAttribute(p,3));ribbon.setIndex(ind);ribbon.computeVertexNormals();this.mesh(ribbon,this.mat.track).castShadow=false;
+    // Continuous icy edging, low fencing and pole rhythm down the landing hill.
+    for(let sign of [-1,1]){
+      for(let i=0;i<80;i++){
+        const x=this.endX*i/80,nx=this.endX*(i+1)/80,z=sign*(this.trackHalf+.25);
+        this.rod([x,Engine.profile(this.hill,x)+.25,z],[nx,Engine.profile(this.hill,nx)+.25,z],.105,this.mat.ice).castShadow=false;
+      }
+      const interval=Math.max(7,k*.067);
+      for(let x=6;x<this.endX;x+=interval){const y=Engine.profile(this.hill,x);this.box(x,y+.85,sign*(this.trackHalf+1.2),.14,1.8,.14,this.mat.dark).castShadow=false;}
+      const pos=[];
+      for(let i=0;i<=100;i++){const x=this.endX*i/100;pos.push(x,Engine.profile(this.hill,x)+1.42,sign*(this.trackHalf+1.2));}
+      const wireGeo=new THREE.BufferGeometry();wireGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));this.scene.add(new THREE.Line(wireGeo,new THREE.LineBasicMaterial({color:0x748f99,transparent:true,opacity:.7})));
+    }
+  }
+  buildInrun() {
+    const points=[];for(let i=0;i<=96;i++)points.push(Engine.inrun(this.hill,i/96));
+    const p=[],ind=[];
+    points.forEach(q=>p.push(q.x,q.y,-1.6,q.x,q.y,1.6));
+    for(let i=0;i<96;i++){const a=i*2;ind.push(a,a+1,a+2,a+1,a+3,a+2);}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));geo.setIndex(ind);geo.computeVertexNormals();this.mesh(geo,this.mat.snow);
+    // Paired incised ice grooves, a steel understructure, and handrails.
+    for(let i=0;i<96;i++){
+      const a=points[i],b=points[i+1];
+      for(let z of [-.24,.24])this.rod([a.x,a.y+.025,z],[b.x,b.y+.025,z],.045,this.mat.ice).castShadow=false;
+      for(let z of [-1.52,1.52])this.rod([a.x,a.y-.45,z],[b.x,b.y-.45,z],.16,this.mat.metal);
+      if(i<86)for(let z of [-1.6,1.6])this.rod([a.x,a.y+.8,z],[b.x,b.y+.8,z],.07,this.mat.white).castShadow=false;
+      if(i%6===0&&i<87){for(let z of [-1.6,1.6])this.rod([a.x,a.y-.2,z],[a.x,a.y+.85,z],.07,this.mat.metal);}
+    }
+    for(let u=0;u<.92;u+=.15){
+      const a=Engine.inrun(this.hill,u),b=Engine.inrun(this.hill,Math.min(.96,u+.15));
+      const ground=this.ground(a.x,4);
+      for(let z of [-2.15,2.15]){
+        this.rod([a.x,ground,z],[a.x,a.y-.55,z],.26,this.mat.truss);
+        this.rod([a.x,ground+.4,z],[b.x,b.y-.6,z],.16,this.mat.metal);
+      }
+      this.rod([a.x,a.y-.45,-2.2],[a.x,a.y-.45,2.2],.2,this.mat.metal);
+      if(a.y-ground>8){this.rod([a.x,ground+1,-2.15],[a.x,a.y-1,2.15],.14,this.mat.metal);this.rod([a.x,ground+1,2.15],[a.x,a.y-1,-2.15],.14,this.mat.metal);}
+    }
+    const s=this.startPoint;
+    this.box(s.x-2.4,s.y-.5,0,6,.55,8,this.mat.metal);
+    this.box(s.x-4.8,s.y+2,0,4,4.2,5.4,this.mat.dark);
+    this.box(s.x-4.8,s.y+4.35,0,4.9,.35,6.1,this.mat.snow);
+    this.box(s.x-2.73,s.y+2.6,0,.1,1.45,4.6,this.mat.glass);
+    this.box(s.x-4.8,s.y+1.65,2.78,2.9,1.75,.08,this.mat.glass);
+    const sign=this.textPlane('TELEMARK',s.x-4.8,s.y+3.65,2.79,3.5,.8,{font:63,color:'#d6fa74'});
+    // Broadcast green-light board beside the release gate.
+    this.box(s.x+.8,s.y+1.8,2.2,.38,1.2,.34,this.mat.dark);
+    this.startLamp=this.mesh(new THREE.SphereGeometry(.2,8,6),new THREE.MeshBasicMaterial({color:0xd6fa74}),s.x+.8,s.y+2.1,2.42);
+    this.box(-.05,-.24,0,.3,.4,3.25,this.mat.accent);
+    const logo=this.textPlane('01 / TAKEOFF',-3,-1.15,1.72,5.3,.8,{font:49,color:'#edf9fc',background:'#203e4c'});logo.rotation.z=-.16;
+  }
+  buildMarkers(recordDistance) {
+    const h=this.hill,k=h.k,step=k<=50?10:20;
+    const stripe=(d,color,width=.28)=>{
+      const x=Engine.xAtDistance(h,d),y=Engine.profile(h,x)+.115,s=Engine.slope(h,x);
+      const m=this.box(x,y,0,width,.022,this.trackHalf*2,color);m.rotation.z=Math.atan(s);m.castShadow=false;return{x,y,s};
+    };
+    for(let d=step;d<h.hs+30;d+=step){
+      const q=stripe(d,this.mat.ice,.12);
+      for(let z of [-this.trackHalf+.8,this.trackHalf-.8]){const mark=this.box(q.x,q.y+.01,z,.8,.025,1.55,this.mat.dark);mark.rotation.z=Math.atan(q.s);mark.castShadow=false;}
+      const label=this.textPlane(String(d),q.x,q.y+.16,this.trackHalf-2.6,4.1,1.5,{font:75,color:'#536e7b'});label.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(1,q.s,0).normalize(),new THREE.Vector3(0,0,-1),new THREE.Vector3(-q.s,1,0).normalize()));
+    }
+    for(const [distance,mat,label] of [[h.k,this.mat.red,`K${h.k}`],[h.hs,this.mat.green,`HS${h.hs}`]]){
+      const q=stripe(distance,mat,.65);
+      for(let z of [-this.trackHalf-1,this.trackHalf+1])this.box(q.x,q.y+.6,z,.22,1.1,.2,mat);
+      const marker=this.textPlane(label,q.x,q.y+1.8,this.trackHalf+2,6,1.75,{font:70,color:label[0]==='K'?'#f5b0aa':'#d6fa74',background:'#193b46'});marker.rotation.y=.1;
+    }
+    if(recordDistance>0){const q=stripe(Math.min(h.hs*1.4,recordDistance),this.mat.accent,.22);this.textPlane(`PB ${recordDistance.toFixed(1)} M`,q.x,q.y+2,this.trackHalf+2,8,1.2,{font:49,color:'#d6fa74',background:'#193b46'});}
+  }
+  buildMountains(night) {
+    const k=this.hill.k,span=Math.max(200,k*2),rnd=(n)=>{const v=Math.sin(n*31.732+9.13)*45126.343;return v-Math.floor(v);};
+    for(let layer=0;layer<3;layer++){
+      const positions=[],colors=[],capPos=[],capColors=[];
+      const base=-k*1.05,z=-span*(.7+layer*.55),n=18;
+      const palette=layer===2?[0x8ba4b6,0x809bae,0xa0b5c2]:layer===1?[0x648196,0x7c98aa,0x59788f]:[0x375971,0x55758b,0x6f8b9d];
+      for(let i=0;i<n;i++){
+        const x=-span*1.7+i*span*.26,peak=span*(.20+rnd(i+layer*100)*.23),radius=span*(.14+rnd(i+80+layer)*.10),py=base+peak,off=radius*(rnd(i+6)-.5)*.5;
+        const left=[x-radius,base,z+radius*.3],top=[x+off,py,z],right=[x+radius,base,z+radius*.4],ridge=[x+radius*.05,base,z+radius*.8];
+        for(const [a,b,c,co] of [[left,top,ridge,palette[0]],[ridge,top,right,palette[1]],[right,top,[x+radius,base,z-radius*.6],palette[2]]]){
+          positions.push(...a,...b,...c);const color=new THREE.Color(co);if(night)color.multiplyScalar(.48);for(let j=0;j<3;j++)colors.push(color.r,color.g,color.b);
+        }
+        const t=.55+rnd(i+39)*.12,lerp=(a,b)=>a.map((v,j)=>v+(b[j]-v)*t);
+        for(const [a,b,c,co] of [[lerp(top,left),top,lerp(top,ridge),0xb6cad4],[lerp(top,ridge),top,lerp(top,right),0xe0e9e9]]){
+          a[2]+=.2;c[2]+=.2;capPos.push(...a,...b,...c);const col=new THREE.Color(co);if(night)col.multiplyScalar(.6);for(let j=0;j<3;j++)capColors.push(col.r,col.g,col.b);
+        }
+      }
+      for(const [p,c] of [[positions,colors],[capPos,capColors]]){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.computeVertexNormals();const mountain=this.mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,fog:true,polygonOffset:p===capPos,polygonOffsetFactor:-2,polygonOffsetUnits:-4}));mountain.castShadow=false;mountain.receiveShadow=false;}
+    }
+  }
+  buildForest() {
+    const k=this.hill.k,n=460,positions=[];let seed=3927;
+    const r=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+    for(let i=0;i<n;i++){
+      const x=this.startPoint.x-k*.6+r()*(this.endX-this.startPoint.x+k*1.1),z=(r()-.64)*k*2.25;
+      if(Math.abs(z)<this.trackHalf+15)continue;
+      if(z>0&&z<k*.55&&x>k*.18&&x<k*1.3)continue;
+      positions.push({x,z,h:3.5+r()*Math.min(11,k*.09),r:r()});
+    }
+    const trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.33,1,5),this.mat.wood,positions.length);
+    const foliage=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,6),this.material(0x294b54),positions.length*2);
+    const caps=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,6),this.material(0xb3cbd2),positions.length);
+    const m=new THREE.Object3D(),c=new THREE.Color();
+    positions.forEach((p,i)=>{
+      const y=this.ground(p.x,p.z),h=p.h;
+      m.position.set(p.x,y+h*.17,p.z);m.scale.set(.75,h*.34,.75);m.rotation.y=p.r*6;m.updateMatrix();trunk.setMatrixAt(i,m.matrix);
+      m.position.y=y+h*.43;m.scale.set(h*.22,h*.62,h*.22);m.updateMatrix();foliage.setMatrixAt(i*2,m.matrix);
+      m.position.y=y+h*.70;m.scale.set(h*.16,h*.57,h*.16);m.updateMatrix();foliage.setMatrixAt(i*2+1,m.matrix);
+      c.setHex(p.r>.55?0x355b60:0x244852);foliage.setColorAt(i*2,c);foliage.setColorAt(i*2+1,c);
+      m.position.y=y+h*.85;m.scale.set(h*.12,h*.32,h*.12);m.updateMatrix();caps.setMatrixAt(i,m.matrix);
+    });
+    trunk.castShadow=false;foliage.castShadow=true;caps.castShadow=false;this.scene.add(trunk,foliage,caps);
+  }
+  buildVillage() {
+    const k=this.hill.k,half=this.trackHalf;
+    // Long staggered bleachers follow the grade on the far side of the jump.
+    const people=[];
+    for(let j=0;j<3;j++){
+      const x=k*(.43+j*.28),z=-half-10,base=this.ground(x,z),length=Math.max(11,k*.19);
+      for(let row=0;row<5;row++){
+        const rz=z-row*1.1,ry=base+row*.64;
+        this.box(x,ry,rz,length,.6,1.1,row%2?this.mat.metal:this.mat.dark);
+        for(let n=0;n<Math.floor(length/.7);n++){
+          const px=x-length/2+.45+n*.72;
+          if((n+j+row)%7!==0)people.push({x:px,y:ry+.65,z:rz,c:(n+row*7+j*3)%6});
+        }
+      }
+      this.box(x,base+3.7,z-5.4,length+.7,.25,1.5,this.mat.snow);
+      const sign=this.textPlane(j===1?'TELEMARK / WINTER SERIES':'MAKE YOUR MARK',x,base+.2,z+.59,length*.9,.85,{font:51,color:j===1?'#d6fa74':'#adc8d4',background:'#163645'});
+    }
+    const dummy=new THREE.Object3D(),colors=[0xb85e50,0x304f64,0xd2dfc7,0xc0d966,0x406b80,0x9da5a4];
+    const body=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.28,.67,5),this.mat.white,people.length);
+    const head=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.2,0),this.mat.white,people.length);
+    people.forEach((p,i)=>{
+      dummy.position.set(p.x,p.y+.25,p.z);dummy.scale.set(1,1,1);dummy.updateMatrix();body.setMatrixAt(i,dummy.matrix);body.setColorAt(i,new THREE.Color(colors[p.c]));
+      dummy.position.y+=.53;dummy.updateMatrix();head.setMatrixAt(i,dummy.matrix);head.setColorAt(i,new THREE.Color(p.c%2?0xdfc2a7:0x839dae));
+    });body.castShadow=false;head.castShadow=false;this.scene.add(body,head);
+    // Cantilevered judges' cabin, safely outside the landing corridor.
+    const jx=k*.71,jz=half+13,jy=this.ground(jx,jz);
+    for(let x of [-3,3])for(let z of [-2.4,2.4])this.rod([jx+x,jy,jz+z],[jx+x,jy+10,jz+z],.25,this.mat.metal);
+    this.box(jx,jy+8,jz,8,4.4,6.5,this.mat.dark);
+    this.box(jx,jy+8.5,jz-3.3,7.2,2,.1,this.mat.glass);
+    this.box(jx,jy+8.5,jz+3.3,7.2,2,.1,this.mat.glass);
+    this.box(jx,jy+10.45,jz,9.1,.45,7.5,this.mat.snow);
+    this.textPlane('JUDGES',jx,jy+6.6,jz+3.36,6,.95,{font:58,color:'#d6fa74'});
+    for(let i=0;i<5;i++)this.box(jx-2.9+i*1.45,jy+8.5,jz+3.37,.05,2,.08,this.mat.truss);
+    // A row of cloth wind flags gives the wind a physical presence.
+    for(let i=0;i<7;i++){
+      const x=-6+(this.endX*.84+6)*i/6,z=(i%2?1:-1)*(half+5),y=this.ground(Math.max(0,x),z),height=5.5;
+      this.rod([x,y,z],[x,y+height,z],.07,this.mat.metal);
+      const flag=new THREE.Mesh(new THREE.PlaneGeometry(1.9,.85,8,2),this.material(i%2?0xd6fa74:0xe4eef0,{side:THREE.DoubleSide}));
+      flag.geometry.translate(.95,0,0);flag.position.set(x,y+height-.5,z);flag.userData={phase:i*.9,base:Array.from(flag.geometry.attributes.position.array)};
+      flag.castShadow=false;this.scene.add(flag);this.flags.push(flag);
+    }
+    // Floodlights are luminous geometry, plus the scene's single shadow light.
+    const lampMaterial=new THREE.MeshStandardMaterial({color:0xffffdc,emissive:0xfff0bc,emissiveIntensity:this.conditions.weather==='night'?7:.15});
+    for(let i=0;i<4;i++){
+      const x=k*(.17+i*.41),z=half+27,y=this.ground(x,z),height=Math.max(15,k*.12);
+      this.rod([x,y,z],[x,y+height,z],.16,this.mat.metal);
+      this.box(x,y+height,z,4.5,.6,.6,this.mat.dark);
+      for(let n=0;n<4;n++){
+        const lamp=this.box(x-1.6+n*1.05,y+height-.05,z-.4,.72,.7,.18,lampMaterial);lamp.rotation.x=-.6;lamp.castShadow=false;
+      }
+      if(this.conditions.weather==='night'){
+        const geo=new THREE.ConeGeometry(8,height*.9,16,1,true),mat=new THREE.MeshBasicMaterial({color:0xbfdbdc,transparent:true,opacity:.035,side:THREE.DoubleSide,depthWrite:false});
+        const cone=this.mesh(geo,mat,x,y+height*.5,z-2);cone.castShadow=false;cone.receiveShadow=false;
+      }
+    }
+    // Finish arch and restrained barrier graphics.
+    const fx=this.endX*.88,fy=Engine.profile(this.hill,fx);
+    for(let z of [-half-1,half+1])this.box(fx,fy+4,z,.45,8,.55,this.mat.dark);
+    this.box(fx,fy+8,0,.75,1.2,half*2+3,this.mat.dark);
+    const banner=this.textPlane('T E L E M A R K',fx+.43,fy+8,0,half*1.8,1,{font:54,color:'#d6fa74'});banner.rotation.y=Math.PI/2;
+  }
+  buildJumper() {
+    const suit=this.material(0xd6fa74),dark=this.material(0x183040),boot=this.material(0xdce8e8),skin=this.material(0xe9c6a2),visor=this.material(0x183749,{metalness:.7,roughness:.2});
+    this.jumper=new THREE.Group();this.scene.add(this.jumper);this.rig={};
+    const rig=this.rig;
+    rig.skis=[];
+    for(let sign of [-1,1]){
+      const ski=new THREE.Group();this.jumper.add(ski);
+      this.box(0,.04,0,2.8,.065,.13,dark,ski);
+      this.box(.48,.081,0,1.65,.012,.12,suit,ski);
+      const tip=this.box(1.40,.10,0,.27,.055,.13,suit,ski);tip.rotation.z=.3;
+      this.box(-.08,.20,0,.45,.25,.18,boot,ski);
+      ski.userData.sign=sign;rig.skis.push(ski);
+    }
+    const segment=(mat,r=.13)=>this.mesh(new THREE.CylinderGeometry(r,r,1,6),mat,0,0,0,this.jumper);
+    rig.upperLegs=[segment(dark,.14),segment(dark,.14)];rig.lowerLegs=[segment(dark,.11),segment(dark,.11)];
+    rig.torso=this.box(0,0,0,.37,.75,.49,suit,this.jumper);
+    rig.bib=this.box(0,0,0,.02,.37,.44,boot,this.jumper);
+    rig.arms=[segment(suit,.095),segment(suit,.095)];rig.forearms=[segment(dark,.08),segment(dark,.08)];
+    rig.hands=[this.mesh(new THREE.IcosahedronGeometry(.11,0),dark,0,0,0,this.jumper),this.mesh(new THREE.IcosahedronGeometry(.11,0),dark,0,0,0,this.jumper)];
+    rig.head=new THREE.Group();this.jumper.add(rig.head);
+    this.mesh(new THREE.IcosahedronGeometry(.24,1),skin,0,0,0,rig.head);
+    const helm=this.mesh(new THREE.SphereGeometry(.26,10,8,0,Math.PI*2,0,Math.PI*.67),dark,0,.035,0,rig.head);
+    this.box(.224,.012,0,.05,.115,.38,visor,rig.head);
+    this.box(.016,.23,0,.29,.07,.30,suit,rig.head);
+    this.poseJumper(null,0);
+  }
+  bone(mesh,a,b) {
+    const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),v=bv.clone().sub(av);
+    mesh.position.copy(av).add(bv).multiplyScalar(.5);mesh.scale.y=v.length();mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());
+  }
+  poseJumper(jump,time) {
+    if(!this.jumper)return;
+    const rig=this.rig,s=jump?.setup||this.previewSetup||{},phase=jump?.phase||'inrun',flight=phase==='flight',land=phase==='outrun'||phase==='finished';
+    const lean=THREE.MathUtils.clamp(Number(s.lean)||35,25,45),height=THREE.MathUtils.clamp((Number(s.height)||178)/178,.87,1.15);
+    const skiLength=(Number(s.ski)||135)/135;
+    let hip,knee,shoulder,head;
+    if(flight){const le=(lean-25)/20;hip=[.25,.72,0];knee=[.13,.45,0];shoulder=[.89+le*.16,1.22-le*.17,0];head=[1.13+le*.19,1.40-le*.20,0];}
+    else if(land){hip=[.05,.98,0];knee=[.30,.56,0];shoulder=[.28,1.6,0];head=[.39,1.91,0];}
+    else {hip=[-.34,.80,0];knee=[.38,.53,0];shoulder=[.26,1.03,0];head=[.56,1.18,0];}
+    const tele=land&&jump?.landing?.type==='telemark',fallen=land&&['fall','crash'].includes(jump?.landing?.type);
+    for(let i=0;i<2;i++){
+      const sign=i?1:-1,z=sign*.15,offset=tele?sign*.28:0;
+      const ankle=[offset,.24,z],kn=[knee[0]+offset*.55,knee[1],z],hp=[hip[0],hip[1],z*.8];
+      this.bone(rig.lowerLegs[i],ankle,kn);this.bone(rig.upperLegs[i],kn,hp);
+      const vAngle=flight?THREE.MathUtils.degToRad(THREE.MathUtils.clamp(Number.isFinite(Number(s.vAngle))?Number(s.vAngle):28,0,40))*.5:0;
+      rig.skis[i].position.set(offset,0,z);rig.skis[i].rotation.y=-sign*vAngle;rig.skis[i].scale.x=skiLength;
+      const sh=[shoulder[0],shoulder[1],sign*.26];
+      let el,hand;
+      if(flight){const arms=s.arms==='out'||Number(s.arms)>.3;el=[shoulder[0]-.39,shoulder[1]-.15,sign*(arms?.56:.32)];hand=[shoulder[0]-.75,shoulder[1]-.29,sign*(arms?.70:.29)];}
+      else if(land){el=[shoulder[0]-.22,shoulder[1]-.27,sign*.65];hand=[shoulder[0]-.36,shoulder[1]-.33,sign*.95];}
+      else {el=[shoulder[0]-.43,shoulder[1]-.17,sign*.29];hand=[shoulder[0]-.80,shoulder[1]-.21,sign*.29];}
+      this.bone(rig.arms[i],sh,el);this.bone(rig.forearms[i],el,hand);rig.hands[i].position.set(...hand);
+    }
+    const direction=new THREE.Vector3(shoulder[0]-hip[0],shoulder[1]-hip[1],0);
+    rig.torso.position.set((hip[0]+shoulder[0])*.5,(hip[1]+shoulder[1])*.5,0);rig.torso.scale.y=direction.length()/.75;rig.torso.rotation.z=-Math.atan2(direction.x,direction.y);
+    rig.bib.position.copy(rig.torso.position);rig.bib.position.x+=.17;rig.bib.rotation.z=rig.torso.rotation.z;rig.head.position.set(...head);
+    this.jumper.scale.setScalar(height);
+    if(jump){
+      this.jumper.position.set(Number(jump.x)||0,(Number(jump.y)||0)+.06,Number(jump.z)||0);
+      const pitch=Number(jump.pitch)||0,roll=Number(jump.roll)||0;
+      // Engine stability needles are normalized; make deviations visible without snapping.
+      if(flight){this.jumper.rotation.set(roll*.30,0,pitch*.30);}
+      else if(land){this.jumper.rotation.set(fallen?1.35:0,0,Math.atan(Engine.slope(this.hill,jump.x))+(fallen?-.5:0));}
+      else {const q=Engine.inrun(this.hill,Math.min(1,Number(jump.inrunProgress)||0));this.jumper.rotation.set(0,0,Math.atan(q.slope));}
+    } else {
+      const p=Engine.inrun(this.hill,.04);this.jumper.position.set(p.x,p.y+.06,0);this.jumper.rotation.set(0,0,Math.atan(p.slope));
+    }
+  }
+  buildSnow() {
+    const n=this.conditions.weather==='snowfall'?1050:80,k=this.hill.k,p=[];
+    for(let i=0;i<n;i++)p.push((Math.random()-.3)*k*2.5,-k*.7+Math.random()*k*1.8,(Math.random()-.5)*k*1.7);
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+    this.snow=new THREE.Points(g,new THREE.PointsMaterial({color:0xf0f8ff,size:this.conditions.weather==='snowfall'?.24:.13,transparent:true,opacity:this.conditions.weather==='snowfall'?.68:.28,depthWrite:false}));this.scene.add(this.snow);
+  }
+  update(dt,jump,wind,options={}) {
+    if(!this.hill)return;
+    dt=Math.min(.05,Math.max(0,Number(dt)||0));this.clock+=dt;
+    const {mode='workshop',camera='tv'}=options,time=options.time??this.clock;
+    if(options.setup)this.previewSetup=options.setup;
+    this.poseJumper(jump,time);
+    const head=Number(wind?.head??wind?.headwind??wind?.x)||0,cross=Number(wind?.cross??wind?.crosswind??wind?.z)||0;
+    this.flags.forEach((flag,i)=>{
+      const positions=flag.geometry.attributes.position,base=flag.userData.base;
+      flag.rotation.y=Math.atan2(cross,-head||.15);
+      for(let n=0;n<positions.count;n++){
+        const x=base[n*3],frac=x/1.9;positions.setZ(n,Math.sin(time*(3+Math.abs(head))+frac*6+flag.userData.phase)*.12*frac*(.35+Math.min(3,Math.abs(head)+Math.abs(cross))));
+      }positions.needsUpdate=true;
+    });
+    if(this.snow){const p=this.snow.geometry.attributes.position;for(let i=0;i<p.count;i++){p.array[i*3]+=(-head*.5+.25)*dt;p.array[i*3+1]-=(1+i%7*.12)*dt;p.array[i*3+2]+=cross*.5*dt;if(p.array[i*3+1]<-this.hill.k*.9)p.array[i*3+1]=this.hill.k;};p.needsUpdate=true;}
+    const workshop=mode==='workshop',hero=workshop||!jump;
+    if(this.width>=950&&workshop)this.camera.setViewOffset(this.width,this.height,-this.width*.09,0,this.width,this.height);else this.camera.clearViewOffset();
+    if(hero){this.desiredCamera.copy(this.heroPosition);this.desiredFocus.copy(this.heroTarget);}
+    else {
+      const p=this.jumper.position,k=this.hill.k,phase=jump.phase;
+      if(mode==='start'||(phase==='inrun'&&Number(jump.inrunProgress)<.12)){
+        this.desiredFocus.copy(p).add(new THREE.Vector3(4,-2,0));this.desiredCamera.copy(p).add(new THREE.Vector3(17,10,28));
+      } else if(camera==='chase'){
+        this.desiredFocus.copy(p).add(new THREE.Vector3(13,-3,0));this.desiredCamera.copy(p).add(new THREE.Vector3(-13,5,8));
+      } else if(phase==='outrun'||phase==='finished'){
+        this.desiredFocus.copy(p).add(new THREE.Vector3(7,1,0));this.desiredCamera.copy(p).add(new THREE.Vector3(-12,4.5,12));
+      } else if(phase==='flight'){
+        const scale=THREE.MathUtils.clamp(k/125,.8,1.3);
+        this.desiredFocus.copy(p).add(new THREE.Vector3(4,-2,0));this.desiredCamera.copy(p).add(new THREE.Vector3(14*scale,10*scale,39*scale));
+      } else {
+        this.desiredFocus.copy(p).add(new THREE.Vector3(5,-3,0));this.desiredCamera.copy(p).add(new THREE.Vector3(15,9,32));
+      }
+    }
+    const modeChanged=this.lastMode!==mode;
+    if(modeChanged&&(hero||mode==='start')){this.camera.position.copy(this.desiredCamera);this.focus.copy(this.desiredFocus);}
+    else {const a=1-Math.exp(-dt*(hero?1.8:4.5));this.camera.position.lerp(this.desiredCamera,a);this.focus.lerp(this.desiredFocus,a);}
+    this.lastMode=mode;
+    this.camera.lookAt(this.focus);this.renderer.render(this.scene,this.camera);
+  }
+}
+// Storage, procedural audio, competition, controls and broadcast state machine.
+const $=id=>document.getElementById(id), $$=q=>Array.from(document.querySelectorAll(q));
+const cap=Engine.clamp, signed=(n,d=1)=>`${n>=0?'+':'−'}${Math.abs(Number(n)||0).toFixed(d)}`;
+const fmt=(n,d=1)=>(Number.isFinite(Number(n))?Number(n):0).toFixed(d);
+const STORE_KEY='telemark-v1';
+let storageAvailable=true,stored={};
+try{stored=JSON.parse(localStorage.getItem(STORE_KEY)||'{}')||{};localStorage.setItem('telemark-storage-check','1');localStorage.removeItem('telemark-storage-check');}catch{storageAvailable=false;stored={};}
+if(typeof stored!=='object'||Array.isArray(stored))stored={};
+const records={};for(const h of Engine.HILLS){const r=stored.records?.[h.id];if(r&&Number.isFinite(r.distance)&&r.distance>=0&&r.distance<1500)records[h.id]={distance:r.distance,score:cap(r.score,0,2000),date:typeof r.date==='string'?r.date.slice(0,32):''};}
+let totalJumps=cap(stored.totalJumps||0,0,1e7);
+let setup={...Engine.defaults},conditions={...Engine.CONDITIONS};
+for(const el of $$('[data-setting]')){const key=el.dataset.setting;setup[key]=cap(stored.setup?.[key]??setup[key],+el.min,+el.max);el.value=setup[key];}
+for(const key of ['wax','arms'])if($$(`[data-choice="${key}"] button`).some(b=>b.dataset.value===stored.setup?.[key]))setup[key]=stored.setup[key];
+let hill=Engine.HILLS.find(h=>h.id===stored.hillId)||Engine.HILLS[2];
+let mode='training',state='workshop',paused=false,jump=null,result=null,competition=null;
+let savedTour=validateTour(stored.tour),seedCounter=Math.floor(Date.now()%10000000),windClock=12,windModel=Engine.createWind(conditions,seedCounter),wind=windModel.sample(windClock);
+let startTimer=10,accumulator=0,previousFrame=0,frameCount=0,simSteps=0,cameraMode='tv',takeoffPressed=false,resultReady=false;
+let jumpSeed=0,previewPending=false,toastTimer=0,controlTimer=0,simulationTime=0,lastPhase='',keyState={},touchControl={pitch:0,roll:0},gamepadControl={pitch:0,roll:0},gamepadButtons=[];
+let replayFrames=[],replayClock=0,replayIndex=0,recordClock=0,finishedHandled=false,resumeFromInfo=false;
+const aiNames=['Elias Vinter','Marek Solberg','Niko Aalto','Luka Rime','Tomas Vale','Felix Skarn','Ivo Lunden','Soren Berg','Emil Kestrel'];
+const elevations={small:'860',normal:'1,180',large:'1,420',flying:'1,760'};
+class Sound {
+  constructor(){this.muted=stored.muted===true;this.context=null;this.master=null;this.windGain=null;this.crowdGain=null;}
+  start(){if(!this.context){try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;this.context=new A();this.master=this.context.createGain();this.master.gain.value=this.muted?0:.42;this.master.connect(this.context.destination);const count=this.context.sampleRate*2,buffer=this.context.createBuffer(1,count,this.context.sampleRate),data=buffer.getChannelData(0);let x=0;for(let i=0;i<count;i++){x=(x+Math.random()*.06-.03)*.98;data[i]=x;}this.buffer=buffer;const source=this.context.createBufferSource();source.buffer=buffer;source.loop=true;this.windGain=this.context.createGain();this.windGain.gain.value=0;const filter=this.context.createBiquadFilter();filter.type='lowpass';filter.frequency.value=1400;source.connect(filter);filter.connect(this.windGain);this.windGain.connect(this.master);source.start();const crowd=this.context.createBufferSource(),crowdFilter=this.context.createBiquadFilter();crowd.buffer=buffer;crowd.loop=true;crowd.playbackRate.value=1.7;crowdFilter.type='bandpass';crowdFilter.frequency.value=1100;crowdFilter.Q.value=.4;this.crowdGain=this.context.createGain();this.crowdGain.gain.value=0;crowd.connect(crowdFilter);crowdFilter.connect(this.crowdGain);this.crowdGain.connect(this.master);crowd.start();}catch{this.muted=true;}}if(this.context?.state==='suspended')this.context.resume().catch(()=>{});}
+  toggle(){this.start();this.muted=!this.muted;if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.42,this.context.currentTime,.06);updateSoundUI();save();}
+  tone(freq,duration=.16,volume=.17,end=freq){if(!this.context||this.muted)return;const t=this.context.currentTime,o=this.context.createOscillator(),g=this.context.createGain();o.type='sine';o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(Math.max(30,end),t+duration);g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(g);g.connect(this.master);o.start();o.stop(t+duration+.02);}
+  noise(duration=.5,volume=.3,frequency=1000){if(!this.context||this.muted||!this.buffer)return;const t=this.context.currentTime,s=this.context.createBufferSource(),g=this.context.createGain(),f=this.context.createBiquadFilter();s.buffer=this.buffer;s.loop=true;f.type='bandpass';f.frequency.value=frequency;f.Q.value=.7;g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(volume,t+.05);g.gain.exponentialRampToValueAtTime(.001,t+duration);s.connect(f);f.connect(g);g.connect(this.master);s.start();s.stop(t+duration+.02);}
+  update(j,active){if(this.crowdGain)this.crowdGain.gain.setTargetAtTime(active&&!paused&&j?.phase==='flight'?cap((j.flightTime-2)/6,0,1)*.6:0,this.context.currentTime,.5);if(this.windGain)this.windGain.gain.setTargetAtTime(active&&!paused?Math.min(.7,(j?.speed||0)/55):0,this.context.currentTime,.15);}
+  landing(type){this.tone(type==='fall'?72:120,.3,.25,40);this.noise(.45,.35,250);if(type!=='fall'){this.noise(2.5,.55,1800);this.tone(700,.8,.025,900);}}
+}
+const sound=new Sound();
+const world=new World($('scene'));
+function save(){if(!storageAvailable)return;try{localStorage.setItem(STORE_KEY,JSON.stringify({records,totalJumps,setup,hillId:hill.id,tour:savedTour,muted:sound.muted}));}catch{storageAvailable=false;updateStorageUI();}}
+function updateStorageUI(){$('storageStatus').textContent=storageAvailable?'LOCAL RECORDS ON':'RECORDS: THIS SESSION';$('storageStatus').classList.toggle('storage-warning',!storageAvailable);}
+function updateSoundUI(){$('muteButton').textContent=sound.muted?'♫̸':'♪';$('muteButton').setAttribute('aria-label',sound.muted?'Enable sound':'Mute sound');$('muteButton').title=sound.muted?'Enable sound · M':'Mute sound · M';$('pauseMuteButton').textContent=sound.muted?'Enable sound':'Mute sound';}
+function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3400);}
+function validateTour(t){try{if(!t||t.mode!=='tour'||![1,2].includes(t.round)||!Number.isInteger(t.hillIndex)||t.hillIndex<0||t.hillIndex>3||!Array.isArray(t.roster)||t.roster.length!==10||!Array.isArray(t.order)||t.order.length!==10)return null;const expected=['player',...Array.from({length:9},(_,i)=>`ai${i}`)],ids=new Set(t.roster.map(p=>p.id));if(ids.size!==10||expected.some(id=>!ids.has(id))||new Set(t.order).size!==10||t.order.some(id=>!ids.has(id)))return null;for(const p of t.roster){if(typeof p.name!=='string'||!Array.isArray(p.points)||p.points.length!==8||!Number.isFinite(p.skill))return null;if(p.points.some(v=>v!==null&&(!Number.isFinite(v)||v< -500||v>2500)))return null;}if(t.complete||!Number.isFinite(t.seed))return null;const clean=JSON.parse(JSON.stringify(t)),c=clean.conditions||{};clean.conditions={temperature:cap(c.temperature??-5,-15,5),snow:['fresh','packed','icy'].includes(c.snow)?c.snow:'packed',weather:['clear','snowfall','fog','night'].includes(c.weather)?c.weather:'clear',wind:['calm','light','gusty','headwind','tailwind'].includes(c.wind)?c.wind:'light'};clean.seed=Math.floor(cap(clean.seed,1,1e9));clean.roundComplete=clean.roundComplete===true;for(const p of clean.roster){p.skill=cap(p.skill,.15,1);p.name=p.name.slice(0,32);}return clean;}catch{return null;}}
+function renderHillPicker(){$('hillPicker').innerHTML=Engine.HILLS.map((h,i)=>`<button class="hill-card ${hill.id===h.id?'active':''}" data-hill="${h.id}" aria-pressed="${hill.id===h.id}"><span class="hill-card-top">${h.label}<svg class="hill-shape" viewBox="0 0 38 23" aria-hidden="true"><path d="M2 2L11 12Q18 21 36 21" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 1L14 11" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span><b>${h.name}</b><span class="hill-card-foot"><span>HS ${h.hs} / K ${h.k}</span><span>0${i+1}</span></span></button>`).join('');for(const b of $$('[data-hill]'))b.addEventListener('click',()=>{if(mode==='tour'){toast('The Tour follows all four hills in order. Choose Training to pick a hill.');return;}hill=Engine.HILLS.find(h=>h.id===b.dataset.hill);competition=null;buildHill();save();});}
+function buildHill(){world.build(hill,conditions,records[hill.id]?.distance||0);renderHillPicker();$('locationName').textContent=hill.name.toUpperCase();$('locationAltitude').textContent=`${elevations[hill.id]} M ELEV.`;$('heroK').textContent=`K ${hill.k}`;$('heroHS').textContent=`HILL SIZE ${hill.hs} M`;$('hudHill').textContent=hill.name;$('hudHillSize').textContent=`HS ${hill.hs} / K ${hill.k}`;refreshWorkshop();refreshConditions();}
+function refreshWorkshop(){const limits=Engine.gateRange(hill,conditions);setup.gate=Math.round(cap(setup.gate,limits.min,limits.max));$('gate').min=limits.min;$('gate').max=limits.max;$('gate').value=setup.gate;
+  for(const el of $$('[data-setting]')){const value=setup[el.dataset.setting];el.value=value;el.style.setProperty('--fill',`${(+value- +el.min)/(+el.max- +el.min||1)*100}%`);}
+  const labels={height:`${setup.height} cm`,weight:`${setup.weight} kg`,ski:`${setup.ski}% · ${Math.round(setup.height*setup.ski/100)} cm`,suit:setup.suit<.2?'Tailored':setup.suit<.6?'Balanced':'Loose',power:`${setup.power}%`,vAngle:`${setup.vAngle}°`,lean:`${setup.lean}°`,gate:`${setup.gate} / ${limits.max}`};for(const [key,value]of Object.entries(labels))$(key+'Out').textContent=value;
+  for(const group of $$('[data-choice]'))for(const b of Array.from(group.children)){b.classList.toggle('active',b.dataset.value===setup[group.dataset.choice]);b.setAttribute('aria-pressed',b.dataset.value===setup[group.dataset.choice]);}
+  const stats=Engine.setupStats(hill,setup,conditions),illegal=setup.ski>stats.legalSki+.001;$('bmiValue').textContent=fmt(stats.bmi);$('skiNote').textContent=`Legal maximum ${fmt(stats.legalSki)}% at your BMI.${illegal?' Your skis will be disqualified.':''}`;$('skiNote').style.color=illegal?'var(--red)':'';$('predictedDistance').textContent=fmt(stats.distance);$('previewSpeed').textContent=`${fmt(stats.speed)} KM/H`;
+  const stab=Math.round(cap(stats.stability,0,1)*100),risk=Math.round(stats.dqRisk*100);$('stabilityValue').textContent=`${stab}%`;$('stabilityBar').style.width=`${stab}%`;$('riskValue').textContent=`${risk}%`;$('riskValue').style.color=risk>15?'var(--red)':'var(--ink)';$('riskBar').style.width=`${Math.max(2,risk)}%`;$('riskBar').style.background=risk>15?'var(--red)':'var(--blue)';
+  $('previewNote').textContent=illegal?'Extra lift, certain DQ. Shorten your skis or increase BMI.':risk>10?'More suit lift. A real risk at equipment control.':stab<55?'An aggressive flight. Small gusts demand quick corrections.':'A balanced setup. Ready for the green light.';
+  const gatePoints=(hill.baseGate-setup.gate)*hill.gateFactor;$('gateNote').textContent=`Jury allows ${limits.min}–${limits.max}. ${signed(gatePoints)} compensation points.`;$('waxHint').textContent=`${signed(conditions.temperature,0)}°C snow`;
+  $('hudGate').textContent=`GATE ${setup.gate}`;
+}
+function refreshConditions(){for(const control of $$('[data-condition]'))control.disabled=!!competition;$('randomConditions').disabled=!!competition;const temp=$('temperature');temp.value=conditions.temperature;temp.style.setProperty('--fill',`${(conditions.temperature+15)/20*100}%`);$('temperatureOut').textContent=`${signed(conditions.temperature,0)}°C`;for(const k of ['snow','weather','wind'])$(k).value=conditions[k];const weatherNames={clear:'CLEAR SKY',snowfall:'SNOWFALL',fog:'VALLEY FOG',night:'NIGHT SESSION'},windNames={calm:'CALM',light:'LIGHT VARIABLE',gusty:'GUSTY',headwind:'HEADWIND',tailwind:'TAILWIND'};$('footerWeather').textContent=weatherNames[conditions.weather];$('footerTemp').textContent=`${signed(conditions.temperature,0)}°C`;$('footerWind').textContent=windNames[conditions.wind];}
+function updateModeUI(){$$('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const prefix=mode==='training'?'FREE PRACTICE':mode==='competition'?'TWO ROUNDS / TEN JUMPERS':`FOUR HILLS TOUR / LEG ${(competition?.hillIndex??0)+1}`;$('sessionHeading').previousElementSibling.textContent=prefix;$('sessionHeading').textContent=mode==='training'?'YOUR NEXT GREAT JUMP':mode==='competition'?'EVERY POINT COUNTS':'FOUR MOUNTAINS. ONE TITLE.';$('startModeLabel').textContent=mode==='training'?'TRAINING · UNLIMITED JUMPS':mode==='competition'?`COMPETITION · ROUND ${competition?.round||1}`:`TOUR · HILL ${(competition?.hillIndex??0)+1} / 4`;$('startButton').firstElementChild.textContent=mode==='tour'&&competition?'CONTINUE YOUR TOUR':'TAKE YOUR PLACE';$('startShortcut').textContent=matchMedia('(pointer: coarse)').matches||innerWidth<600?'TAP TO BEGIN':'SPACE ↵';}
+function chooseMode(next){if(next==='records'){renderRecords();showInformation('recordsOverlay');return;}if(state!=='workshop'){toast('Return to the workshop to change modes.');return;}mode=next;competition=null;if(mode==='tour'){if(savedTour){competition=JSON.parse(JSON.stringify(savedTour));hill=Engine.HILLS[competition.hillIndex];conditions={...Engine.CONDITIONS,...competition.conditions};toast(`Tour resumed · ${hill.name}, round ${competition.round}`);}else {hill=Engine.HILLS[0];competition=null;}buildHill();}refreshConditions();refreshWorkshop();updateModeUI();}
+function createCompetition(kind){const roster=aiNames.map((name,i)=>({id:`ai${i}`,name,skill:.69+i*.032,points:Array(8).fill(null)}));roster.splice(4,0,{id:'player',name:'You',skill:1,points:Array(8).fill(null)});return {mode:kind,round:1,hillIndex:kind==='tour'?0:Engine.HILLS.indexOf(hill),conditions:{...conditions},roster,order:roster.map(p=>p.id),seed:++seedCounter,complete:false};}
+function roundSlot(){return (competition.mode==='tour'?competition.hillIndex*2:0)+competition.round-1;}
+function playerTotal(p){return p.points.reduce((sum,n)=>sum+(n||0),0);}
+function aiResult(p){const slot=roundSlot();if(p.points[slot]!==null)return;const aiSetup={...Engine.defaults,height:174+((+p.id.slice(2)*3)%14),weight:65+(+p.id.slice(2)%7),suit:.04,vAngle:26+(+p.id.slice(2)%5),power:80+Math.round(p.skill*10),gate:setup.gate};aiSetup.ski=Math.min(140,Math.floor(Engine.legalSki(aiSetup)));const ai=Engine.simulateAI(hill,aiSetup,conditions,competition.seed+slot*991+ +p.id.slice(2)*43,p.skill);p.points[slot]=ai.total;}
+function processAI(before){if(!competition)return;const ix=competition.order.indexOf('player');const ids=before?competition.order.slice(0,ix):competition.order.slice(ix+1);for(const id of ids){const p=competition.roster.find(p=>p.id===id);if(p)aiResult(p);}}
+function startAttempt(){if(competition?.roundComplete){showBoard();return;}if(state!=='workshop'&&state!=='result')return;sound.start();closeAllOverlays();paused=false;if(mode==='tour'&&!competition&&hill.id!=='small'){hill=Engine.HILLS[0];buildHill();}if(mode!=='training'&&!competition)competition=createCompetition(mode);if(competition){conditions={...competition.conditions};processAI(true);if(competition.mode==='tour'){savedTour=JSON.parse(JSON.stringify(competition));save();}}
+  state='start';startTimer=10;accumulator=0;takeoffPressed=false;resultReady=false;finishedHandled=false;result=null;jumpSeed=++seedCounter;jump=Engine.createJump(hill,setup,conditions,{seed:jumpSeed,windClock});windModel=Engine.createWind(conditions,jumpSeed);wind=windModel.sample(windClock);replayFrames=[];recordClock=0;lastPhase='start';$('workshopView').hidden=true;$('playHUD').hidden=false;$('greenLight').hidden=false;$('landingFlash').hidden=true;$('timingTrack').hidden=true;$('hudMode').textContent=competition?`${mode==='tour'?'TOUR':'COMPETITION'} / ROUND ${competition.round}`:'TRAINING';$('cameraButton').textContent=`C · ${cameraMode.toUpperCase()} CAMERA`;
+  if(competition)toast(`Start ${competition.order.indexOf('player')+1} of 10 · Round ${competition.round}${competition.round===2?' · reverse ranking order':''}`);sound.tone(880,.35,.13);updateHUD();}
+function release(){if(state!=='start')return;const releaseClock=windClock;jump=Engine.createJump(hill,setup,conditions,{seed:jumpSeed,windClock:releaseClock});state='play';$('greenLight').hidden=true;sound.tone(660,.18,.12);takeoffPressed=false;lastPhase='inrun';}
+function action(){sound.start();if(!$('helpOverlay').hidden||!$('recordsOverlay').hidden||!$('boardOverlay').hidden||paused)return;if(state==='workshop'){startAttempt();return;}if(state==='start'){release();return;}if(state==='result'){if(resultReady)continueResult();return;}if(state!=='play'||!jump)return;if(jump.phase==='inrun'||(jump.phase==='flight'&&jump.flightTime<.14&&!takeoffPressed)){if(!takeoffPressed){jump.takeoff();takeoffPressed=true;sound.tone(440,.07,.1);}}else if(jump.phase==='flight'){if(!jump.landingRequested){jump.requestLanding();sound.tone(320,.09,.07);}}}
+function snapshot(){return {x:jump.x,y:jump.y,z:jump.z,vx:jump.vx,vy:jump.vy,vz:jump.vz,speed:jump.speed,pitch:jump.pitch,roll:jump.roll,phase:jump.phase,inrunProgress:jump.inrunProgress,flightTime:jump.flightTime,landing:jump.landing?{...jump.landing}:null,setup:jump.setup,hill:jump.hill,wind:{...jump.wind}};}
+function step(dt){simulationTime+=dt;windClock+=dt;if(state==='start'){wind=windModel.sample(windClock);startTimer=Math.max(0,startTimer-dt);if(startTimer<=0)release();}else if(state==='play'&&jump){const pitch=cap((keyState.KeyS||keyState.ArrowDown?1:0)-(keyState.KeyW||keyState.ArrowUp?1:0)+touchControl.pitch+gamepadControl.pitch,-1,1),roll=cap((keyState.KeyD||keyState.ArrowRight?1:0)-(keyState.KeyA||keyState.ArrowLeft?1:0)+touchControl.roll+gamepadControl.roll,-1,1);jump.step(dt,{pitch,roll});wind=jump.wind;recordClock+=dt;if(recordClock>=1/30){recordClock=0;if(replayFrames.length<2400)replayFrames.push(snapshot());}if(jump.phase!==lastPhase){if(jump.phase==='flight'){sound.noise(.4,.18,900);}if(jump.phase==='outrun'){sound.landing(jump.landing.type);$('landingFlash').textContent=jump.landing.type==='telemark'?'TELEMARK':jump.landing.type==='fall'?'FALL':jump.landing.type==='touch'?'HAND TOUCH':'TWO-FOOTED';$('landingFlash').style.color=jump.crashed?'var(--red)':'var(--accent)';$('landingFlash').hidden=false;}lastPhase=jump.phase;}if(jump.phase==='finished'&&!finishedHandled){finishedHandled=true;showResult();}}else if(state==='workshop'){wind=windModel.sample(windClock);}simSteps++;}
+function updateHUD(){if(!jump)return;$('windValue').textContent=signed(wind.head);const windColor=wind.head<-.05?'var(--red)':'var(--accent)';$('windValue').style.color=windColor;$('windArrow').style.color=windColor;$('windArrow').style.transform=`rotate(${cap(wind.cross*22,-70,70)+(wind.head<0?180:0)}deg)`;$('windType').textContent=wind.head<-.05?'TAIL':'HEAD';$('windCursor').style.left=`${cap(50+wind.head*12.5,0,100)}%`;$('crossValue').textContent=`${signed(wind.cross)} m/s`;$('speedValue').textContent=fmt(jump.speed*3.6);$('distanceValue').textContent=fmt(jump.distance);$('airtimeValue').textContent=fmt(jump.flightTime);$('pitchNeedle').style.left=`${cap(50+jump.pitch*31.25,0,100)}%`;$('rollNeedle').style.left=`${cap(50+jump.roll*31.25,0,100)}%`;const dangerous=Math.abs(jump.pitch)>1||Math.abs(jump.roll)>1;$('stabilityStatus').textContent=dangerous?'CORRECT NOW':Math.abs(jump.pitch)+Math.abs(jump.roll)>.65?'DEVIATING':'STABLE';$('stabilityStatus').classList.toggle('needle-danger',dangerous);
+  if(state==='start'){$('greenLight').innerHTML=`${startTimer.toFixed(1)}<small>GREEN LIGHT</small>`;setCue('01 / START GATE','Make the moment yours.','<span class="key">SPACE</span> Release when the wind is right.');$('timingTrack').hidden=true;return;}
+  if(jump.phase==='inrun'){const near=jump.tableETA<1.5;$('timingTrack').hidden=!near;$('timingZone').style.left=`${100-(.21-(setup.power-70)*.0027)/1.5*100}%`;$('timingZone').style.width=`${(.21-(setup.power-70)*.0027)/1.5*100}%`;$('timingCursor').style.left=`${cap((1-jump.tableETA/1.5)*100,0,100)}%`;setCue('02 / THE INRUN',takeoffPressed?'Takeoff committed.':jump.tableETA<.17?'TAKE OFF':near?'Find the table edge.':'Let the speed build.',takeoffPressed?'Your timing is set. Prepare to hold your style.':'<span class="key">SPACE</span> Press as the marker reaches green.');}
+  else if(jump.phase==='flight'){const near=jump.timeToLanding<1.25&&jump.flightTime>.4;$('timingTrack').hidden=!near;$('timingZone').style.left='56%';$('timingZone').style.width='25.6%';$('timingCursor').style.left=`${cap((1-jump.timeToLanding/1.25)*100,0,100)}%`;setCue('03 / FLIGHT',jump.landingRequested?'Landing committed.':jump.landingWindow?'SET THE TELEMARK':near?'Prepare to land.':'Hold your style.',jump.landingRequested?'Center the needles for a composed touchdown.':near?'<span class="key">SPACE</span> Press in green, just before the snow.':'<span class="key">W S</span> pitch &nbsp; <span class="key">A D</span> roll · stay in green');}
+  else{$('timingTrack').hidden=true;setCue('04 / THE OUTRUN',jump.crashed?'A tough landing.':'Let it run.',jump.crashed?'The judges have the final word.':'Automatic braking. The judges are marking your jump.');}}
+function setCue(label,title,hint){if(matchMedia('(pointer: coarse)').matches||innerWidth<600){hint=hint.replace('<span class="key">SPACE</span> Release when the wind is right.','Tap the snow when the wind is right.').replace('<span class="key">SPACE</span> Press as the marker reaches green.','Tap the snow as the marker reaches green.').replace('<span class="key">SPACE</span> Press in green, just before the snow.','Tap in green, just before your feet reach the snow.').replace('<span class="key">W S</span> pitch &nbsp; <span class="key">A D</span> roll · stay in green','Drag up/down for pitch · left/right for roll.');}if($('phaseLabel').textContent!==label)$('phaseLabel').textContent=label;if($('actionTitle').textContent!==title)$('actionTitle').textContent=title;if($('actionHint').innerHTML!==hint)$('actionHint').innerHTML=hint;}
+function showResult(){state='result';result=Engine.score(jump,jumpSeed);resultReady=false;$('playHUD').hidden=true;$('landingFlash').hidden=true;openOverlay('resultOverlay');$('resultHill').textContent=`${hill.name.toUpperCase()} / ${mode.toUpperCase()}`;$('resultTitle').textContent=jump.crashed?'The mountain keeps you honest.':result.distance>=hill.hs?'Beyond the green line.':result.landing==='telemark'?'A mark on the mountain.':'Every flight teaches you.';$('resultDistance').textContent=fmt(result.distance);$('resultMeta').textContent=`${fmt(jump.takeoffSpeed)} km/h takeoff · ${fmt(jump.flightTime)} s in flight · ${Math.round(jump.takeoffQuality*100)}% timing`;$('landingBadge').textContent=result.landing.replace('-',' ').toUpperCase();$('landingBadge').style.color=jump.crashed?'var(--red)':'var(--accent)';$('distancePointLabel').textContent=`Distance · ${hill.basePoints} at K ${hill.k}`;$('distancePoints').textContent=fmt(result.distancePoints);$('stylePoints').textContent=fmt(result.stylePoints);$('windPointLabel').textContent=`Wind · ${signed(result.meanWind,2)} m/s`;$('windPoints').textContent=signed(result.windPoints);$('gatePointLabel').textContent=`Gate · ${jump.gate} (reference ${hill.baseGate})`;$('gatePoints').textContent=signed(result.gatePoints);$('totalPoints').textContent='—';
+  const sorted=result.judges.map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v||a.i-b.i);const drop=[sorted[0].i,sorted[4].i];$('judges').innerHTML=result.judges.map((v,i)=>`<div class="judge ${drop.includes(i)?'dropped':''}"><small>JUDGE ${i+1}</small><strong>${fmt(v)}</strong></div>`).join('');$('equipmentControl').className='equipment-control checking';$('controlTitle').textContent='Equipment control…';$('controlReason').textContent=`BMI ${fmt(Engine.bmi(setup))} · skis ${setup.ski}% · suit fit under inspection.`;$('controlState').textContent='INSPECTING ···';$('resultContinueButton').disabled=true;$('resultContinueButton').textContent='CHECKING EQUIPMENT…';$('resultWorkshopButton').disabled=true;$('replayButton').disabled=true;drawWindGraph();clearTimeout(controlTimer);controlTimer=setTimeout(finishControl,1700);}
+function finishControl(){if(state!=='result'||!result||resultReady)return;resultReady=true;$('equipmentControl').className=`equipment-control${result.verdict==='DQ'?' dq':''}`;$('controlTitle').textContent=result.verdict==='DQ'?'Disqualified at equipment control.':'Equipment approved.';$('controlReason').textContent=result.reason;$('controlState').textContent=result.verdict==='DQ'?'DQ / 0 PTS':'PASS ✓';$('totalPoints').textContent=result.verdict==='DQ'?'DQ':fmt(result.total);$('totalPoints').style.color=result.verdict==='DQ'?'var(--red)':'var(--accent)';totalJumps++;
+  if(result.verdict==='PASS'&&!jump.crashed&&(!records[hill.id]||result.distance>records[hill.id].distance)){records[hill.id]={distance:result.distance,score:result.total,date:new Date().toISOString().slice(0,10)};$('resultTitle').textContent='A new personal best.';}
+  if(competition){competition.roster.find(p=>p.id==='player').points[roundSlot()]=result.total;processAI(false);if(competition.mode==='tour'){competition.roundComplete=true;savedTour=JSON.parse(JSON.stringify(competition));}}
+  save();$('resultContinueButton').disabled=false;$('resultContinueButton').innerHTML=`${competition?'VIEW STANDINGS':'JUMP AGAIN'} <span class="arrow">↗</span>`;$('resultWorkshopButton').disabled=!!competition;$('resultWorkshopButton').hidden=!!competition;$('replayButton').disabled=replayFrames.length<2;}
+function drawWindGraph(){const canvas=$('windGraph'),c=canvas.getContext('2d');if(!c)return;const w=canvas.width,h=canvas.height,samples=jump?.flightWind||[];c.clearRect(0,0,w,h);c.fillStyle='#10222d';c.fillRect(0,0,w,h);const limit=Math.max(1,...samples.map(s=>Math.abs(s.head)))*1.3,mid=h/2;c.strokeStyle='#506571';c.lineWidth=1;c.setLineDash([3,5]);c.beginPath();c.moveTo(0,mid);c.lineTo(w,mid);c.stroke();c.setLineDash([]);if(samples.length>1){c.beginPath();samples.forEach((p,i)=>{const x=i/(samples.length-1)*w,y=mid-p.head/limit*(h*.38);i?c.lineTo(x,y):c.moveTo(x,y);});c.strokeStyle='#d6fa74';c.lineWidth=2;c.stroke();}c.fillStyle='#91a3ad';c.font='9px monospace';c.fillText(`+${fmt(limit)} m/s`,5,12);c.fillText('0',5,mid-4);c.fillText(`${fmt(jump?.flightTime)} s`,w-43,h-7);}
+function continueResult(){if(!resultReady)return;if(competition){closeOverlay('resultOverlay');showBoard();}else {state='workshop';startAttempt();}}
+function showBoard(){if(!competition)return;const c=competition,isFinal=c.round===2,isTour=c.mode==='tour',allDone=isFinal&&(!isTour||c.hillIndex===3);const roster=[...c.roster].sort((a,b)=>playerTotal(b)-playerTotal(a));const rank=roster.findIndex(p=>p.id==='player')+1;$('boardTitle').textContent=allDone?`You finished ${ordinal(rank)}.`:isFinal?'One mountain conquered.':'Halfway to the result.';$('boardEyebrow').textContent=allDone?'FINAL CLASSIFICATION / PODIUM':'OFFICIAL STANDINGS';$('boardDescription').textContent=allDone?`Podium: ${roster.slice(0,3).map((p,i)=>`${i+1}. ${p.name}`).join(' · ')}`:`${hill.name} · ${isTour?'Tour totals include all completed hills.':'Two jumps decide the winner.'}`;$('boardRound').textContent=isTour?`HILL ${c.hillIndex+1} / 4 · ROUND ${c.round}`:`ROUND ${c.round} / 2`;const offset=isTour?c.hillIndex*2:0;$('boardBody').innerHTML=roster.map((p,i)=>`<tr class="${p.id==='player'?'player':''}"><td>${String(i+1).padStart(2,'0')}</td><td>${escapeHtml(p.name)}${p.id==='player'?' <span class="tiny">/ YOU</span>':''}</td><td>${p.points[offset]===null?'—':fmt(p.points[offset])}</td><td>${p.points[offset+1]===null?'—':fmt(p.points[offset+1])}</td><td>${fmt(playerTotal(p))}</td></tr>`).join('');$('boardNote').textContent=allDone?'The points are in. The mountain is yours to revisit.':isFinal?'Next stop: '+Engine.HILLS[Math.min(3,c.hillIndex+1)].name+'.':'Round 2 starts in reverse order of the first-round ranking.';$('boardNextButton').innerHTML=`${allDone?'BACK TO WORKSHOP':isFinal?'NEXT HILL':'NEXT ROUND'} <span class="arrow">↗</span>`;openOverlay('boardOverlay');}
+function ordinal(n){return n+(n===1?'st':n===2?'nd':n===3?'rd':'th');}
+function advanceCompetition(){if(!competition)return;const c=competition;closeAllOverlays();if(c.round===1){const offset=c.mode==='tour'?c.hillIndex*2:0;c.order=[...c.roster].sort((a,b)=>(a.points[offset]||0)-(b.points[offset]||0)).map(p=>p.id);c.round=2;c.roundComplete=false;}else if(c.mode==='tour'&&c.hillIndex<3){c.hillIndex++;c.round=1;c.roundComplete=false;c.order=[...c.roster].sort((a,b)=>playerTotal(a)-playerTotal(b)).map(p=>p.id);hill=Engine.HILLS[c.hillIndex];}else{if(c.mode==='tour'){savedTour=null;hill=Engine.HILLS[0];}competition=null;state='workshop';showWorkshop();save();return;}if(c.mode==='tour'){savedTour=JSON.parse(JSON.stringify(c));save();}state='workshop';showWorkshop();toast(`${hill.name} · Round ${c.round}. Your setup can be tuned before the next jump.`);}
+function showWorkshop(){clearTimeout(controlTimer);closeAllOverlays();state='workshop';paused=false;jump=null;result=null;resultReady=false;replayFrames=[];keyState={};touchControl={pitch:0,roll:0};$('workshopView').hidden=false;$('playHUD').hidden=true;$('replayBadge').hidden=true;$('resultWorkshopButton').hidden=false;buildHill();updateModeUI();}
+function renderRecords(){$('recordGrid').innerHTML=Engine.HILLS.map(h=>{const r=records[h.id];return `<article class="record-card"><span class="eyebrow">${h.label} / HS ${h.hs}</span><h3>${h.name}</h3><strong>${r?fmt(r.distance):'—'}</strong> <small>m</small><p>${r?`${fmt(r.score)} points · ${escapeHtml(r.date)}`:'An unmarked page. Your first jump awaits.'}</p></article>`;}).join('');$('recordCount').textContent=`${totalJumps} completed jump${totalJumps===1?'':'s'} · ${storageAvailable?'Saved on this browser':'Session only — local storage unavailable'}`;}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function openOverlay(id){for(const el of $$('.overlay'))if(el.id!=='errorOverlay')el.style.zIndex='20';$(id).style.zIndex='22';$(id).hidden=false;const focus=$(id).querySelector('button:not([disabled])');if(focus)focus.focus({preventScroll:true});}
+function showInformation(id){resumeFromInfo=!paused&&['start','play','replay'].includes(state);if(resumeFromInfo)pause();openOverlay(id);}
+function closeInformation(id){closeOverlay(id);if(resumeFromInfo){resumeFromInfo=false;resume();}}
+function closeOverlay(id){$(id).hidden=true;if(document.activeElement instanceof HTMLElement)document.activeElement.blur();}
+function closeAllOverlays(){for(const el of $$('.overlay'))if(el.id!=='errorOverlay')el.hidden=true;if(document.activeElement instanceof HTMLElement)document.activeElement.blur();}
+function pause(reason='The hill will be here when you’re ready.'){if(paused||!['start','play','replay'].includes(state))return;paused=true;keyState={};touchControl={pitch:0,roll:0};$('pauseReason').textContent=reason;openOverlay('pauseOverlay');sound.update(jump,false);}
+function resume(){paused=false;accumulator=0;previousFrame=performance.now();closeOverlay('pauseOverlay');}
+function startReplay(){if(!resultReady||replayFrames.length<2)return;closeAllOverlays();state='replay';replayClock=0;replayIndex=0;paused=false;$('replayBadge').hidden=false;$('playHUD').hidden=true;}
+function endReplay(){state='result';$('replayBadge').hidden=true;paused=false;closeOverlay('pauseOverlay');openOverlay('resultOverlay');}
+function pollGamepad(){let gamepads=[];try{gamepads=navigator.getGamepads?.()||[];}catch{}const gp=Array.from(gamepads).find(Boolean);if(!gp){gamepadControl={pitch:0,roll:0};gamepadButtons=[];return;}const dead=v=>Math.abs(Number(v)||0)>.16?cap(v,-1,1):0;gamepadControl={roll:dead(gp.axes[0]),pitch:dead(gp.axes[1])};const buttons=gp.buttons.map(b=>b.pressed);if(buttons[0]&&!gamepadButtons[0])action();if(buttons[9]&&!gamepadButtons[9]){if(!$('helpOverlay').hidden)closeInformation('helpOverlay');else if(!$('recordsOverlay').hidden)closeInformation('recordsOverlay');else paused?resume():pause();}gamepadButtons=buttons;}
+function frame(now){if(!window.telemarkReady)return;try{const raw=previousFrame?(now-previousFrame)/1000:0;previousFrame=now;const dt=cap(raw,0,.05);pollGamepad();if(!paused){if(state==='replay'){replayClock+=dt*.5;replayIndex=Math.min(replayFrames.length-1,Math.floor(replayClock*30));if(replayClock>(replayFrames.length-1)/30+.7){endReplay();}}else{accumulator+=dt;while(accumulator>=Engine.C.step){step(Engine.C.step);accumulator-=Engine.C.step;}}}
+  const renderJump=state==='replay'?replayFrames[replayIndex]:jump;const renderWind=state==='replay'?renderJump?.wind:wind;world.update(paused?0:dt,renderJump,renderWind,{mode:state==='workshop'?'workshop':state==='start'?'start':state==='result'?'result':'play',camera:cameraMode,time:simulationTime,setup});if((state==='start'||state==='play')&&frameCount%2===0)updateHUD();sound.update(jump,state==='play');frameCount++;requestAnimationFrame(frame);
+}catch(error){window.telemarkReady=false;window.showFailure('The simulation stopped unexpectedly. Reload the page to return to the workshop.',error.message);}}
+for(const el of $$('[data-setting]'))el.addEventListener('input',()=>{setup[el.dataset.setting]=cap(el.value,+el.min,+el.max);if(!previewPending){previewPending=true;requestAnimationFrame(()=>{previewPending=false;refreshWorkshop();save();});}});
+for(const group of $$('[data-choice]'))for(const b of Array.from(group.children))b.addEventListener('click',()=>{setup[group.dataset.choice]=b.dataset.value;refreshWorkshop();save();});
+for(const el of $$('[data-condition]'))el.addEventListener(el.type==='range'?'input':'change',()=>{if(competition){toast('Conditions are locked for this event. Return to Training to change the forecast.');refreshConditions();return;}const key=el.dataset.condition;conditions[key]=el.type==='range'?cap(el.value,+el.min,+el.max):el.value;windModel=Engine.createWind(conditions,++seedCounter);refreshConditions();refreshWorkshop();if(key==='weather')world.build(hill,conditions,records[hill.id]?.distance||0);});
+for(const b of $$('.workshop-tab'))b.addEventListener('click',()=>{for(const t of $$('.workshop-tab')){t.classList.toggle('active',t===b);t.setAttribute('aria-selected',t===b);}for(const id of ['equipment','style','conditions'])$(id+'Panel').hidden=id!==b.dataset.workshop;});
+for(const b of $$('.mode-tab'))b.addEventListener('click',()=>chooseMode(b.dataset.mode));
+for(const b of $$('[data-close]'))b.addEventListener('click',()=>{if(['helpOverlay','recordsOverlay'].includes(b.dataset.close))closeInformation(b.dataset.close);else closeOverlay(b.dataset.close);});
+$('randomConditions').addEventListener('click',()=>{if(competition){toast('Conditions are locked for this event.');return;}const pick=a=>a[Math.floor(Math.random()*a.length)];conditions={temperature:Math.floor(Math.random()*21)-15,snow:pick(['fresh','packed','icy']),weather:pick(['clear','snowfall','fog','night']),wind:pick(['calm','light','gusty','headwind','tailwind'])};windModel=Engine.createWind(conditions,++seedCounter);buildHill();});
+$('startButton').addEventListener('click',()=>{if(competition?.roundComplete){showBoard();return;}startAttempt();});$('muteButton').addEventListener('click',()=>sound.toggle());$('pauseMuteButton').addEventListener('click',()=>sound.toggle());$('helpButton').addEventListener('click',()=>showInformation('helpOverlay'));$('pauseButton').addEventListener('click',()=>pause());$('resumeButton').addEventListener('click',resume);$('restartButton').addEventListener('click',()=>{if(state==='replay'){endReplay();return;}closeAllOverlays();paused=false;state='workshop';startAttempt();});$('menuButton').addEventListener('click',()=>{if(state==='replay'){endReplay();return;}showWorkshop();});$('resultWorkshopButton').addEventListener('click',showWorkshop);$('resultContinueButton').addEventListener('click',continueResult);$('replayButton').addEventListener('click',startReplay);$('exitReplayButton').addEventListener('click',endReplay);$('boardNextButton').addEventListener('click',advanceCompetition);$('boardCloseButton').addEventListener('click',()=>{closeOverlay('boardOverlay');if(result&&resultReady)openOverlay('resultOverlay');else showWorkshop();});
+function toggleCamera(){cameraMode=cameraMode==='tv'?'chase':'tv';$('cameraButton').textContent=`C · ${cameraMode.toUpperCase()} CAMERA`;}
+$('cameraButton').addEventListener('click',toggleCamera);
+window.addEventListener('keydown',e=>{if(e.code==='Tab'){const visible=$$('.overlay').filter(el=>!el.hidden).sort((a,b)=>(+b.style.zIndex||20)-(+a.style.zIndex||20));if(visible.length){const focusable=Array.from(visible[0].querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex="0"]')).filter(el=>el.getClientRects().length);if(focusable.length){const first=focusable[0],last=focusable[focusable.length-1];if(!focusable.includes(document.activeElement)){e.preventDefault();first.focus();}else if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}}return;}const editable=/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);if(e.code==='Escape'){e.preventDefault();if(!$('helpOverlay').hidden){closeInformation('helpOverlay');return;}if(!$('recordsOverlay').hidden){closeInformation('recordsOverlay');return;}if(state==='replay'){paused?resume():pause();return;}paused?resume():pause();return;}if(editable)return;if(e.code==='KeyM'&&!e.repeat){sound.toggle();return;}if(e.code==='KeyC'&&!e.repeat){toggleCamera();return;}if(e.code==='Space'){if(e.target.closest?.('.overlay'))return;e.preventDefault();if(!e.repeat){if(competition?.roundComplete&&state==='workshop')showBoard();else action();}return;}if(['KeyW','KeyS','KeyA','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){if(state==='play')e.preventDefault();keyState[e.code]=true;}});
+window.addEventListener('keyup',e=>{keyState[e.code]=false;});window.addEventListener('blur',()=>{keyState={};touchControl={pitch:0,roll:0};pause('The window lost focus. Your jump is paused.');});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause('The tab was hidden. Your jump is paused.');});
+let pointerStart=null;$('scene').addEventListener('pointerdown',e=>{if(!['start','play'].includes(state)||paused)return;sound.start();pointerStart={x:e.clientX,y:e.clientY,t:performance.now(),moved:false};$('scene').setPointerCapture(e.pointerId);});$('scene').addEventListener('pointermove',e=>{if(!pointerStart)return;const dx=e.clientX-pointerStart.x,dy=e.clientY-pointerStart.y;if(Math.hypot(dx,dy)>9)pointerStart.moved=true;touchControl={pitch:cap(dy/65,-1,1),roll:cap(dx/65,-1,1)};});function pointerEnd(){if(pointerStart&&!pointerStart.moved)action();pointerStart=null;touchControl={pitch:0,roll:0};}$('scene').addEventListener('pointerup',pointerEnd);$('scene').addEventListener('pointercancel',()=>{pointerStart=null;touchControl={pitch:0,roll:0};});
+window.addEventListener('resize',()=>{world.resize();updateModeUI();if(state==='result')drawWindGraph();});
+$('scene').addEventListener('webglcontextlost',e=>{e.preventDefault();pause();window.showFailure('The graphics context was lost. Reload to restore the mountain; saved records and Tour progress remain available.','WebGL context lost');});
+updateStorageUI();updateSoundUI();buildHill();updateModeUI();clearTimeout(window.bootTimer);$('loading').hidden=true;window.telemarkReady=true;
+// A small read-only inspection surface allows reproducible browser verification.
+window.__TELEMARK__={Engine,getState:()=>({state,paused,mode,hill:hill.id,setup:{...setup},conditions:{...conditions},jump,result,resultReady,competition,frameCount,simSteps,replayFrames:replayFrames.length,renderer:world.renderer.info.render}),world};
+requestAnimationFrame(frame);
+} catch(error) {
+clearTimeout(window.bootTimer);window.showFailure('TELEMARK needs WebGL and a connection to load its graphics module. Enable hardware acceleration or try another modern browser.',error?.message||error);
+}
+</script>
+</body>
+</html>

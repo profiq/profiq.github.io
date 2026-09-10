@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<!--
+BRICKSMITH — A little building studio, in one file.
+Features: 12 validated procedural puzzles, three help difficulties, sandbox with three
+save slots and text import/export, instanced 3D bricks, independent blueprint viewer,
+layer peeling, booklet, hints, comparison, undo/redo, progress, procedural sound.
+Controls: click place; right click remove; right/middle drag orbit; wheel zoom;
+R rotate; 1–9 and [ / ] choose parts; Q / W colour; E eyedropper; Delete remove;
+Ctrl/Cmd+Z undo; Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo; F/S/T camera; ? help.
+Open this file in a modern desktop browser. Internet is needed only for the pinned
+Three.js 0.164.1 modules; all other code, geometry, graphics and audio are inline.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f6f5ef">
+<title>BRICKSMITH — A little building studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='18' width='52' height='40' rx='10' fill='%232d6d5b'/%3E%3Crect x='14' y='8' width='12' height='18' rx='4' fill='%235b9679'/%3E%3Crect x='38' y='8' width='12' height='18' rx='4' fill='%235b9679'/%3E%3C/svg%3E">
+<style>
+:root{--paper:#f6f5ef;--panel:#fffefa;--ink:#263e37;--muted:#849087;--green:#336b56;--mint:#e6edde;--line:#e0e3d8;--orange:#eb9364;--shadow:0 10px 40px #34463309;--radius:20px;font-family:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;overflow:hidden}button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit}button:disabled{cursor:default;opacity:.4}button,a,input,textarea,select{outline-offset:5px}button:focus-visible,a:focus-visible{outline:3px solid #ddae59}button{border:0;background:none}button svg{pointer-events:none}button:not(:disabled){transition:background .18s,transform .18s,box-shadow .18s}button:not(:disabled):active{transform:translateY(1px)}svg{display:block}button .icon{width:19px;height:19px;flex-shrink:0}h1,h2,h3,p{margin:0}button[hidden],[hidden]{display:none!important}.eyebrow{font-size:10px;font-weight:750;letter-spacing:2px;text-transform:uppercase}.muted{color:var(--muted)}.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}.header{height:86px;position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:0 42px;border-bottom:1px solid var(--line);background:var(--paper)}.brand{display:flex;align-items:center;gap:11px;text-align:left;padding:0}.brand-mark{width:38px;height:38px}.brand-name{font-size:20px;letter-spacing:1.4px;font-weight:900;line-height:1.15}.brand-sub{font-size:8px;letter-spacing:2.5px;color:var(--muted);font-weight:650;margin-top:5px}.header-center{display:flex;gap:30px;font-size:12px;font-weight:600;color:#6b7b71}.text-button{padding:9px 2px}.text-button:hover{color:var(--green)}.header-right{display:flex;align-items:center;gap:11px}.small-note{font-size:11px;color:var(--muted);margin-right:16px}.icon-button{height:36px;min-width:36px;border:1px solid var(--line);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#fffefa80}.icon-button:hover{background:var(--mint)}.header-back{display:flex;align-items:center;gap:7px;font-size:12px}.separator{height:24px;width:1px;background:var(--line);margin:0 9px}.screen{position:absolute;inset:86px 0 0}.stage{position:absolute;inset:0;z-index:0;touch-action:none}.stage canvas{display:block;width:100%;height:100%;outline:none}.title-screen{z-index:1;pointer-events:none}.title-screen button{pointer-events:auto}.hero-copy{position:absolute;left:8%;top:16%;width:40%;z-index:1}.hero-kicker{display:flex;align-items:center;gap:9px;margin-bottom:23px}.tiny-dot{width:7px;height:7px;display:inline-block;background:#90a87c;border-radius:50%;box-shadow:0 0 0 4px #90a87c12}.hero-copy h1{font-size:clamp(50px,5.2vw,82px);line-height:1.03;letter-spacing:-4px;font-weight:850}.hero-copy h1 em{font-style:normal;color:var(--green)}.hero-copy p{font-size:15px;line-height:1.8;color:#7c887f;max-width:360px;margin-top:23px}.hero-actions{display:flex;align-items:center;gap:14px;margin-top:31px}.primary{background:var(--green);border:1px solid var(--green);color:white;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:17px;padding:16px 24px;font-size:13px;font-weight:650;box-shadow:0 6px 16px #336b5610}.primary:hover{background:#285741;box-shadow:0 7px 18px #336b5620}.secondary{padding:15px 20px;border:1px solid var(--line);background:#fffefa80;border-radius:12px;font-size:13px;font-weight:600;display:inline-flex;justify-content:center;align-items:center;gap:9px}.secondary:hover{background:var(--mint)}.hero-under{margin-top:22px;font-size:10px;color:#949c91;display:flex;align-items:center;gap:7px}.hero-under svg{width:13px;height:13px}.hero-object-label{position:absolute;left:62%;bottom:20%;text-align:center;transform:translateX(-15%);font-size:11px;color:#7a8b7d}.hero-object-label strong{display:block;color:var(--ink);font-size:13px;letter-spacing:.2px;margin-bottom:7px}.floating-note{position:absolute;right:8%;top:15%;transform:rotate(7deg);background:#eceddc;border:1px solid #dfe2cf;border-radius:12px;padding:13px 17px;font-size:11px;font-weight:600;line-height:1.6;box-shadow:0 4px 10px #48513904}.floating-note span{display:block;font-size:9px;color:#8c967a;font-weight:500}.title-bottom{position:absolute;bottom:48px;left:8%;right:8%;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:25px}.title-features{display:flex;gap:30px;font-size:11px;color:#7a877e}.title-features span{display:flex;gap:8px;align-items:center}.title-features .icon{width:15px;height:15px;color:#678474}.title-footnote{font-size:10px;color:#99a094}.title-mode #stage{left:41%;top:0;bottom:80px}.screen#workspace{background:radial-gradient(ellipse at 67% 42%,#eef0e5 0%,#f6f5ef 68%)}.levels-mode #stage{visibility:hidden}.build-mode #stage{right:280px;bottom:34px}.level-screen{z-index:2;overflow-y:auto;padding:36px 7% 64px;background:var(--paper)}.collection-top{display:flex;justify-content:space-between;gap:30px;align-items:center;margin-bottom:30px}.collection-top h1{font-size:36px;letter-spacing:-1.6px;margin:9px 0 8px}.collection-top p{font-size:12px;color:#7d8a80}.difficulty-box{text-align:right}.segment{display:inline-flex;gap:4px;background:#eaece3;border:1px solid #e0e4d8;padding:5px;border-radius:12px}.segment button{border-radius:8px;padding:10px 18px;font-size:11px;font-weight:650;color:#7a887d}.segment button.active{color:var(--green);background:var(--panel);box-shadow:0 2px 6px #263e3710}.difficulty-description{font-size:10px;color:#849087;margin-top:10px;min-height:14px}.tier-heading{display:flex;gap:10px;align-items:center;margin:26px 0 14px}.tier-heading h2{font-size:13px;font-weight:750}.tier-number{font-size:9px;border:1px solid #d9ded0;border-radius:6px;padding:4px 6px;color:#8c9789}.tier-heading>span:last-child{color:#9ba496;font-size:10px;margin-left:auto}.level-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.level-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-align:left;padding:0;position:relative}.level-card:hover{border-color:#9aaf96;box-shadow:0 6px 25px #405a3410;transform:translateY(-3px)}.level-thumb{height:135px;display:flex;justify-content:center;align-items:center;position:relative;background:#ebeee1}.level-thumb svg{width:100%;height:100%}.level-card:nth-child(2) .level-thumb{background:#eee9e0}.level-card:nth-child(3) .level-thumb{background:#e8eee8}.level-card:nth-child(4) .level-thumb{background:#e7ebed}.card-num{position:absolute;top:12px;left:14px;font-size:9px;font-weight:700;color:#8b9786}.card-body{padding:16px 17px}.card-body h3{font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between}.card-body p{font-size:10px;color:#929a8d;display:flex;justify-content:space-between}.card-stars{letter-spacing:3px;color:#e5b451;font-size:11px}.sandbox-banner{margin-top:27px;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:22px 26px;background:#e5ebdc;border:1px solid #dce2d2;border-radius:16px}.sandbox-banner h3{font-size:17px;margin-bottom:6px}.sandbox-banner p{font-size:11px;color:#7e8b76}.sandbox-banner .secondary{background:#fffefa}.build-screen{z-index:1;pointer-events:none}.build-screen button,.build-screen input,.build-screen select{pointer-events:auto}.panel{background:#fffefaeF;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);pointer-events:auto}.reference{position:absolute;left:25px;top:25px;width:248px;overflow:hidden;transition:width .25s,height .25s;z-index:3}.reference.expanded{width:min(570px,calc(100vw - 340px));box-shadow:0 24px 70px #293b3420}.reference-heading{display:flex;justify-content:space-between;align-items:center;padding:17px 17px 0}.reference-heading .eyebrow{font-size:8px;letter-spacing:1.6px;color:#93a18e}.reference-heading h3{font-size:13px;margin-top:5px}.reference-heading .icon-button{width:28px;height:28px;min-width:28px;border-radius:8px}.reference-heading .icon{width:14px;height:14px}.reference-canvas{height:173px;position:relative;touch-action:none}.reference.expanded .reference-canvas{height:360px}.reference-caption{font-size:8px;text-align:center;color:#9ba596;margin-top:-6px;position:relative;pointer-events:none}.peel-control{padding:14px 17px 15px;margin-top:11px;border-top:1px solid #eeeee5}.peel-label{display:flex;justify-content:space-between;font-size:9px;color:#96a08e;margin-bottom:9px}.peel-label span:first-child{color:#657b67;font-weight:650}input[type=range]{width:100%;height:4px;accent-color:#7b9c71;display:block;cursor:pointer}.level-info{position:absolute;left:300px;top:34px;right:310px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.level-info h1{font-size:25px;letter-spacing:-.8px;margin:8px 0 6px}.level-info p{font-size:11px;color:#869480;line-height:1.5}.progress-ring{background:#eef0e6;border:1px solid #dce2d2;min-width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;position:relative;margin-top:5px}.progress-ring:before{content:'';position:absolute;inset:4px;border-radius:50%;border:2px solid #c3d3b5}.progress-ring span{z-index:1}.palette{position:absolute;right:20px;top:24px;bottom:91px;width:252px;display:flex;flex-direction:column;overflow:hidden}.palette-head{padding:21px 20px 15px}.palette-head h2{font-size:15px;display:flex;align-items:center;justify-content:space-between}.palette-head h2 span{font-size:9px;color:#86947a;font-weight:500;border:1px solid #dce3d2;padding:4px 7px;border-radius:6px}.palette-head p{font-size:10px;color:#939c8b;margin-top:8px}.palette-filter{display:flex;gap:5px;padding:0 16px 13px;border-bottom:1px solid #e9ecdf}.palette-filter button{padding:6px 8px;border-radius:6px;font-size:9px;color:#95a08f}.palette-filter button.active{background:#e9efdf;color:#507148;font-weight:650}.palette-list{overflow-y:auto;min-height:0;flex:1;padding:10px;scrollbar-width:thin;scrollbar-color:#d4ddc9 transparent}.part{border:1px solid transparent;display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:11px;text-align:left;margin-bottom:4px}.part:hover{background:#f4f5ec}.part.selected{background:#edf2e4;border-color:#c7d5b9;box-shadow:inset 0 0 0 1px #dbe5ce}.part.exhausted{opacity:.4}.part-icon{width:53px;height:39px;flex-shrink:0;display:flex;align-items:center;justify-content:center}.part-icon svg{height:100%;width:100%}.part-label{flex:1;font-size:11px;font-weight:650}.part-label small{display:block;font-size:9px;font-weight:400;color:#91a083;margin-top:4px}.part-count{font-size:11px;color:#7c9072;font-weight:500}.palette-foot{border-top:1px solid #e8ecde;padding:14px 17px;font-size:9px;color:#96a08e;display:flex;align-items:center;gap:7px;background:#fffefa}.palette-foot kbd{border:1px solid #dbe1d3;border-radius:3px;padding:2px 4px;font-size:8px}.sandbox-colors{padding:11px 17px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:7px}.swatch{width:17px;height:17px;border-radius:50%;border:2px solid #0000000d}.swatch.active{outline:2px solid var(--green);outline-offset:2px}.instruction{position:absolute;left:25px;bottom:109px;width:248px;padding:17px}.instruction .eyebrow{color:#8ba07e;font-size:8px;display:flex;align-items:center;justify-content:space-between}.instruction h3{font-size:13px;margin-top:10px;line-height:1.5}.instruction p{font-size:10px;color:#95a08c;margin-top:6px;line-height:1.6}.instruction-progress{height:4px;background:#e7ebdf;border-radius:5px;margin:13px 0}.instruction-progress>div{height:100%;background:#7c9a65;border-radius:5px;transition:width .3s}.instruction button{padding:0;font-size:9px;color:#789265;text-decoration:underline;text-underline-offset:3px}.board-label{position:absolute;bottom:99px;left:50%;transform:translateX(-70%);color:#9ba793;font-size:9px;letter-spacing:2px;pointer-events:none;white-space:nowrap}.empty-note{position:absolute;left:50%;top:55%;transform:translateX(-70%);background:#fffefaec;border:1px solid #dce2d1;padding:10px 15px;border-radius:9px;color:#829575;font-size:11px;box-shadow:var(--shadow);pointer-events:none}.toolbar{position:absolute;bottom:30px;left:calc((100% - 280px)/2);transform:translateX(-50%);height:58px;padding:7px 10px;display:flex;align-items:center;gap:4px;border-radius:16px;white-space:nowrap;z-index:4}.tool{min-width:45px;height:42px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;border-radius:9px;font-size:7px;font-weight:550;color:#7b8b71}.tool .icon{width:17px;height:17px}.tool:hover{background:#eef1e6}.tool.active{color:#3d6e4d;background:#e7eedc}.tool-divider{height:26px;background:var(--line);width:1px;margin:0 5px}.camera-tools{position:absolute;bottom:104px;right:301px;display:flex;flex-direction:column;gap:7px;pointer-events:auto}.camera-tools .icon-button{background:#fffefa;width:31px;height:31px;min-width:31px;border-radius:9px;font-size:9px;font-weight:650}.camera-tools .icon{width:15px;height:15px}.workspace-foot{position:absolute;bottom:0;left:0;right:0;border-top:1px solid #e3e7da;height:30px;display:flex;justify-content:space-between;padding:0 25px;align-items:center;background:#f6f5efaa;color:#9da693;font-size:8px}.workspace-foot span{display:flex;align-items:center;gap:7px}.workspace-foot .tiny-dot{height:5px;width:5px;background:#9baf84}.build-time{font-variant-numeric:tabular-nums}.selection-pill{position:absolute;bottom:105px;left:50%;transform:translateX(-70%);background:#fffefa;border:1px solid var(--line);padding:8px 11px;border-radius:8px;font-size:9px;color:#889b7a;display:none}.selection-pill.visible{display:block}.ghost-reason{position:fixed;pointer-events:none;z-index:9;border-radius:7px;background:#fff9f1ed;border:1px solid #e9ceb9;padding:7px 10px;font-size:10px;color:#ab6d46;box-shadow:0 3px 12px #79573310}.toast{position:fixed;bottom:109px;left:50%;transform:translateX(-50%) translateY(12px);padding:12px 19px;border:1px solid var(--line);border-radius:10px;background:#fffefaf5;box-shadow:0 5px 25px #263e3715;z-index:30;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:min(90vw,550px);line-height:1.5}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.warning{border-color:#e5ba9b;color:#a56b49}.loading{position:fixed;right:35px;bottom:22px;font-size:11px;color:#91a184;z-index:8;display:flex;gap:8px;align-items:center}.spinner{width:12px;height:12px;border:2px solid #cad5bf;border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.modal-backdrop{position:fixed;inset:0;background:#263e3745;backdrop-filter:blur(8px);z-index:50;display:flex;align-items:center;justify-content:center;padding:24px}.modal{position:relative;background:var(--panel);border:1px solid #fff7;border-radius:25px;padding:36px;max-width:610px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 22px 120px #172b3620}.modal-close{position:absolute;right:17px;top:17px;border:0;background:#eff1e7}.modal h2{font-size:29px;letter-spacing:-1px;margin:10px 0}.modal-intro{font-size:12px;line-height:1.7;color:#89967e;margin:0 0 23px}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:22px}.help-item{background:#f2f4e9;border:1px solid #e5e9da;border-radius:12px;padding:17px}.help-item .icon{color:#6b8f5a;margin-bottom:10px}.help-item h3{font-size:12px;margin-bottom:7px}.help-item p{font-size:10px;color:#8b977e;line-height:1.65}.shortcut-list{font-size:10px;line-height:2;color:#8b977e;margin:8px 0 22px}.shortcut-list kbd{border:1px solid #dce2cf;padding:2px 5px;border-radius:4px;color:#668158;background:white;font-family:inherit}.modal .primary{width:100%}.modal-buttons{display:flex;gap:10px;margin-top:20px}.modal-buttons>*{flex:1}.modal-buttons .primary{width:auto}.setting-row{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:18px 0;border-bottom:1px solid var(--line);font-size:12px}.setting-row p{color:#9aA38f;font-size:10px;line-height:1.6;margin-top:5px}.setting-row button{padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:10px;background:#f1f4e7}.setting-row button.danger{color:#ad6f51;background:#fbefe6;border-color:#eedacb}.save-slot{display:flex;gap:9px;align-items:center;border:1px solid var(--line);padding:15px;border-radius:12px;margin:10px 0}.save-slot span{flex:1;font-size:12px;font-weight:650}.save-slot small{display:block;font-size:9px;color:#99a38e;font-weight:400;margin-top:4px}.save-slot button{font-size:10px;background:#eaf0e1;border-radius:7px;padding:8px 11px}.code-box{width:100%;resize:vertical;min-height:120px;border:1px solid #dbe2cd;background:#f5f6ee;border-radius:10px;padding:14px;font-size:11px;line-height:1.6;color:#657c54;overflow-wrap:anywhere}.code-feedback{font-size:11px;min-height:18px;margin:10px 0;color:#a16846}.result-modal{text-align:center;max-width:445px}.result-stars{font-size:43px;letter-spacing:8px;color:#e8b655;margin:6px 0 19px;text-shadow:0 3px 0 #c98d1b15}.result-modal h2{font-size:35px;letter-spacing:-1.4px}.result-stats{display:flex;justify-content:space-around;background:#f0f3e8;border-radius:13px;padding:18px;margin:23px 0}.result-stats strong{font-size:17px;display:block;margin-bottom:5px}.result-stats span{font-size:9px;color:#93a184}.result-menu{margin-top:17px;font-size:11px;color:#8c9c7e;text-decoration:underline;text-underline-offset:4px}.desktop-note{display:none;font-size:10px;background:#eee9d8;color:#8d8056;padding:8px;text-align:center}.fatal{z-index:100;background:#f6f5efeF;backdrop-filter:blur(10px)}.fatal .modal{text-align:center;max-width:470px}.fatal p{font-size:13px;line-height:1.8;color:#859076;margin:15px 0 25px}.fatal-symbol{font-size:34px}.shake{animation:shake .25s}@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}@media(min-width:1600px){.hero-copy{top:19%}.level-screen{padding-left:11%;padding-right:11%}.level-thumb{height:170px}.title-mode #stage{left:39%;right:3%}}@media(max-height:740px){.hero-copy{top:12%}.hero-copy h1{font-size:58px}.hero-copy p{margin-top:17px}.hero-actions{margin-top:22px}.title-bottom{bottom:30px}.reference-canvas{height:142px}.instruction{bottom:104px}.reference{top:17px}.level-info{top:24px}.palette{top:17px}}@media(max-width:1100px){.header{padding:0 25px}.hero-copy{left:6%}.hero-copy h1{font-size:58px;letter-spacing:-3px}.hero-copy p{font-size:13px;max-width:300px}.hero-actions{gap:8px}.hero-actions .primary,.hero-actions .secondary{padding:14px 17px}.small-note{display:none}.floating-note{right:5%}.title-bottom{left:6%;right:6%}.title-features{gap:20px}.reference{width:209px;left:16px}.reference-canvas{height:155px}.level-info{left:250px;right:290px}.palette{width:230px;right:14px}.build-mode #stage{right:252px}.toolbar{left:calc((100% - 230px)/2)}.instruction{left:16px;width:209px}.camera-tools{right:270px}.level-grid{gap:10px}.level-screen{padding:30px 5% 60px}.level-thumb{height:115px}.header-center{gap:18px}.tool{min-width:38px}}
+@media(max-width:800px){body{overflow:auto}.header{height:72px;padding:0 17px}.brand-name{font-size:17px}.brand-sub{font-size:7px}.brand-mark{width:31px;height:31px}.header-center,.small-note,.title-footnote{display:none}.screen{top:72px}.desktop-note{display:block;position:absolute;top:72px;left:0;right:0;z-index:4;pointer-events:none}.hero-copy{top:7%;left:7%;width:86%}.hero-copy h1{font-size:49px;letter-spacing:-2px}.hero-copy p{font-size:12px;line-height:1.6;max-width:290px;margin-top:14px}.hero-actions{margin-top:19px}.hero-under{margin-top:15px}.title-mode #stage{left:15%;right:0;top:36%;bottom:50px}.hero-object-label,.floating-note{display:none}.title-bottom{bottom:22px;padding-top:15px}.title-features{gap:17px;font-size:8px}.title-features .icon{width:12px;height:12px}.collection-top{align-items:flex-start;flex-direction:column;gap:18px;margin-top:16px}.collection-top h1{font-size:29px}.difficulty-box{text-align:left}.level-grid{grid-template-columns:repeat(2,1fr)}.level-thumb{height:135px}.sandbox-banner{padding:18px;align-items:flex-start;flex-direction:column}.build-mode #stage{right:172px;top:24px}.palette{width:163px;right:8px;top:37px;bottom:97px;border-radius:13px}.palette-head{padding:15px 12px 10px}.palette-head h2{font-size:12px}.palette-head p{font-size:8px}.palette-head h2 span{font-size:8px}.palette-filter{padding:0 6px 7px;gap:0}.palette-filter button{font-size:8px;padding:5px}.part{padding:7px 4px;gap:3px}.part-icon{width:40px;height:33px}.part-label{font-size:9px}.part-label small{font-size:8px}.palette-list{padding:6px}.part-count{font-size:9px}.palette-foot{display:none}.reference{left:9px;top:37px;width:146px;border-radius:13px}.reference-heading{padding:12px 12px 0}.reference-heading .eyebrow{font-size:6px;letter-spacing:1px}.reference-heading h3{font-size:10px}.reference-heading .icon-button{width:22px;height:22px;min-width:22px}.reference-canvas{height:100px}.reference-caption{font-size:7px}.peel-control{padding:10px 12px;margin-top:8px}.peel-label{font-size:8px}.level-info{left:173px;top:44px;right:184px}.level-info h1{font-size:17px}.level-info .eyebrow{font-size:7px;letter-spacing:1px}.level-info p,.progress-ring{display:none}.instruction{left:9px;bottom:135px;width:146px;padding:13px}.instruction h3{font-size:11px}.instruction p{font-size:9px}.instruction .eyebrow{font-size:6px;letter-spacing:1px}.toolbar{left:50%;height:52px;padding:5px;gap:0;bottom:39px;max-width:98vw}.tool{min-width:35px;font-size:6px}.tool .icon{width:15px;height:15px}.tool-divider{margin:0 3px}.camera-tools{right:184px;bottom:134px}.workspace-foot{font-size:7px;padding:0 12px}.workspace-foot .control-help{display:none}.board-label{bottom:115px;left:40%;font-size:7px}.reference.expanded{width:calc(100vw - 195px)}.reference.expanded .reference-canvas{height:280px}.empty-note{font-size:9px;left:42%;top:56%;max-width:160px;text-align:center}.hero-copy h1 br{display:none}.hero-copy h1{max-width:350px}.hero-copy h1 em{display:block}.hero-kicker{margin-bottom:15px}.modal{padding:27px}.help-grid{gap:8px}.help-item{padding:13px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}</script>
+</head>
+<body class="title-mode">
+<header class="header">
+<button class="brand" id="home-button" title="Return to title" aria-label="BRICKSMITH home"><svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true"><path d="M5 15 22 6 39 15 22 25Z" fill="#679b7a"/><path d="M5 15 22 25 22 40 5 30Z" fill="#387158"/><path d="M22 25 39 15 39 30 22 40Z" fill="#265a44"/><g fill="#9bb697" stroke="#679b7a" stroke-width=".8"><ellipse cx="16" cy="12" rx="4" ry="2.2"/><path d="M12 9v3a4 2.2 0 0 0 8 0V9"/><ellipse cx="16" cy="9" rx="4" ry="2.2"/><path d="M24 15v3a4 2.2 0 0 0 8 0v-3"/><ellipse cx="28" cy="15" rx="4" ry="2.2"/><path d="M24 9v3a4 2.2 0 0 0 8 0V9"/><ellipse cx="28" cy="9" rx="4" ry="2.2"/><path d="M12 15v3a4 2.2 0 0 0 8 0v-3"/><ellipse cx="16" cy="15" rx="4" ry="2.2"/></g></svg><span><span class="brand-name">BRICKSMITH</span><span class="brand-sub" style="display:block">A LITTLE BUILDING STUDIO</span></span></button>
+<nav class="header-center" id="header-nav"><button class="text-button" data-action="levels">The collection</button><button class="text-button" data-action="sandbox">Free build</button><button class="text-button" data-action="help">How to play</button></nav>
+<div class="header-right"><span class="small-note" id="header-note">A little focus. A lot of possibility.</span><button class="header-back" id="back-button" hidden data-action="levels"><span data-icon="back"></span> All models</button><button class="icon-button" id="sound-button" title="Turn sound off" aria-label="Turn sound off" data-action="sound"><span data-icon="sound"></span></button><button class="icon-button" title="Settings" aria-label="Settings" data-action="settings"><span data-icon="settings"></span></button><button class="icon-button" title="How to play (?)" aria-label="How to play" data-action="help"><span data-icon="help"></span></button></div>
+</header>
+<div class="desktop-note">A little more room helps. Best experienced on desktop.</div>
+<main class="screen" id="workspace">
+<div class="stage" id="stage" aria-label="Interactive 3D building studio"></div>
+<section class="screen title-screen" id="title-screen" style="top:0">
+<div class="hero-copy"><div class="hero-kicker eyebrow"><span class="tiny-dot"></span> UNPLUG YOUR MIND. BUILD SOMETHING.</div><h1>Small bricks.<br><em>Big possibilities.</em></h1><p>A quiet space for your imagination. Find your focus, piece by piece, with 12 playful building puzzles.</p><div class="hero-actions"><button class="primary" id="start-button" data-action="levels">Let’s build <span data-icon="arrow"></span></button><button class="secondary" data-action="sandbox">Just explore <span data-icon="cube"></span></button></div><div class="hero-under"><span data-icon="check"></span> No rush. No rules in your way. Just one more brick.</div></div>
+<div class="floating-note">A place for the pieces.<span>And a little peace of mind.</span></div>
+<div class="hero-object-label"><strong>The little cottage</strong>Model 05 &nbsp;·&nbsp; Builder collection<br><span style="display:block;margin-top:10px;font-size:9px;color:#a4ad9c">DRAG TO TAKE A LOOK</span></div>
+<div class="title-bottom"><div class="title-features"><span><span data-icon="cube"></span> 12 little challenges</span><span><span data-icon="layers"></span> 3 ways to play</span><span><span data-icon="sparkles"></span> Infinite imagination</span></div><span class="title-footnote">Thoughtfully small. Endlessly playful.</span></div>
+</section>
+<section class="level-screen" id="levels-screen" hidden><div class="collection-top"><div><div class="eyebrow muted">THE COLLECTION</div><h1>What will you build today?</h1><p>Start small, get curious, and make something you’re proud of.</p></div><div class="difficulty-box"><div class="segment" id="difficulty-toggle"><button data-difficulty="easy" class="active">Easy</button><button data-difficulty="medium">Medium</button><button data-difficulty="hard">Hard</button></div><p class="difficulty-description" id="difficulty-description">A ghost guide, a building booklet & unlimited hints.</p></div></div><div id="level-collection"></div><div class="sandbox-banner"><div><h3>A blank plate. An open mind.</h3><p>All the bricks, all the colours. Make something that’s entirely yours.</p></div><button class="secondary" data-action="sandbox">Enter the sandbox <span data-icon="arrow"></span></button></div></section>
+<section class="build-screen" id="build-screen" hidden>
+<aside class="panel reference" id="reference-panel"><div class="reference-heading"><div><div class="eyebrow">THE BLUEPRINT</div><h3 id="reference-name">Your inspiration</h3></div><button class="icon-button" id="expand-reference" title="Expand blueprint" aria-label="Expand blueprint"><span data-icon="expand"></span></button></div><div class="reference-canvas" id="reference-canvas" aria-label="Target model, drag to rotate"></div><p class="reference-caption">Drag to rotate · Scroll to zoom</p><div class="peel-control"><div class="peel-label"><span>Peel back the layers</span><span id="peel-value">All layers</span></div><input type="range" id="peel-slider" aria-label="Visible blueprint layers" min="0" max="60" step="1" value="60"></div></aside>
+<div class="level-info"><div><div class="eyebrow muted" id="level-eyebrow">01 / STARTER</div><h1 id="level-title">Tower</h1><p id="level-subtitle">Good things start with a strong foundation.</p></div><div class="progress-ring"><span id="progress-percent">0%</span></div></div>
+<aside class="panel palette"><div class="palette-head"><h2>Your bricks <span id="palette-total">12 pieces</span></h2><p>Good things come together.</p></div><div class="palette-filter" id="palette-filter"><button class="active" data-filter="all">All parts</button><button data-filter="brick">Bricks</button><button data-filter="plate">Plates</button><button data-filter="special">Special</button></div><div class="palette-list" id="palette-list"></div><div class="sandbox-colors" id="sandbox-colors" hidden></div><div class="palette-foot"><kbd>[</kbd><kbd>]</kbd> change brick <span style="margin-left:auto">Q / W colour</span></div></aside>
+<aside class="panel instruction" id="instruction-panel"><div class="eyebrow"><span id="instruction-eyebrow">ONE BRICK AT A TIME</span><span data-icon="book" style="width:13px;height:13px"></span></div><h3 id="instruction-title">Let’s start at the bottom.</h3><p id="instruction-copy">Follow the highlighted brick.</p><div class="instruction-progress"><div id="instruction-bar" style="width:0%"></div></div><button id="booklet-toggle">Turn off the booklet</button></aside>
+<div class="empty-note" id="empty-note">Pick a brick to start</div><div class="board-label">YOUR LITTLE CORNER OF POSSIBILITY</div>
+<div class="camera-tools"><button class="icon-button" data-view="front" title="Front view (F)">F</button><button class="icon-button" data-view="side" title="Side view (S)">S</button><button class="icon-button" data-view="top" title="Top view (T) — precise placement around other bricks">T</button><button class="icon-button" data-action="frame" title="Auto-frame model" aria-label="Auto-frame model"><span data-icon="frame"></span></button></div>
+<div class="panel toolbar"><button class="tool active" id="place-tool" data-action="place-tool" title="Place a brick (left click)"><span data-icon="cube"></span>Build</button><button class="tool" data-action="rotate" title="Rotate selected brick (R)"><span data-icon="rotate"></span>Rotate</button><button class="tool" id="pick-tool" data-action="pick" title="Copy a brick’s type and colour (E)"><span data-icon="pipette"></span>Pick</button><div class="tool-divider"></div><button class="tool" id="undo-button" data-action="undo" title="Undo (Ctrl/⌘ Z)"><span data-icon="undo"></span>Undo</button><button class="tool" id="redo-button" data-action="redo" title="Redo (Ctrl/⌘ Y)"><span data-icon="redo"></span>Redo</button><div class="tool-divider"></div><button class="tool" id="compare-button" data-action="compare" title="Compare with the blueprint"><span data-icon="compare"></span>Compare</button><button class="tool" id="hint-button" data-action="hint" title="Show the next missing brick"><span data-icon="bulb"></span><span id="hint-button-label">Hint</span></button><button class="tool" id="save-button" data-action="saves" title="Save or load a sandbox" hidden><span data-icon="save"></span>Save</button><button class="tool" id="code-button" data-action="code" title="Export or import a build code" hidden><span data-icon="code"></span>Code</button><button class="tool" id="clear-button" data-action="clear" title="Clear the sandbox" hidden><span data-icon="trash"></span>Clear</button></div>
+<footer class="workspace-foot"><span><i class="tiny-dot"></i><span id="build-status">Every masterpiece starts with a single brick.</span></span><span class="control-help">CLICK to place &nbsp;·&nbsp; RIGHT-CLICK to remove &nbsp;·&nbsp; DRAG RIGHT to orbit</span><span><span id="difficulty-badge">EASY</span> &nbsp;·&nbsp; <span class="build-time" id="build-time">00:00</span></span></footer>
+</section>
+</main>
+<div class="ghost-reason" id="ghost-reason" hidden></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="loading" id="loading"><span class="spinner"></span> Setting out the bricks…</div>
+<div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></section></div>
+<div class="modal-backdrop fatal" id="fatal" hidden><section class="modal"><div class="fatal-symbol">▦</div><h2>A little setup is needed.</h2><p id="fatal-message">The 3D studio couldn’t start. Please check your connection and that your browser supports WebGL, then try again.</p><button class="primary" onclick="location.reload()">Try again</button></section></div>
+<script>
+window.bricksmithFail=function(message){document.getElementById('loading').hidden=true;document.getElementById('fatal-message').textContent=message;document.getElementById('fatal').hidden=false;};
+window.addEventListener('error',function(){window.bricksmithFail('The studio ran into a problem. Please reload to set out the bricks again. Your saved progress is safe.');});
+window.addEventListener('unhandledrejection',function(){window.bricksmithFail('The studio couldn’t finish loading. Check your internet connection and try again.');});
+</script>
+<script type="module">
+const $=id=>document.getElementById(id);
+const ICONS={arrow:'M4 10h12m-5-5 5 5-5 5',back:'M16 10H4m5-5-5 5 5 5',check:'m4 10 4 4 8-8',cube:'m10 2 8 4v9l-8 4-8-4V6Zm-8 4 8 4 8-4M10 10v9',layers:'m10 2 8 4-8 4-8-4Zm-8 9 8 4 8-4M2 15l8 4 8-4',sparkles:'m10 2 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z',sound:'M9 3 4 7H1v6h3l5 4Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14',muted:'M9 3 4 7H1v6h3l5 4Zm5 4 5 6m0-6-5 6',settings:'M8 2h4l1 3 3 1 2 3-2 3v3l-3 2-3-1-3 1-3-2v-3L2 9l2-3 3-1Z M13 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0',help:'M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM7.5 7a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4m0 3v.1',expand:'M3 7V3h4m6 0h4v4M3 13v4h4m6 0h4v-4',frame:'M3 7V3h4m6 0h4v4M3 13v4h4m6 0h4v-4M7 7h6v6H7Z',book:'M10 5C7 2 4 3 2 3v13c3-1 5-1 8 1 3-2 5-2 8-1V3c-2 0-5-1-8 2Zm0 0v12',rotate:'M16 7a7 7 0 1 0 1 6M16 2v5h-5',pipette:'m13 3 4 4m-5-3 3-3 4 4-3 3m-4-4L3 13l-1 5 5-1 9-9',undo:'M7 4 2 9l5 5M2 9h10a5 5 0 0 1 0 10',redo:'m13 4 5 5-5 5m5-5H8a5 5 0 0 0 0 10',compare:'M3 3h6v14H3Zm9 0h6v14h-6M6 7v6m9-6v6',bulb:'M7 15h6m-5 3h4M6 11a6 6 0 1 1 8 0c-1 1-1 2-1 2H7s0-1-1-2',save:'M3 2h12l3 3v13H2V2Zm3 0v6h8V2M6 18v-6h8v6',code:'m6 5-5 5 5 5m8-10 5 5-5 5M12 3 8 17',trash:'M2 5h16M7 5V2h6v3M4 5l1 13h10l1-13M8 8v7m4-7v7',close:'m5 5 10 10M15 5 5 15',mouse:'M10 1a6 6 0 0 1 6 6v6a6 6 0 0 1-12 0V7a6 6 0 0 1 6-6Zm0 0v7M4 8h12'};
+function icon(name){return `<svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICONS[name]||ICONS.cube}"/></svg>`;}
+function fillIcons(root=document){root.querySelectorAll('[data-icon]').forEach(e=>e.innerHTML=icon(e.dataset.icon));}
+fillIcons();
+let THREE,OrbitControls,mergeGeometries,studio;
+let ready=false;
+const bootTimeout=setTimeout(()=>{if(!ready)window.bricksmithFail('The brick library is taking longer than expected. Check your connection to the module CDN, then try again.');},25000);
+try{
+[THREE,{OrbitControls},{mergeGeometries}]=await Promise.all([import('three'),import('three/addons/controls/OrbitControls.js'),import('three/addons/utils/BufferGeometryUtils.js')]);
+// The catalogue uses integer plate units for all heights: 3 units = one brick.
+const TYPES = [
+  {id:'b11',name:'1 × 1 brick',w:1,d:1,h:3,kind:'brick'},
+  {id:'b12',name:'1 × 2 brick',w:1,d:2,h:3,kind:'brick'},
+  {id:'b13',name:'1 × 3 brick',w:1,d:3,h:3,kind:'brick'},
+  {id:'b14',name:'1 × 4 brick',w:1,d:4,h:3,kind:'brick'},
+  {id:'b22',name:'2 × 2 brick',w:2,d:2,h:3,kind:'brick'},
+  {id:'b23',name:'2 × 3 brick',w:2,d:3,h:3,kind:'brick'},
+  {id:'b24',name:'2 × 4 brick',w:2,d:4,h:3,kind:'brick'},
+  {id:'b26',name:'2 × 6 brick',w:2,d:6,h:3,kind:'brick'},
+  {id:'p12',name:'1 × 2 plate',w:1,d:2,h:1,kind:'plate'},
+  {id:'p22',name:'2 × 2 plate',w:2,d:2,h:1,kind:'plate'},
+  {id:'p24',name:'2 × 4 plate',w:2,d:4,h:1,kind:'plate'},
+  {id:'p44',name:'4 × 4 plate',w:4,d:4,h:1,kind:'plate'},
+  {id:'s12',name:'1 × 2 slope',w:1,d:2,h:3,kind:'slope'},
+  {id:'s22',name:'2 × 2 slope',w:2,d:2,h:3,kind:'slope'},
+  {id:'r11',name:'1 × 1 round',w:1,d:1,h:3,kind:'round'}
+];
+const COLOURS = [
+  {id:'red',name:'Poppy red',hex:'#E95A4F'},
+  {id:'blue',name:'Ocean blue',hex:'#4B85C5'},
+  {id:'yellow',name:'Sunflower',hex:'#F3CA4F'},
+  {id:'green',name:'Leaf green',hex:'#76A77C'},
+  {id:'white',name:'Warm white',hex:'#F6F2E9'},
+  {id:'black',name:'Ink black',hex:'#30343B'},
+  {id:'lightGrey',name:'Pebble grey',hex:'#B9C0C4'},
+  {id:'darkGrey',name:'Slate grey',hex:'#68737D'},
+  {id:'orange',name:'Tangerine',hex:'#ED9652'},
+  {id:'tan',name:'Sandstone',hex:'#D8BE91'},
+  {id:'brown',name:'Chestnut',hex:'#91684F'}
+];
+const TYPE_BY_ID = Object.fromEntries(TYPES.map(t=>[t.id,t]));
+const COLOUR_BY_ID = Object.fromEntries(COLOURS.map(c=>[c.id,c]));
+function footprint(brick) {
+  const t=TYPE_BY_ID[brick.type];
+  if(!t) return {w:0,d:0,h:0};
+  return {w:brick.rot%2?t.d:t.w,d:brick.rot%2?t.w:t.d,h:t.h};
+}
+function paletteKey(type,color) { return type+'|'+color; }
+function brickKey(brick) {
+  const t=TYPE_BY_ID[brick.type];
+  let r=((brick.rot%4)+4)%4;
+  if(t && t.kind!=='slope') r=t.w===t.d?0:r%2;
+  return [brick.type,brick.color,brick.x,brick.z,brick.y,r].join('|');
+}
+// A slope has studs only along its high back edge. Rotation is clockwise
+// when seen from above: 0 +Z, 1 -X, 2 -Z, 3 +X.
+function supportSurface(brick) {
+  const t=TYPE_BY_ID[brick.type],f=footprint(brick),cells=[];
+  if(!t) return cells;
+  for(let x=0;x<f.w;x++) for(let z=0;z<f.d;z++) {
+    if(t.kind==='slope') {
+      const high=[z===f.d-1,x===0,z===0,x===f.w-1][brick.rot];
+      if(!high) continue;
+    }
+    cells.push({x:brick.x+x,z:brick.z+z});
+  }
+  return cells;
+}
+function validatePlacement(brick,existing) {
+  if(!brick || !TYPE_BY_ID[brick.type] || !COLOUR_BY_ID[brick.color] ||
+    !['x','z','y','rot'].every(k=>Number.isInteger(brick[k])) || brick.rot<0 || brick.rot>3)
+    return 'invalid brick';
+  const f=footprint(brick);
+  if(brick.x<0 || brick.z<0 || brick.x+f.w>24 || brick.z+f.d>24 || brick.y<0)
+    return 'outside plate';
+  if(brick.y+f.h>60) return 'too high';
+  let supported=brick.y===0;
+  for(const b of existing) {
+    const q=footprint(b);
+    const planar=brick.x<b.x+q.w && brick.x+f.w>b.x && brick.z<b.z+q.d && brick.z+f.d>b.z;
+    if(planar && brick.y<b.y+q.h && brick.y+f.h>b.y) return 'overlaps';
+    if(!supported && planar && b.y+q.h===brick.y) {
+      supported=supportSurface(b).some(p=>p.x>=brick.x && p.x<brick.x+f.w && p.z>=brick.z && p.z<brick.z+f.d);
+    }
+  }
+  return supported?'':'needs support';
+}
+function validateModel(bricks) {
+  if(!Array.isArray(bricks)) return {ok:false,errors:['Model must be an array.']};
+  const errors=[],placed=[];
+  const sorted=[...bricks].sort((a,b)=>(a?.y??0)-(b?.y??0)||(a?.z??0)-(b?.z??0)||(a?.x??0)-(b?.x??0));
+  for(let i=0;i<sorted.length;i++) {
+    const reason=validatePlacement(sorted[i],placed);
+    if(reason) errors.push('Brick '+(i+1)+': '+reason);
+    else placed.push(sorted[i]);
+  }
+  return {ok:errors.length===0,errors};
+}
+function modelBuilder() {
+  const bricks=[];
+  return {
+    bricks,
+    add(type,color,x,z,y=0,rot=0) {bricks.push({type,color,x,z,y,rot});},
+    wall(type,color,x,z,y,layers=1,rot=0) {
+      const h=TYPE_BY_ID[type].h;
+      for(let i=0;i<layers;i++)bricks.push({type,color:typeof color==='function'?color(i):color,x,z,y:y+i*h,rot});
+    },
+    pad(x,z,color='green',cols=2,rows=2,y=0) {
+      for(let i=0;i<cols;i++)for(let j=0;j<rows;j++)bricks.push({type:'p44',color,x:x+i*4,z:z+j*4,y,rot:0});
+    },
+    roof(x,z,y,color='orange') {
+      // Two sloping courses over a supporting core create an eight-stud pitched roof.
+      for(const u of [x+2,x+4])for(const v of [z,z+4])bricks.push({type:'b24',color,x:u,z:v,y,rot:0});
+      for(const v of [z,z+2,z+4,z+6]) {
+        bricks.push({type:'s22',color,x,z:v,y,rot:3},{type:'s22',color,x:x+6,z:v,y,rot:1});
+        bricks.push({type:'s22',color,x:x+2,z:v,y:y+3,rot:3},{type:'s22',color,x:x+4,z:v,y:y+3,rot:1});
+      }
+    },
+    done() {return bricks.sort((a,b)=>a.y-b.y||a.z-b.z||a.x-b.x||a.type.localeCompare(b.type));}
+  };
+}
+function makeTower() {
+  const m=modelBuilder();m.add('p44','tan',10,10);
+  m.wall('b22',i=>i%2?'white':'blue',11,11,1,5);
+  m.add('p44','blue',10,10,16);
+  for(const x of [10,13])for(const z of [10,13])m.add('b11','yellow',x,z,17);
+  return m.done();
+}
+function makeBench() {
+  const m=modelBuilder();
+  for(const x of [8,15])for(const z of [10,11])m.add('b11','brown',x,z);
+  for(const x of [8,12])m.add('b24','tan',x,10,3,1);
+  for(const x of [8,15])m.add('b11','brown',x,11,6);
+  for(const x of [8,12])m.add('b14','tan',x,11,9,1);
+  return m.done();
+}
+function makeStaircase() {
+  const m=modelBuilder();
+  for(let layer=0;layer<4;layer++)for(let step=layer;step<4;step++)m.add('b24',['blue','green','yellow','orange'][layer],10,8+step*2,layer*3,1);
+  return m.done();
+}
+function makeSmallBridge() {
+  const m=modelBuilder();
+  for(const x of [8,14])m.wall('b22','lightGrey',x,11,0,2);
+  for(const x of [8,12])m.add('p44','tan',x,10,6);
+  for(const x of [8,15])for(const z of [10,13])m.add('b11','brown',x,z,7);
+  for(const x of [8,12])for(const z of [10,13])m.add('b14','red',x,z,10,1);
+  return m.done();
+}
+function makeCottage() {
+  const m=modelBuilder();m.pad(8,8,'green');
+  for(let layer=0;layer<3;layer++) {
+    const y=1+layer*3;
+    for(const x of [8,12])m.add('b14','tan',x,14,y,1);
+    for(const x of [8,15])m.add('b14',layer===1?'white':'tan',x,10,y);
+    if(layer<2)for(const x of [8,13])m.add('b13',layer===1?'blue':'tan',x,9,y,1);
+    else for(const x of [8,12])m.add('b14','tan',x,9,y,1);
+  }
+  m.pad(8,8,'white',2,2,10);m.roof(8,8,11,'orange');
+  return m.done();
+}
+function makeCar() {
+  const m=modelBuilder();
+  for(const x of [8,14])for(const z of [9,13])m.add('b22','black',x,z);
+  for(const x of [8,12])m.add('p44','darkGrey',x,10,3);
+  for(const x of [8,12])for(const z of [10,12])m.add('b24','blue',x,z,4,1);
+  for(const x of [8,15])m.add('b14','lightGrey',x,10,7);
+  for(const z of [10,12])m.add('b24','blue',10,z,7,1);
+  for(const x of [9,14])for(const z of [10,12])m.add('b12','blue',x,z,7);
+  for(const x of [10,13])m.add('b14','white',x,10,10);
+  for(const z of [10,13])m.add('b12','white',11,z,10,1);
+  m.add('p44','yellow',10,10,13);
+  for(const z of [10,13]) {m.add('b11','yellow',8,z,10);m.add('b11','red',15,z,10);}
+  return m.done();
+}
+function makeTree() {
+  const m=modelBuilder();m.pad(8,8,'green');m.wall('b22','brown',11,11,1,4);
+  m.pad(8,8,'green',2,2,13);
+  for(const x of [8,10,12,14])for(const z of [8,10,12,14]) {
+    const edge=x===8||x===14||z===8||z===14;
+    const r=x===8?3:x===14?1:z===8?0:2;
+    m.add(edge?'s22':'b22','green',x,z,14,edge?r:0);
+  }
+  for(const x of [10,12])for(const z of [10,12])m.add('b22','green',x,z,17);
+  m.add('b22','yellow',11,11,20);
+  for(const x of [8,11,15])m.add('r11','red',x,15,1);
+  return m.done();
+}
+function makeLighthouse() {
+  const m=modelBuilder();m.pad(8,8,'tan');
+  for(let layer=0;layer<8;layer++)for(const z of [10,12])m.add('b24',layer%2?'red':'white',10,z,1+layer*3,1);
+  m.pad(8,8,'white',2,2,25);m.add('b22','yellow',11,11,26);
+  for(const x of [9,14])for(const z of [9,14])m.add('b11','darkGrey',x,z,26);
+  m.pad(8,8,'darkGrey',2,2,29);m.add('b22','red',11,11,30);m.add('r11','white',11,11,33);
+  return m.done();
+}
+function makeCastle() {
+  const m=modelBuilder();
+  for(const x of [4,16])for(const z of [5,15]) {
+    for(let layer=0;layer<5;layer++)for(const dz of [0,2])m.add('b24',layer===0?'tan':'lightGrey',x,z+dz,layer*3,1);
+    m.add('p44','darkGrey',x,z,15);
+    for(const dx of [0,3])for(const dz of [0,3])m.add('b11','lightGrey',x+dx,z+dz,16);
+  }
+  for(let layer=0;layer<3;layer++) {
+    const color=layer===0?'tan':'lightGrey',y=layer*3;
+    for(const x of [8,12])m.add('b24',color,x,17,y,1);
+    for(const x of [4,18])m.add('b26',color,x,9,y);
+    if(layer<2)for(const x of [8,14])m.add('b22',color,x,5,y);
+    else for(const x of [8,12])m.add('b24',color,x,5,y,1);
+  }
+  for(const x of [8,11,14])m.add('b11','darkGrey',x,18,9);
+  for(const x of [8,9,14,15])m.add('b11','darkGrey',x,5,9);
+  for(const x of [4,19])for(const z of [10,12,14])m.add('b11','darkGrey',x,z,9);
+  for(const x of [10,12])for(const z of [10,12]) {
+    m.wall('b22','tan',x,z,0,3);m.add('s22','blue',x,z,9,x===10?3:1);
+  }
+  for(const x of [4,19]) {m.add('r11','darkGrey',x,5,19);m.add('p12',x===4?'red':'blue',x,5,22,1);}
+  m.add('p24','tan',10,5,0,1);
+  return m.done();
+}
+function makeRocket() {
+  const m=modelBuilder();m.pad(6,6,'darkGrey',3,3);
+  m.add('b22','black',11,11,1);m.add('p44','red',10,10,4);
+  for(let layer=0;layer<8;layer++)for(const x of [10,12])for(const z of [10,12]) {
+    const color=layer===0||layer===3?'red':layer===5&&z===10?'blue':'white';
+    m.add('b22',color,x,z,5+layer*3);
+  }
+  for(const x of [10,12])for(const z of [10,12])m.add('s22','red',x,z,29,x===10?3:1);
+  m.add('b22','red',11,11,32);m.add('r11','white',11,11,35);
+  for(let layer=0;layer<12;layer++) {
+    const arm=[3,6,9].includes(layer);
+    m.add(arm?'b24':'b22',layer%3===0?'darkGrey':'yellow',arm?14:16,10,1+layer*3,arm?1:0);
+  }
+  m.add('p24','yellow',14,10,37,1);m.add('r11','red',16,10,38);
+  const fins=[{x:9,z:11,r:0},{x:14,z:11,r:0},{x:11,z:9,r:1},{x:11,z:14,r:1}];
+  for(const f of fins) {m.add('b12','red',f.x,f.z,1,f.r);m.add('p12','red',f.x,f.z,4,f.r);m.add('s12','red',f.x,f.z,5,f.r);}
+  for(const x of [6,10,14,16])for(const z of [6,17])m.add('p12','yellow',x,z,1,1);
+  return m.done();
+}
+function makeLocomotive() {
+  const m=modelBuilder();
+  for(let x=4;x<20;x+=2) {
+    m.add('p24','brown',x,10);for(const z of [10,13])m.add('p12','darkGrey',x,z,1,1);
+  }
+  for(const x of [6,10,14,18])for(const z of [9,13])m.add('b22','black',x,z,2);
+  for(const x of [6,10,14])m.add('p44','darkGrey',x,10,5);
+  m.add('p24','darkGrey',18,10,5);
+  for(const x of [6,10,14])for(const z of [10,12])m.add('b24','red',x,z,6,1);
+  for(const y of [9,12]) {m.add('b26','green',7,11,y,1);m.add('b12','black',6,11,y);}
+  for(const z of [10,13])m.add('b14','red',7,z,9,1);
+  m.add('s12','black',6,11,15);
+  m.wall('r11','darkGrey',8,11,15,3);m.add('b22','black',8,11,24);m.add('r11','yellow',11,11,15);
+  for(const y of [9,12]) {
+    for(const x of [14,17])m.add('b14',y===9?'green':'blue',x,10,y);
+    for(const z of [10,13])m.add('b12',y===9?'green':'blue',15,z,y,1);
+  }
+  m.add('p44','darkGrey',14,10,15);m.add('p44','darkGrey',14,10,16);
+  for(const x of [14,16])for(const z of [10,12])m.add('s22','green',x,z,17,x===14?3:1);
+  m.wall('b24','green',18,10,6,3);
+  for(const x of [18,19])for(const z of [10,12])m.add('r11','black',x,z,15);
+  for(const x of [7,10])for(const z of [10,13])m.add('b11','red',x,z,12);
+  for(const x of [6,10,14,18])for(const z of [9,14])m.add('r11','lightGrey',x,z,5);
+  return m.done();
+}
+function makeWindmill() {
+  const m=modelBuilder();m.pad(8,8,'green');m.add('p24','tan',10,6,0,1);
+  for(let layer=0;layer<5;layer++) {
+    const y=1+layer*3;
+    for(const x of [9,11,13])for(const z of [9,11,13]) {
+      if(z===9 && ((layer<2&&x===11)||layer===2))continue;
+      m.add('b22',layer===3&&z===9?'blue':layer===0?'brown':'tan',x,z,y);
+    }
+    if(layer===2)m.add('b26','tan',9,9,y,1);
+  }
+  m.pad(8,8,'brown',2,2,16);m.roof(8,8,17,'blue');
+  for(const y of [1,4,7])m.add('b12','white',11,7,y,1);
+  m.add('b22','white',11,7,10);
+  for(const x of [8,12])m.add('b24','white',x,7,13,1);
+  for(const y of [16,19,22,25])m.add('b12',y===16?'yellow':'white',11,7,y,1);
+  for(const x of [8,15])for(const z of [8,15])m.add('r11',x===8?'red':'yellow',x,z,1);
+  return m.done();
+}
+const LEVELS = [
+  {id:'tower',name:'Tower',tier:1,tagline:'A little taller, one click at a time.',description:'Stack a striped lookout and finish its sunny crown.',accent:'#4B85C5',bricks:makeTower()},
+  {id:'bench',name:'Bench',tier:1,tagline:'Make a place to pause.',description:'Four feet, a warm wooden seat, and a welcoming backrest.',accent:'#D8BE91',bricks:makeBench()},
+  {id:'staircase',name:'Staircase',tier:1,tagline:'Small steps. Big ideas.',description:'Four colourful steps teach you to build from the ground up.',accent:'#ED9652',bricks:makeStaircase()},
+  {id:'bridge',name:'Small bridge',tier:1,tagline:'Bring the two sides together.',description:'Build sturdy stone piers, a deck, and bright red rails.',accent:'#E95A4F',bricks:makeSmallBridge()},
+  {id:'cottage',name:'Cottage with pitched roof',tier:2,tagline:'There is no place like built.',description:'A garden cottage with an open door, blue windows, and a terracotta roof.',accent:'#ED9652',bricks:makeCottage()},
+  {id:'car',name:'Car with black wheel bricks',tier:2,tagline:'Ready for a tiny road trip.',description:'Black wheels carry a blue body, white windows, and a sunny roof.',accent:'#4B85C5',bricks:makeCar()},
+  {id:'tree',name:'Tree',tier:2,tagline:'Grow something wonderful.',description:'A chestnut trunk supports a layered green canopy and fallen apples.',accent:'#76A77C',bricks:makeTree()},
+  {id:'lighthouse',name:'Striped lighthouse',tier:2,tagline:'A beacon for little adventures.',description:'Red and white stripes rise to a broad balcony and a golden lantern.',accent:'#E95A4F',bricks:makeLighthouse()},
+  {id:'castle',name:'Castle with four towers and gate',tier:3,tagline:'Your kingdom starts here.',description:'Four crowned towers, an open gate, a central keep, and two fluttering flags.',accent:'#899BAA',bricks:makeCastle()},
+  {id:'rocket',name:'Rocket on a launch pad',tier:3,tagline:'Imagination, cleared for takeoff.',description:'Build a striped rocket, its four fins, and a tall yellow service tower.',accent:'#ED9652',bricks:makeRocket()},
+  {id:'locomotive',name:'Steam locomotive',tier:3,tagline:'Full steam, stud by stud.',description:'Lay the tracks, fit eight wheels, and build a chimney, cab, and coal tender.',accent:'#76A77C',bricks:makeLocomotive()},
+  {id:'windmill',name:'Windmill',tier:3,tagline:'Let a bright idea take shape.',description:'A blue-roofed mill with an open doorway and sweeping white sails.',accent:'#4B85C5',bricks:makeWindmill()}
+];
+const MODEL_TESTS = LEVELS.map(level=> {
+  const check=validateModel(level.bricks),range=level.tier===1?[6,15]:level.tier===2?[20,50]:[60,130];
+  const count=level.bricks.length;
+  if(count<range[0]||count>range[1])check.errors.push('Brick count is outside the tier range.');
+  return {id:level.id,name:level.name,count,ok:check.errors.length===0,errors:check.errors};
+});
+if(MODEL_TESTS.some(t=>!t.ok)) throw new Error('Model self-test failed: '+MODEL_TESTS.filter(t=>!t.ok).map(t=>t.name+': '+t.errors.join(', ')).join('; '));
+console.info('BRICKSMITH model self-test passed: '+MODEL_TESTS.length+' models, '+MODEL_TESTS.reduce((n,t)=>n+t.count,0)+' bricks.');
+function createStudio(options) {
+  const mainEl = options.mainEl, referenceEl = options.referenceEl;
+  if (!mainEl || !referenceEl) throw new Error('The studio could not find its drawing surface.');
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, Number(v) || 0));
+  const typeMap = new Map(TYPES.map(t => [t.id, t]));
+  const colorMap = new Map(COLOURS.map(c => [c.id, c]));
+  const geometryCache = new Map(), materialCache = new Map();
+  const tempObject = new THREE.Object3D();
+  const vector = new THREE.Vector3();
+  let mode = 'title', build = [], buildSurfaces = [], target = [], guides = [], hints = [], comparison = false;
+  let correct = new Set(), peel = 60, disposed = false, active = !document.hidden;
+  let pointer = null, hoverBrick = null, lastCandidate = null, pointerDown = null, lastGhostKey = ''; 
+  let cameraTween = null, celebrationStart = 0, spinOffset = 0;
+  let lastTime = performance.now(), animationID = 0;
+  const scene = new THREE.Scene();
+  const referenceScene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, .1, 240);
+  const referenceCamera = new THREE.PerspectiveCamera(37, 1, .1, 200);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0xf4f2ec, 0);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true;
+  renderer.domElement.setAttribute('aria-label', 'Interactive brick building workspace. Left click to place, right click to remove, right drag to orbit.');
+  renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;outline:none;';
+  renderer.domElement.tabIndex = 0;
+  mainEl.prepend(renderer.domElement);
+  let referenceRenderer;
+  try {
+    referenceRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
+  } catch (error) { renderer.dispose(); renderer.domElement.remove(); throw error; }
+  referenceRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  referenceRenderer.setClearColor(0xf0f0e7, 0);
+  referenceRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  referenceRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  referenceRenderer.toneMappingExposure = 1.05;
+  referenceRenderer.domElement.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;';
+  referenceRenderer.domElement.setAttribute('aria-label', 'Target model. Drag to orbit and scroll to zoom.');
+  referenceEl.append(referenceRenderer.domElement);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .09;
+  controls.minDistance = 10; controls.maxDistance = 85;
+  controls.maxPolarAngle = Math.PI / 2 - .04;
+  controls.enablePan = false;
+  controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.ROTATE };
+  controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  const referenceControls = new OrbitControls(referenceCamera, referenceRenderer.domElement);
+  referenceControls.enableDamping = true; referenceControls.dampingFactor = .1;
+  referenceControls.enablePan = false; referenceControls.minDistance = 5; referenceControls.maxDistance = 80;
+  referenceControls.maxPolarAngle = Math.PI / 2 - .03;
+  referenceControls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.ROTATE };
+  referenceControls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  controls.addEventListener('start', () => { cameraTween = null; });
+  const plateGroup = new THREE.Group(), titlePlate = new THREE.Group();
+  const referencePlate = new THREE.Group();
+  const buildGroup = new THREE.Group(), targetGroup = new THREE.Group();
+  const guideGroup = new THREE.Group(), hintGroup = new THREE.Group(), ghostGroup = new THREE.Group();
+  const celebrationGroup = new THREE.Group(), missingGroup = new THREE.Group();
+  scene.add(plateGroup, titlePlate, buildGroup, guideGroup, hintGroup, ghostGroup, celebrationGroup, missingGroup);
+  referenceScene.add(referencePlate, targetGroup);
+  const baseResources = [];
+  function lightStudio(s, shadow) {
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xc4c9b4, 1.7); s.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+    sun.position.set(-16, 32, 14); s.add(sun);
+    if (shadow) {
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      Object.assign(sun.shadow.camera, { left: -23, right: 23, top: 25, bottom: -23, near: 1, far: 90 });
+      sun.shadow.normalBias = .035; sun.shadow.bias = -.0002; sun.shadow.radius = 3;
+    }
+    const fill = new THREE.DirectionalLight(0xf2f6ff, .7); fill.position.set(20, 13, -20); s.add(fill);
+  }
+  lightStudio(scene, true); lightStudio(referenceScene, false);
+  function roundedBody(w, d, height) {
+    const x = -w / 2 + .06, z = -d / 2 + .06, ww = w - .12, dd = d - .12, r = .035;
+    const shape = new THREE.Shape();
+    shape.moveTo(x+r,z); shape.lineTo(x+ww-r,z); shape.quadraticCurveTo(x+ww,z,x+ww,z+r);
+    shape.lineTo(x+ww,z+dd-r); shape.quadraticCurveTo(x+ww,z+dd,x+ww-r,z+dd);
+    shape.lineTo(x+r,z+dd); shape.quadraticCurveTo(x,z+dd,x,z+dd-r);
+    shape.lineTo(x,z+r); shape.quadraticCurveTo(x,z,x+r,z);
+    const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(.12,height-.11), steps:1, bevelEnabled:true, bevelSegments:1, bevelSize:.025, bevelThickness:.025, curveSegments:2 });
+    g.rotateX(-Math.PI/2); g.translate(0,.055,0); return g;
+  }
+  function slopeBody(w, d, h) {
+    const l=-w/2+.035, r=w/2-.035, f=-d/2+.035, back=d/2-.035;
+    const ridge=back-Math.min(.97,d-.1), low=.055, high=h-.035, front=.16;
+    const vertices=[ [l,low,f],[r,low,f],[l,front,f],[r,front,f],[l,high,ridge],[r,high,ridge],[l,high,back],[r,high,back],[l,low,back],[r,low,back] ];
+    const faces=[0,1,3,0,3,2, 2,3,5,2,5,4, 4,5,7,4,7,6, 6,7,9,6,9,8, 8,9,1,8,1,0, 0,2,4,0,4,6,0,6,8, 1,9,7,1,7,5,1,5,3];
+    const g=new THREE.BufferGeometry(); const pos=[];
+    for (let i=0;i<faces.length;i+=3) { pos.push(...vertices[faces[i]],...vertices[faces[i+2]],...vertices[faces[i+1]]); }
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals();
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(pos.length/3*2),2)); return g;
+  }
+  function geometry(typeID) {
+    if (geometryCache.has(typeID)) return geometryCache.get(typeID);
+    const t=typeMap.get(typeID); if(!t) throw new Error('Unknown brick type: '+typeID);
+    const w=t.w,d=t.d,h=t.h*.4, slope=String(t.kind).includes('slope') || String(t.id).includes('slope'), round=String(t.kind).includes('round') || String(t.id).includes('round');
+    const pieces=[];
+    if (slope) pieces.push(slopeBody(w,d,h));
+    else if(round) { const cylinder=new THREE.CylinderGeometry(.465,.465,h-.065,24); cylinder.translate(0,h/2+.005,0); pieces.push(cylinder); }
+    else pieces.push(roundedBody(w,d,h));
+    for(let x=0;x<w;x++) for(let z=0;z<d;z++) {
+      if(slope && z<d-1) continue;
+      const stud=new THREE.CylinderGeometry(.292,.3,.165,16); stud.translate(x-(w-1)/2,h+.057,z-(d-1)/2); pieces.push(stud);
+      const ring=new THREE.TorusGeometry(.213,.012,4,16); ring.rotateX(Math.PI/2); ring.translate(x-(w-1)/2,h+.145,z-(d-1)/2); pieces.push(ring);
+    }
+    const nonIndexed=pieces.map(p=>p.index?p.toNonIndexed():p);
+    const merged=mergeGeometries(nonIndexed,false); merged.computeBoundingSphere();
+    for(const p of new Set([...pieces,...nonIndexed])) p.dispose();
+    geometryCache.set(typeID,merged); return merged;
+  }
+  function material(colorID, style='solid') {
+    const key=colorID+':'+style;
+    if(materialCache.has(key)) return materialCache.get(key);
+    const color=colorMap.get(colorID)?.hex ?? colorID ?? '#dbb552';
+    const m=new THREE.MeshStandardMaterial({color, roughness:.34, metalness:0});
+    if(style==='guide') { m.transparent=true;m.opacity=.105;m.depthWrite=false;m.roughness=.6; }
+    if(style==='hint') { m.color.set(0xffcf4e);m.emissive.set(0xffb000);m.emissiveIntensity=.35;m.transparent=true;m.opacity=.57;m.depthWrite=false; }
+    if(style==='ghost-valid') { m.transparent=true;m.opacity=.58;m.depthWrite=false;m.emissive.set(0x609b75);m.emissiveIntensity=.18; }
+    if(style==='ghost-invalid') { m.color.set(0xee6658);m.transparent=true;m.opacity=.56;m.depthWrite=false;m.emissive.set(0xee6658);m.emissiveIntensity=.15; }
+    if(style==='correct') m.color.set(0x65b985);
+    if(style==='incorrect') m.color.set(0xe96d60);
+    materialCache.set(key,m);return m;
+  }
+  function transformBrick(b, object=tempObject) {
+    const f=footprint(b);
+    object.position.set(b.x+f.w/2-12,b.y*.4,b.z+f.d/2-12);
+    object.rotation.set(0,-(b.rot||0)*Math.PI/2,0);
+    object.scale.set(1,1,1);object.updateMatrix();return object.matrix;
+  }
+  function clearGroup(group) {
+    while(group.children.length) { const child=group.children[0];group.remove(child);if(child.isInstancedMesh)child.dispose();if(child.userData.ownGeometry)child.geometry.dispose();if(child.userData.ownMaterial)child.material.dispose(); }
+  }
+  function makeBatches(group, bricks, style='solid') {
+    clearGroup(group);const batches=new Map();
+    for(const b of bricks) {
+      if(!typeMap.has(b.type))continue;
+      const appearance=style==='compare'?(correct.has(brickKey(b))?'correct':'incorrect'):style;
+      const key=b.type+':'+b.color+':'+appearance;
+      if(!batches.has(key))batches.set(key,{type:b.type,color:b.color,appearance,bricks:[]});batches.get(key).bricks.push(b);
+    }
+    for(const batch of batches.values()) {
+      const mesh=new THREE.InstancedMesh(geometry(batch.type),material(batch.color,batch.appearance),batch.bricks.length);
+      batch.bricks.forEach((b,i)=>mesh.setMatrixAt(i,transformBrick(b)));
+      mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();
+      mesh.castShadow=style==='solid'||style==='compare';mesh.receiveShadow=mesh.castShadow;
+      mesh.userData.bricks=batch.bricks;mesh.renderOrder=style==='guide'?1:style.startsWith('ghost')?3:0;
+      group.add(mesh);
+    }
+  }
+  function makePlate(group, ground, size=24) {
+    const g=roundedBody(size+.3,size+.3,.38), m=new THREE.MeshStandardMaterial({color:0xaabda3,roughness:.74});
+    const plate=new THREE.Mesh(g,m);plate.position.y=-.41;plate.receiveShadow=true;group.add(plate);baseResources.push(g,m);
+    const studGeo=new THREE.CylinderGeometry(.276,.285,.12,12),studMat=new THREE.MeshStandardMaterial({color:0xb5c5af,roughness:.57});
+    const studs=new THREE.InstancedMesh(studGeo,studMat,size*size);
+    for(let x=0;x<size;x++)for(let z=0;z<size;z++) {tempObject.position.set(x-(size-1)/2,.007,z-(size-1)/2);tempObject.rotation.set(0,0,0);tempObject.scale.set(1,1,1);tempObject.updateMatrix();studs.setMatrixAt(x*size+z,tempObject.matrix);}
+    studs.instanceMatrix.needsUpdate=true;studs.receiveShadow=true;group.add(studs);baseResources.push(studGeo,studMat);
+    const lines=[];const half=size/2;for(let n=-half;n<=half;n++){lines.push(-half,-.024,n,half,-.024,n,n,-.024,-half,n,-.024,half);}
+    const gridGeo=new THREE.BufferGeometry();gridGeo.setAttribute('position',new THREE.Float32BufferAttribute(lines,3));
+    const gridMat=new THREE.LineBasicMaterial({color:0x738b6d,transparent:true,opacity:.12});const grid=new THREE.LineSegments(gridGeo,gridMat);group.add(grid);baseResources.push(gridGeo,gridMat);
+    if(ground) { const floorG=new THREE.PlaneGeometry(220,220);const floorM=new THREE.ShadowMaterial({color:0x33472f,opacity:.16,transparent:true});const floor=new THREE.Mesh(floorG,floorM);floor.rotation.x=-Math.PI/2;floor.position.y=-.45;floor.receiveShadow=true;scene.add(floor);baseResources.push(floorG,floorM); }
+  }
+  makePlate(plateGroup,true);makePlate(titlePlate,false,12);makePlate(referencePlate,false);plateGroup.visible=false;titlePlate.visible=true;
+  const raycaster=new THREE.Raycaster(), pointerVector=new THREE.Vector2();
+  function setRay(x,y,el,cam) {
+    const rect=el.getBoundingClientRect();if(rect.width<1||rect.height<1)return false;
+    pointerVector.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);cam.updateMatrixWorld();raycaster.setFromCamera(pointerVector,cam);return true;
+  }
+  function brickAt(group) {
+    group.updateMatrixWorld(true);const hit=raycaster.intersectObjects(group.children,false)[0];
+    return hit&&hit.object.userData.bricks?hit.object.userData.bricks[hit.instanceId]:null;
+  }
+  function updateHover() {
+    if(!pointer||!options.isBuilding?.()||!setRay(pointer.x,pointer.y,renderer.domElement,camera)) {ghostGroup.visible=false;return;}
+    ghostGroup.visible=!options.isPicking?.();hoverBrick=brickAt(buildGroup);
+    const selection=options.getSelection?.();if(!selection||!typeMap.has(selection.type))return;
+    const f=footprint({...selection,x:0,z:0,y:0});
+    let candidate=null,nearest=Infinity;
+    const testTop=(top,cells=null)=> {
+      if(Math.abs(raycaster.ray.direction.y)<.0001)return;
+      const distance=(top*.4-raycaster.ray.origin.y)/raycaster.ray.direction.y;
+      if(distance<0||distance>nearest)return;
+      vector.copy(raycaster.ray.direction).multiplyScalar(distance).add(raycaster.ray.origin);
+      const gx=vector.x+12,gz=vector.z+12;
+      const x=Math.floor(gx-(f.w-1)/2),z=Math.floor(gz-(f.d-1)/2);
+      const supported=cells?cells.some(cell=>cell.x>=x&&cell.x<x+f.w&&cell.z>=z&&cell.z<z+f.d):(gx>=-6&&gx<=30&&gz>=-6&&gz<=30);
+      if(supported){nearest=distance;candidate={type:selection.type,color:selection.color,rot:selection.rot||0,x,z,y:clamp(top,0,60)};}
+    };
+    testTop(0);
+    for(const surface of buildSurfaces)testTop(surface.top,surface.cells);
+    if(!candidate) {ghostGroup.visible=false;return;}
+    lastCandidate=candidate;
+    options.onHover?.(candidate,hoverBrick,{x:pointer.x,y:pointer.y});
+    renderer.domElement.style.cursor=options.isPicking?.()?'crosshair':pointerDown?.moved?'grabbing':'crosshair';
+  }
+  const contextMenu=e=>e.preventDefault();
+  const onMainDown=e=> {
+    if(e.target!==renderer.domElement)return;
+    pointer={x:e.clientX,y:e.clientY};pointerDown={x:e.clientX,y:e.clientY,button:e.button,moved:false,id:e.pointerId,time:performance.now()};
+    if(e.pointerType==='touch') {touchPointers.add(e.pointerId);if(touchPointers.size>1)pointerDown.moved=true;}
+    updateHover();
+  };
+  const touchPointers=new Set();
+  const onMainMove=e=> {
+    pointer={x:e.clientX,y:e.clientY};
+    if(pointerDown&&Math.hypot(e.clientX-pointerDown.x,e.clientY-pointerDown.y)>5)pointerDown.moved=true;
+    updateHover();
+  };
+  const onMainUp=e=> {
+    const down=pointerDown;pointerDown=null;touchPointers.delete(e.pointerId);
+    if(!down||down.moved||e.target!==renderer.domElement||!options.isBuilding?.())return;
+    pointer={x:e.clientX,y:e.clientY};updateHover();
+    if(options.isPicking?.()) {if(hoverBrick)options.onPick?.(hoverBrick);return;}
+    if(down.button===2) {if(hoverBrick)options.onRemove?.(hoverBrick);}
+    else if(down.button===0&&lastCandidate)options.onPlace?.({...lastCandidate});
+  };
+  const onLeave=()=>{if(!pointerDown){pointer=null;hoverBrick=null;lastCandidate=null;ghostGroup.visible=false;options.onHover?.(null,null,null);}};
+  let refDown=null;
+  const onRefDown=e=>{refDown={x:e.clientX,y:e.clientY};referenceControls.enabled=!options.isPicking?.();};
+  const onRefUp=e=> {
+    if(refDown&&Math.hypot(e.clientX-refDown.x,e.clientY-refDown.y)<6&&options.isPicking?.()&&setRay(e.clientX,e.clientY,referenceRenderer.domElement,referenceCamera)) {const b=brickAt(targetGroup);if(b)options.onPick?.(b);}
+    refDown=null;referenceControls.enabled=true;
+  };
+  renderer.domElement.addEventListener('contextmenu',contextMenu);
+  renderer.domElement.addEventListener('pointerdown',onMainDown);
+  renderer.domElement.addEventListener('pointermove',onMainMove);
+  renderer.domElement.addEventListener('pointerleave',onLeave);
+  window.addEventListener('pointerup',onMainUp);
+  referenceRenderer.domElement.addEventListener('contextmenu',contextMenu);
+  referenceRenderer.domElement.addEventListener('pointerdown',onRefDown);
+  referenceRenderer.domElement.addEventListener('pointerup',onRefUp);
+  function modelBounds(bricks) {
+    if(!bricks.length)return {center:new THREE.Vector3(0,1,0),span:14,height:4};
+    let x1=24,z1=24,y1=60,x2=0,z2=0,y2=0;
+    for(const b of bricks){const f=footprint(b);x1=Math.min(x1,b.x);z1=Math.min(z1,b.z);y1=Math.min(y1,b.y);x2=Math.max(x2,b.x+f.w);z2=Math.max(z2,b.z+f.d);y2=Math.max(y2,b.y+f.h);}
+    return {center:new THREE.Vector3((x1+x2)/2-12,(y1+y2)*.2,(z1+z2)/2-12),span:Math.max(x2-x1,z2-z1,(y2-y1)*.4),height:(y2-y1)*.4};
+  }
+  function referenceFrame() {
+    const bounds=modelBounds(target),distance=Math.max(9,bounds.span*2.12);
+    referenceControls.target.copy(bounds.center);
+    referenceCamera.position.copy(bounds.center).add(new THREE.Vector3(1,.82,-1.15).normalize().multiplyScalar(distance));
+    referenceCamera.lookAt(bounds.center);referenceControls.update();
+  }
+  function desiredFrame() {
+    const bounds=modelBounds(build);
+    const center=mode==='build'?new THREE.Vector3(0,Math.min(3,bounds.height*.18),0):bounds.center;
+    const horizontal=mode==='build'?30:Math.max(18,bounds.span*1.2);
+    const distance=Math.max(mode==='build'?44:32,horizontal/Math.min(1.2,camera.aspect)*1.65,bounds.height*2.1);
+    return {center,position:center.clone().add((mode==='title'?new THREE.Vector3(1,.8,-1.15):new THREE.Vector3(1,.96,-1.15)).normalize().multiplyScalar(distance))};
+  }
+  function animateCamera(position,center) {
+    cameraTween={start:performance.now(),from:camera.position.clone(),to:position,fromTarget:controls.target.clone(),toTarget:center};
+  }
+  function frame(immediate=false) {
+    const f=desiredFrame();
+    if(immediate){camera.position.copy(f.position);controls.target.copy(f.center);camera.lookAt(f.center);controls.update();}
+    else animateCamera(f.position,f.center);
+  }
+  function view(name) {
+    const bounds=modelBounds(build),top=name==='top';
+    const center=top?new THREE.Vector3(0,0,0):bounds.center;
+    const span=top?27:Math.max(16,bounds.span);
+    const fit=span/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/Math.min(1,camera.aspect)*1.18;
+    const distance=Math.min(85,Math.max(32,camera.position.distanceTo(controls.target),fit));
+    const direction=top?new THREE.Vector3(0,1,.001):name==='side'?new THREE.Vector3(1,.22,0):new THREE.Vector3(0,.22,-1);
+    animateCamera(center.clone().add(direction.normalize().multiplyScalar(distance)),center);
+  }
+  let mainWidth=0,mainHeight=0,refWidth=0,refHeight=0;
+  function resize() {
+    const rect=mainEl.getBoundingClientRect();const rw=Math.round(rect.width),rh=Math.round(rect.height);
+    if(rw>0&&rh>0&&(rw!==mainWidth||rh!==mainHeight)){mainWidth=rw;mainHeight=rh;renderer.setSize(rw,rh,false);camera.aspect=rw/rh;camera.updateProjectionMatrix();}
+    const rr=referenceEl.getBoundingClientRect();const ww=Math.round(rr.width),hh=Math.round(rr.height);
+    if(ww>0&&hh>0&&(ww!==refWidth||hh!==refHeight)){refWidth=ww;refHeight=hh;referenceRenderer.setSize(ww,hh,false);referenceCamera.aspect=ww/hh;referenceCamera.updateProjectionMatrix();}
+  }
+  const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(mainEl);resizeObserver.observe(referenceEl);
+  const confettiGeo=new THREE.PlaneGeometry(.13,.28),confettiMat=new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
+  const confetti=new THREE.InstancedMesh(confettiGeo,confettiMat,140);confetti.visible=false;confetti.frustumCulled=false;celebrationGroup.add(confetti);
+  let particleData=[];
+  function celebrate() {
+    celebrationStart=performance.now();spinOffset=0;confetti.visible=true;particleData=[];
+    const colors=[0xe97760,0xf9d264,0x82b6a3,0x78a8c9,0xe4a5b7];
+    for(let i=0;i<140;i++){particleData.push({x:(Math.random()-.5)*20,z:(Math.random()-.5)*16,y:9+Math.random()*13,v:.9+Math.random()*1.6,r:Math.random()*6});confetti.setColorAt(i,new THREE.Color(colors[i%colors.length]));}
+    if(confetti.instanceColor)confetti.instanceColor.needsUpdate=true;
+  }
+  function tick(now) {
+    if(disposed||!active)return;
+    const dt=Math.min(.05,(now-lastTime)/1000);lastTime=now;
+    if(cameraTween){const t=clamp((now-cameraTween.start)/500,0,1),ease=1-Math.pow(1-t,3);camera.position.lerpVectors(cameraTween.from,cameraTween.to,ease);controls.target.lerpVectors(cameraTween.fromTarget,cameraTween.toTarget,ease);if(t>=1)cameraTween=null;}
+    controls.update();referenceControls.update();
+    if(hints.length){const opacity=.38+Math.sin(now*.006)*.2;for(const m of hintGroup.children)m.material.opacity=opacity;}
+    if(celebrationStart){const elapsed=(now-celebrationStart)/1000;
+      if(elapsed<5){const next=Math.min(1,elapsed/4)*Math.PI*2;const delta=next-spinOffset;spinOffset=next;const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),delta);camera.position.copy(controls.target).add(offset);camera.lookAt(controls.target);
+        particleData.forEach((p,i)=>{tempObject.position.set(p.x+Math.sin(elapsed+p.r)*.7,p.y-elapsed*p.v*2,p.z+Math.cos(elapsed+p.r)*.7);tempObject.rotation.set(p.r+elapsed*2,elapsed+p.r,elapsed*1.4+p.r);tempObject.scale.setScalar(elapsed>4?5-elapsed:1);tempObject.updateMatrix();confetti.setMatrixAt(i,tempObject.matrix);});confetti.instanceMatrix.needsUpdate=true;
+      }else{celebrationStart=0;confetti.visible=false;}
+    }
+    renderer.render(scene,camera);
+    if(refWidth>0&&refHeight>0&&referenceEl.getClientRects().length&&mode==='build')referenceRenderer.render(referenceScene,referenceCamera);
+    animationID=requestAnimationFrame(tick);
+  }
+  function onVisibility(){active=!document.hidden;if(active){lastTime=performance.now();animationID=requestAnimationFrame(tick);}else cancelAnimationFrame(animationID);}
+  document.addEventListener('visibilitychange',onVisibility);
+  controls.addEventListener('change',()=>{if(pointer&&!pointerDown)updateHover();});
+  resize();frame(true);referenceFrame();if(active)animationID=requestAnimationFrame(tick);
+  return {
+    setBuild(bricks){build=bricks.slice();buildSurfaces=build.map(b=>({top:b.y+footprint(b).h,cells:supportSurface(b)}));makeBatches(buildGroup,build,comparison?'compare':'solid');renderer.shadowMap.needsUpdate=true;updateHover();},
+    setTarget(bricks){target=bricks.slice();makeBatches(targetGroup,target.filter(b=>b.y<peel));referenceFrame();},
+    setGuides(bricks){guides=bricks.slice();makeBatches(guideGroup,guides,'guide');},
+    setMissing(bricks){
+      clearGroup(missingGroup);if(!bricks.length)return;
+      const positions=[],edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      for(const b of bricks){const f=footprint(b),x=b.x-12+.035,z=b.z-12+.035,y=b.y*.4+.035,w=f.w-.07,d=f.d-.07,h=f.h*.4-.07;
+        const points=[[x,y,z],[x+w,y,z],[x+w,y,z+d],[x,y,z+d],[x,y+h,z],[x+w,y+h,z],[x+w,y+h,z+d],[x,y+h,z+d]];
+        for(const [a,c] of edges)positions.push(...points[a],...points[c]);
+      }
+      const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+      const mat=new THREE.LineBasicMaterial({color:0x408575,transparent:true,opacity:.8,depthTest:false});
+      const mesh=new THREE.LineSegments(geo,mat);mesh.userData.ownGeometry=true;mesh.userData.ownMaterial=true;mesh.renderOrder=5;missingGroup.add(mesh);
+    },
+    setHint(bricks){hints=bricks.slice();makeBatches(hintGroup,hints,'hint');},
+    setGhost(brick,valid){if(!brick){lastGhostKey='';clearGroup(ghostGroup);return;}const key=[brick.type,brick.color,brick.rot,brick.x,brick.y,brick.z,!!valid].join(':');if(key!==lastGhostKey){lastGhostKey=key;makeBatches(ghostGroup,[brick],valid?'ghost-valid':'ghost-invalid');}ghostGroup.visible=mode==='build'&&!options.isPicking?.();},
+    setCompare(enabled,correctKeys){const next=!!enabled,keys=correctKeys||new Set();const same=comparison===next&&(!next||(keys.size===correct.size&&[...keys].every(k=>correct.has(k))));correct=new Set(keys);comparison=next;if(!same)makeBatches(buildGroup,build,comparison?'compare':'solid');},
+    setPeel(value){peel=clamp(value,0,60);makeBatches(targetGroup,target.filter(b=>b.y<peel));},
+    setMode(next){mode=next;controls.mouseButtons.LEFT=mode==='build'?null:THREE.MOUSE.ROTATE;plateGroup.visible=mode!=='title';titlePlate.visible=mode==='title';renderer.shadowMap.needsUpdate=true;ghostGroup.visible=mode==='build';guideGroup.visible=mode==='build';hintGroup.visible=mode==='build';missingGroup.visible=mode==='build';if(mode!=='build'){comparison=false;makeBatches(buildGroup,build);pointer=null;hoverBrick=null;lastCandidate=null;lastGhostKey='';clearGroup(ghostGroup);}resize();frame();},
+    frame,view,celebrate,resize,refreshHover:updateHover,
+    projectBrick(b,top=false){const f=footprint(b);vector.set(b.x+f.w/2-12,(b.y+(top?f.h:0))*.4,b.z+f.d/2-12);camera.updateMatrixWorld();vector.project(camera);const r=renderer.domElement.getBoundingClientRect();return {x:r.left+(vector.x+1)*r.width/2,y:r.top+(1-vector.y)*r.height/2};},
+    getStats(){return {drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,bricks:build.length,targetBricks:target.length,geometries:renderer.info.memory.geometries};},
+    dispose(){disposed=true;cancelAnimationFrame(animationID);resizeObserver.disconnect();document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pointerup',onMainUp);controls.dispose();referenceControls.dispose();[buildGroup,targetGroup,guideGroup,hintGroup,ghostGroup,missingGroup].forEach(clearGroup);for(const resource of [...geometryCache.values(),...materialCache.values(),...baseResources,confettiGeo,confettiMat])resource.dispose();renderer.dispose();referenceRenderer.dispose();renderer.domElement.remove();referenceRenderer.domElement.remove();}
+  };
+}
+
+// UI/state, palette, difficulty, persistence, audio and building rules.
+const TYPE_MAP=new Map(TYPES.map(t=>[t.id,t])), COLOR_MAP=new Map(COLOURS.map(c=>[c.id,c]));
+const clone=v=>JSON.parse(JSON.stringify(v));
+const clamp=(n,min,max)=>Math.min(max,Math.max(min,Number.isFinite(Number(n))?Number(n):min));
+const STORAGE_KEY='bricksmith.studio.v1';
+function readStorage(){try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}catch{return {};}}
+let saved=readStorage();
+if(!saved.progress||typeof saved.progress!=='object'||Array.isArray(saved.progress))saved.progress={};
+if(!Array.isArray(saved.slots))saved.slots=[null,null,null];
+saved.slots=saved.slots.slice(0,3);while(saved.slots.length<3)saved.slots.push(null);
+function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));return true;}catch{toast('Your browser couldn’t save locally. You can still export a sandbox code.',true);return false;}}
+const state={screen:'title',level:null,difficulty:['easy','medium','hard'].includes(saved.difficulty)?saved.difficulty:'easy',sandbox:false,bricks:[],selection:{type:'b22',color:'green',rot:0},palette:new Map(),undo:[],redo:[],picking:false,compare:false,booklet:true,hints:0,mistakes:0,elapsed:0,completed:false,filter:'all',hover:null,candidate:null,toastTimer:null,hintTimer:null};
+let audioContext=null,modalReturnFocus=null,lastClock=performance.now(),lastGhostKey='';
+const DIFFICULTIES={easy:{spare:.3,hints:Infinity,description:'A ghost guide, a building booklet & unlimited hints.'},medium:{spare:.1,hints:3,description:'One layer at a time, with three hints when you need them.'},hard:{spare:0,hints:1,description:'Just you and the blueprint. One hint, at the cost of a star.'}};
+function toast(message,warning=false){$('toast').textContent=message;$('toast').classList.toggle('warning',warning);$('toast').classList.add('show');clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3200);}
+function unlockAudio(){if(saved.muted)return;try{if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});}catch{}}
+document.addEventListener('pointerdown',unlockAudio,{passive:true});document.addEventListener('keydown',unlockAudio);
+function tone(freq,duration,gain=.05,delay=0,type='sine'){if(saved.muted||!audioContext||audioContext.state!=='running')return;try{const osc=audioContext.createOscillator(),amp=audioContext.createGain(),time=audioContext.currentTime+delay;osc.type=type;osc.frequency.setValueAtTime(freq,time);osc.frequency.exponentialRampToValueAtTime(Math.max(40,freq*.65),time+duration);amp.gain.setValueAtTime(.001,time);amp.gain.exponentialRampToValueAtTime(gain,time+.008);amp.gain.exponentialRampToValueAtTime(.001,time+duration);osc.connect(amp);amp.connect(audioContext.destination);osc.start(time);osc.stop(time+duration+.02);}catch{}}
+function sound(kind){if(kind==='place'){tone(620,.065,.055);tone(1600,.025,.02);}else if(kind==='remove')tone(290,.1,.05);else if(kind==='win'){[523,659,784,1047].forEach((n,i)=>tone(n,.48,.04,i*.1));}else tone(150,.13,.03);}
+function updateSoundButton(){$('sound-button').innerHTML=icon(saved.muted?'muted':'sound');$('sound-button').title=saved.muted?'Turn sound on':'Turn sound off';$('sound-button').setAttribute('aria-label',$('sound-button').title);}
+function hexShade(hex,amount){let raw=typeof hex==='number'?hex.toString(16).padStart(6,'0'):String(hex).replace('#','');if(raw.length===3)raw=raw.split('').map(x=>x+x).join('');const n=parseInt(raw,16)||0;return '#'+[n>>16&255,n>>8&255,n&255].map(c=>Math.round(clamp(c*amount,0,255)).toString(16).padStart(2,'0')).join('');}
+function modelSVG(bricks,padding=4){
+ if(!bricks?.length)return '';
+ const project=(x,z,y)=>[(x+z)*6,(x-z)*3-y*2.5];let xmin=Infinity,ymin=Infinity,xmax=-Infinity,ymax=-Infinity;
+ const pp=(x,z,y)=>{const p=project(x,z,y);xmin=Math.min(xmin,p[0]);xmax=Math.max(xmax,p[0]);ymin=Math.min(ymin,p[1]);ymax=Math.max(ymax,p[1]);return p.join(',');};
+ let content='';
+ [...bricks].sort((a,b)=>(a.x-a.z-b.x+b.z)*4+a.y-b.y).forEach(b=>{const f=footprint(b),c=COLOR_MAP.get(b.color)?.hex||'#a4b493',h=b.y+f.h;
+ const a=pp(b.x,b.z,h),bb=pp(b.x+f.w,b.z,h),c1=pp(b.x+f.w,b.z+f.d,h),d=pp(b.x,b.z+f.d,h),e=pp(b.x,b.z+f.d,b.y),ff=pp(b.x+f.w,b.z+f.d,b.y),g=pp(b.x+f.w,b.z,b.y),j=pp(b.x,b.z,b.y);
+ content+=`<polygon points="${a} ${bb} ${g} ${j}" fill="${hexShade(c,.77)}" stroke="#263e3714" stroke-width=".4"/><polygon points="${bb} ${c1} ${ff} ${g}" fill="${hexShade(c,.58)}" stroke="#263e3714" stroke-width=".4"/><polygon points="${a} ${bb} ${c1} ${d}" fill="${hexShade(c,1.07)}" stroke="#ffffff35" stroke-width=".4"/>`;
+ for(let x=0;x<f.w;x++)for(let z=0;z<f.d;z++){const p=project(b.x+x+.5,b.z+z+.5,h);content+=`<ellipse cx="${p[0]}" cy="${p[1]-.7}" rx="2.1" ry="1.25" fill="${hexShade(c,1.12)}" stroke="${hexShade(c,.8)}" stroke-width=".4"/>`;}
+ });
+ const width=xmax-xmin,height=ymax-ymin;return `<svg viewBox="${xmin-padding} ${ymin-padding-3} ${width+padding*2} ${height+padding*2+3}" role="img" aria-label="Procedural brick model" preserveAspectRatio="xMidYMid meet">${content}</svg>`;
+}
+function levelStars(id){const p=saved.progress[id];return p&&typeof p==='object'?clamp(p[state.difficulty],0,3):0;}
+function renderCollection(){
+ const names=['Starter','Builder','Master'],sub=['Small steps. Satisfying little wins.','A little more to discover.','For the beautifully persistent.'];
+ $('level-collection').innerHTML=names.map((name,i)=>{const levels=LEVELS.filter(l=>l.tier===i+1);return `<div class="tier-heading"><span class="tier-number">0${i+1}</span><h2>${name}</h2><span>${sub[i]}</span></div><div class="level-grid">${levels.map(l=>{const idx=LEVELS.indexOf(l),stars=levelStars(l.id);return `<button class="level-card" data-level="${l.id}" aria-label="Build ${l.name}, ${l.bricks.length} pieces"><div class="level-thumb"><span class="card-num">${String(idx+1).padStart(2,'0')}</span>${modelSVG(l.bricks,12)}</div><div class="card-body"><h3>${l.name}<span style="color:#9aa58c">↗</span></h3><p><span>${l.bricks.length} pieces</span><span class="card-stars">${'★'.repeat(stars)}<span style="color:#e1e5d7">${'☆'.repeat(3-stars)}</span></span></p></div></button>`;}).join('')}</div>`;}).join('');
+ $('difficulty-toggle').querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.difficulty===state.difficulty);b.setAttribute('aria-pressed',String(b.dataset.difficulty===state.difficulty));});$('difficulty-description').textContent=DIFFICULTIES[state.difficulty].description;
+}
+function setDifficulty(value){if(!DIFFICULTIES[value])return;state.difficulty=value;saved.difficulty=value;persist();renderCollection();}
+function showScreen(screen){
+ closeModal();state.screen=screen;$('title-screen').hidden=screen!=='title';$('levels-screen').hidden=screen!=='levels';$('build-screen').hidden=!['build','result'].includes(screen);document.body.className=screen==='result'?'build-mode':screen+'-mode';$('header-nav').hidden=screen==='build'||screen==='result';$('header-note').hidden=screen==='build'||screen==='result';$('back-button').hidden=!['build','result'].includes(screen);$('ghost-reason').hidden=true;state.hover=null;state.candidate=null;studio.setGhost(null,true);
+ if(screen==='title'){studio.setBuild(LEVELS[4].bricks);studio.setGuides([]);studio.setHint([]);studio.setMissing([]);studio.setCompare(false,new Set());studio.setMode('title');}
+ else if(screen==='levels'){renderCollection();studio.setMode('levels');}
+ else studio.setMode('build');
+ requestAnimationFrame(()=>studio.resize());lastClock=performance.now();
+}
+function makePalette(bricks,difficulty){const raw=new Map();bricks.forEach(b=>{const key=paletteKey(b.type,b.color);raw.set(key,(raw.get(key)||0)+1);});const fraction=DIFFICULTIES[difficulty].spare,entries=[...raw].map(([key,n])=>({key,n,extra:Math.floor(n*fraction),remainder:n*fraction%1}));let left=Math.ceil(bricks.length*fraction)-entries.reduce((n,e)=>n+e.extra,0);[...entries].sort((a,b)=>b.remainder-a.remainder).forEach(e=>{if(left>0){e.extra++;left--;}});return new Map(entries.map(e=>[e.key,e.n+e.extra]));}
+function startLevel(value){
+ const isSandbox=value==='sandbox';const level=isSandbox?null:(typeof value==='number'?LEVELS[value]:LEVELS.find(l=>l.id===value));if(!isSandbox&&!level)return;
+ state.level=level;state.sandbox=isSandbox;state.bricks=[];state.undo=[];state.redo=[];state.picking=false;state.compare=false;state.booklet=true;state.hints=0;state.mistakes=0;state.elapsed=0;state.completed=false;state.filter='all';state.palette=isSandbox?new Map():makePalette(level.bricks,state.difficulty);state.selection=isSandbox?{type:'b22',color:'green',rot:0}:{type:level.bricks[0].type,color:level.bricks[0].color,rot:level.bricks[0].rot};clearTimeout(state.hintTimer);
+ $('reference-panel').hidden=isSandbox;$('reference-panel').classList.remove('expanded');$('expand-reference').setAttribute('aria-label','Expand blueprint');$('reference-name').textContent=level?.name||'Your inspiration';
+ $('level-title').textContent=level?.name||'Room to imagine.';$('level-eyebrow').textContent=isSandbox?'THE SANDBOX':`${String(LEVELS.indexOf(level)+1).padStart(2,'0')} / ${['STARTER','BUILDER','MASTER'][level.tier-1]}`;
+ $('level-subtitle').textContent=isSandbox?'Start anywhere. See where it takes you.':level.tagline||'One satisfying little click at a time.';$('difficulty-badge').textContent=isSandbox?'FREE BUILD':state.difficulty.toUpperCase();
+ const top=level?Math.max(...level.bricks.map(b=>b.y+footprint(b).h)):60;$('peel-slider').max=top;$('peel-slider').value=top;$('peel-value').textContent='All layers';studio.setPeel(top);
+ $('sandbox-colors').hidden=!isSandbox;$('compare-button').hidden=isSandbox;$('hint-button').hidden=isSandbox;['save-button','code-button','clear-button'].forEach(id=>$(id).hidden=!isSandbox);
+ $('palette-filter').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.filter==='all'));
+ studio.setTarget(level?.bricks||[]);studio.setBuild([]);studio.setCompare(false,new Set());showScreen('build');updateBuild();studio.frame();
+ if(!saved.seenTutorial){saved.seenTutorial=true;persist();showHelp();}
+}
+function correctKeys(){if(!state.level)return new Set();const placed=new Set(state.bricks.map(brickKey));return new Set(state.level.bricks.filter(b=>placed.has(brickKey(b))).map(brickKey));}
+function missingBricks(){const placed=new Set(state.bricks.map(brickKey));return state.level?state.level.bricks.filter(b=>!placed.has(brickKey(b))):[];}
+function remaining(type,color){if(state.sandbox)return Infinity;const key=paletteKey(type,color);return(state.palette.get(key)||0)-state.bricks.filter(b=>paletteKey(b.type,b.color)===key).length;}
+function paletteEntries(){if(state.sandbox)return TYPES.map(t=>({type:t.id,color:state.selection.color,total:Infinity}));return [...state.palette.entries()].map(([key,total])=>{const sample=state.level.bricks.find(b=>paletteKey(b.type,b.color)===key);return{type:sample.type,color:sample.color,total};});}
+function renderPalette(){const entries=paletteEntries(),filtered=entries.filter(e=>{const k=TYPE_MAP.get(e.type).kind;return state.filter==='all'||(state.filter==='special'?(k==='slope'||k==='round'):k===state.filter);});
+ $('palette-list').innerHTML=filtered.length?filtered.map(e=>{const type=TYPE_MAP.get(e.type),color=COLOR_MAP.get(e.color),n=remaining(e.type,e.color),selected=state.selection.type===e.type&&state.selection.color===e.color;return `<button class="part${selected?' selected':''}${n<=0?' exhausted':''}" data-part="${e.type}" data-color="${e.color}" aria-pressed="${selected}" title="${type.name} · ${color.name} · ${n===Infinity?'Unlimited':n+' left'}"><span class="part-icon">${modelSVG([{type:e.type,color:e.color,x:0,z:0,y:0,rot:0}],3)}</span><span class="part-label">${type.name}<small>${color.name}</small></span><span class="part-count">${n===Infinity?'∞':'×'+n}</span></button>`;}).join(''):'<p style="font-size:11px;color:#94a188;padding:20px;line-height:1.7">No parts in this category.<br>Try All parts.</p>';
+ $('palette-total').textContent=state.sandbox?'Unlimited':`${[...state.palette.values()].reduce((a,b)=>a+b,0)-state.bricks.length} left`;
+ if(state.sandbox)$('sandbox-colors').innerHTML=COLOURS.map(c=>`<button class="swatch${c.id===state.selection.color?' active':''}" style="background:${typeof c.hex==='number'?'#'+c.hex.toString(16).padStart(6,'0'):c.hex}" data-swatch="${c.id}" title="${c.name}" aria-label="${c.name}" aria-pressed="${c.id===state.selection.color}"></button>`).join('');
+}
+function selectPart(type,color,rot=state.selection.rot,automatic=false){if(!TYPE_MAP.has(type)||!COLOR_MAP.has(color)||(!state.sandbox&&!state.palette.has(paletteKey(type,color))))return;state.selection={type,color,rot:Math.floor(clamp(rot,0,3))};state.picking=false;renderPalette();updateToolButtons();lastGhostKey='';studio.refreshHover();if(!automatic&&state.difficulty==='easy'&&!state.sandbox&&state.booklet)toast('Selected. The booklet will suggest the next part after you place.');}
+function cycleType(direction,absolute=null){const all=paletteEntries(),types=[...new Set(all.map(e=>e.type))];let i=types.indexOf(state.selection.type);i=absolute!==null?Math.min(absolute,types.length-1):(i+direction+types.length)%types.length;const type=types[i],match=all.find(e=>e.type===type&&e.color===state.selection.color)||all.find(e=>e.type===type);if(match)selectPart(match.type,match.color);}
+function cycleColor(direction){const colors=state.sandbox?COLOURS.map(c=>c.id):[...new Set(paletteEntries().filter(e=>e.type===state.selection.type).map(e=>e.color))];const i=colors.indexOf(state.selection.color);selectPart(state.selection.type,colors[(i+direction+colors.length)%colors.length]);}
+function updateToolButtons(){$('pick-tool').classList.toggle('active',state.picking);$('place-tool').classList.toggle('active',!state.picking);$('compare-button').classList.toggle('active',state.compare);$('undo-button').disabled=!state.undo.length||state.completed;$('redo-button').disabled=!state.redo.length||state.completed;$('hint-button').disabled=state.hints>=DIFFICULTIES[state.difficulty].hints||state.completed;const left=DIFFICULTIES[state.difficulty].hints-state.hints;$('hint-button-label').textContent=left===Infinity?'Hint ∞':`Hint ${left}`;}
+function updateGuides(){studio.setMissing(!state.sandbox&&state.compare&&state.difficulty!=='hard'?missingBricks():[]);if(state.sandbox){studio.setGuides([]);studio.setHint([]);return;}const missing=missingBricks();let guides=[];
+ if(state.difficulty==='easy'||(state.compare&&state.difficulty!=='hard'))guides=missing;
+ else if(state.difficulty==='medium'&&missing.length){const bottom=Math.min(...missing.map(b=>b.y));guides=missing.filter(b=>b.y===bottom);}
+ studio.setGuides(guides);studio.setHint(state.difficulty==='easy'&&state.booklet&&missing[0]?[missing[0]]:[]);
+}
+function updateBuild(){
+ const correct=correctKeys(),missing=missingBricks(),total=state.level?.bricks.length||0,pct=total?Math.round(correct.size/total*100):0;
+ studio.setBuild(state.bricks);studio.setCompare(state.compare&&state.difficulty!=='hard',correct);updateGuides();
+ if(!state.sandbox&&state.difficulty==='easy'&&state.booklet&&missing[0])selectPart(missing[0].type,missing[0].color,missing[0].rot,true);else renderPalette();
+ $('progress-percent').textContent=state.sandbox?state.bricks.length:pct+'%';$('empty-note').hidden=state.bricks.length>0||!state.sandbox;$('instruction-bar').style.width=pct+'%';
+ $('booklet-toggle').hidden=state.sandbox||state.difficulty!=='easy';$('booklet-toggle').textContent=state.booklet?'Turn off the booklet':'Turn on the booklet';
+ if(state.sandbox){$('instruction-eyebrow').textContent='MAKE IT YOURS';$('instruction-title').textContent='There’s no wrong way.';$('instruction-copy').textContent='Pick a part, choose a colour, and let your ideas take shape. Save a favourite when you’re ready.';$('instruction-bar').parentElement.hidden=true;}
+ else{$('instruction-bar').parentElement.hidden=false;$('instruction-eyebrow').textContent=state.difficulty==='easy'&&state.booklet?'YOUR BUILDING BOOKLET':state.difficulty==='hard'?'TRUST YOUR INNER BUILDER':'ONE LAYER AT A TIME';$('instruction-title').textContent=state.difficulty==='easy'&&state.booklet?`Step ${missing[0]?state.level.bricks.indexOf(missing[0])+1:total} / ${total}`:state.difficulty==='hard'?`${missing.length} missing · ${state.bricks.length-correct.size} mismatched`:`${correct.size} of ${total} pieces in place`;$('instruction-copy').textContent=state.difficulty==='easy'&&state.booklet&&missing[0]?`${COLOR_MAP.get(missing[0].color).name} ${TYPE_MAP.get(missing[0].type).name.toLowerCase()}. Follow the golden highlight.`:state.difficulty==='hard'?'Study the blueprint. Peel back layers to find the hidden connections.':'The guide reveals the lowest unfinished layer. Take it one piece at a time.';}
+ $('build-status').textContent=state.sandbox?`${state.bricks.length} pieces · Your imagination, in progress`:state.compare?`${correct.size} correct · ${state.bricks.length-correct.size} wrong · ${missing.length} missing`:`${correct.size} / ${total} pieces in place`;
+ updateToolButtons();lastGhostKey='';studio.refreshHover();
+ if(!state.sandbox&&!state.completed&&correct.size===total&&state.bricks.length===total)completeLevel();
+}
+function placementReason(b){if(!b)return 'outside plate';const reason=validatePlacement(b,state.bricks);if(reason)return reason;if(remaining(b.type,b.color)<=0)return 'none left';return '';}
+function onHover(candidate,brick,point){state.candidate=candidate;state.hover=brick;if(!candidate||state.picking||state.screen!=='build'||state.completed){lastGhostKey='';studio?.setGhost(null,true);$('ghost-reason').hidden=true;return;}const reason=placementReason(candidate),key=JSON.stringify(candidate)+reason;if(lastGhostKey!==key){studio.setGhost(candidate,!reason);lastGhostKey=key;}$('ghost-reason').hidden=!reason;if(reason&&point){$('ghost-reason').textContent=reason;$('ghost-reason').style.left=clamp(point.x+17,8,innerWidth-140)+'px';$('ghost-reason').style.top=clamp(point.y+20,8,innerHeight-50)+'px';}}
+function history(){state.undo.push(clone(state.bricks));if(state.undo.length>100)state.undo.shift();state.redo=[];}
+function place(b){if(state.screen!=='build'||state.completed||state.picking)return false;const reason=placementReason(b);if(reason){state.mistakes++;toast(reason==='none left'?'You’ve used every one of those. Pick another brick.':`That brick ${reason==='needs support'?'needs support.':reason==='overlaps'?'overlaps another piece.':reason==='outside plate'?'would leave the baseplate.':'is too high.'}`,true);sound('error');return false;}history();state.bricks.push({...b});if(!state.sandbox&&!state.level.bricks.some(t=>brickKey(t)===brickKey(b)))state.mistakes++;sound('place');updateBuild();return true;}
+function remove(b){if(!b||state.screen!=='build'||state.completed)return false;const index=state.bricks.findIndex(p=>brickKey(p)===brickKey(b));if(index<0)return false;const next=state.bricks.filter((_,i)=>i!==index);for(let i=0;i<next.length;i++){const reason=validatePlacement(next[i],next.filter((_,j)=>i!==j));if(reason){toast('That brick is holding another one up. Remove the upper pieces first.',true);sound('error');$('instruction-panel').classList.remove('shake');void $('instruction-panel').offsetWidth;$('instruction-panel').classList.add('shake');return false;}}history();state.bricks=next;sound('remove');updateBuild();return true;}
+function undo(){if(!state.undo.length||state.completed)return false;state.redo.push(clone(state.bricks));state.bricks=state.undo.pop();sound('remove');updateBuild();return true;}
+function redo(){if(!state.redo.length||state.completed)return false;state.undo.push(clone(state.bricks));state.bricks=state.redo.pop();sound('place');updateBuild();return true;}
+function pick(b){if(!b||!state.picking)return;if(!state.sandbox&&!state.palette.has(paletteKey(b.type,b.color))){toast('That piece isn’t in this model’s palette.',true);return;}selectPart(b.type,b.color,b.rot);toast(`${COLOR_MAP.get(b.color).name} ${TYPE_MAP.get(b.type).name.toLowerCase()} selected.`);}
+function hint(){if(state.sandbox||state.completed)return;const limit=DIFFICULTIES[state.difficulty].hints;if(state.hints>=limit){toast('You’ve used this model’s hints. The blueprint is still here to help.');return;}const next=missingBricks()[0];if(!next)return;state.hints++;studio.setHint([next]);if(state.difficulty==='easy')selectPart(next.type,next.color,next.rot,true);clearTimeout(state.hintTimer);state.hintTimer=setTimeout(updateGuides,3000);toast(state.difficulty==='hard'?'A little nudge. This hint costs one star.':'Look for the golden brick on the baseplate.');updateToolButtons();}
+function completeLevel(){state.completed=true;state.screen='result';$('ghost-reason').hidden=true;studio.setGhost(null,true);studio.setGuides([]);studio.setHint([]);studio.setMissing([]);studio.setCompare(false,new Set());studio.celebrate();sound('win');const total=state.level.bricks.length,timeLimit=total*(state.difficulty==='hard'?32:state.difficulty==='medium'?25:19)+30;
+ let stars=3;if(state.elapsed>timeLimit||state.mistakes>Math.max(3,total*.15))stars--;if(state.hints>(state.difficulty==='easy'?3:state.difficulty==='medium'?1:0))stars--;if(state.elapsed>timeLimit*2||state.mistakes>total*.6)stars--;stars=Math.max(1,stars);
+ if(!saved.progress[state.level.id]||typeof saved.progress[state.level.id]!=='object')saved.progress[state.level.id]={};saved.progress[state.level.id][state.difficulty]=Math.max(levelStars(state.level.id),stars);persist();updateToolButtons();
+ setTimeout(()=>{if(state.screen!=='result')return;openModal(`<div class="eyebrow muted">PIECE BY PIECE. YOU MADE IT.</div><div class="result-stars">${'★'.repeat(stars)}<span style="color:#e1e5d7">${'☆'.repeat(3-stars)}</span></div><h2>A little masterpiece.</h2><p class="modal-intro">${state.level.name}, built by you.<br>Take a moment. That’s a good feeling.</p><div class="result-stats"><div><strong>${formatTime(state.elapsed)}</strong><span>TIME WELL SPENT</span></div><div><strong>${total}</strong><span>PIECES TOGETHER</span></div><div><strong>${state.hints}</strong><span>LITTLE HINTS</span></div></div><div class="modal-buttons"><button class="secondary" data-action="replay">Build again</button><button class="primary" data-action="next">${LEVELS.indexOf(state.level)===11?'The collection':'Next model'} ${icon('arrow')}</button></div><button class="result-menu" data-action="levels">Back to the collection</button>`,'result-modal');},1100);
+}
+function formatTime(seconds){const s=Math.floor(clamp(seconds,0,359999));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+setInterval(()=>{const now=performance.now(),dt=Math.min(1.5,(now-lastClock)/1000);lastClock=now;if(state.screen==='build'&&!document.hidden&&$('modal-backdrop').hidden&&!state.completed)state.elapsed+=dt;$('build-time').textContent=formatTime(state.elapsed);},500);
+document.addEventListener('visibilitychange',()=>{lastClock=performance.now();if(document.hidden&&audioContext?.state==='running')audioContext.suspend().catch(()=>{});else if(!document.hidden&&!saved.muted&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});});
+function openModal(html,extraClass=''){modalReturnFocus=document.activeElement;$('modal').className='modal '+extraClass;$('modal').innerHTML=`<button class="icon-button modal-close" data-action="close" title="Close" aria-label="Close dialog">${icon('close')}</button>`+html;$('modal-backdrop').hidden=false;$('ghost-reason').hidden=true;lastGhostKey='';studio?.setGhost(null,true);const heading=$('modal').querySelector('h2');if(heading)heading.id='modal-title';fillIcons($('modal'));requestAnimationFrame(()=>$('modal').querySelector('button,input,textarea')?.focus());}
+function closeModal(){if(!$('modal-backdrop').hidden){$('modal-backdrop').hidden=true;modalReturnFocus?.focus?.();}lastGhostKey='';lastClock=performance.now();studio?.refreshHover();}
+function showHelp(){openModal(`<div class="eyebrow muted">WELCOME TO YOUR LITTLE STUDIO</div><h2>Good things click together.</h2><p class="modal-intro">Rebuild the model in the blueprint, one brick at a time.<br>Match its position, shape and colour. You’ve got this.</p><div class="help-grid"><div class="help-item">${icon('mouse')}<h3>Pick. Point. Click.</h3><p>Choose a part from the tray. Move over the plate and click to snap it into place. A red guide tells you what needs fixing.</p></div><div class="help-item">${icon('rotate')}<h3>Find a new perspective.</h3><p>Right-drag to orbit. Scroll to zoom. Press R to rotate your brick. F / S / T selects front, side or top. Top view helps you place precisely around other pieces.</p></div><div class="help-item">${icon('layers')}<h3>Peek inside the blueprint.</h3><p>Rotate the little model independently. Peel back its layers with the slider. On Easy, follow the golden booklet guide.</p></div><div class="help-item">${icon('undo')}<h3>Room to try again.</h3><p>Right-click a piece to remove it. Undo any change. Bricks above need support, so take a build apart from the top.</p></div></div><p class="shortcut-list"><kbd>1–9</kbd> / <kbd>[ ]</kbd> parts &nbsp; <kbd>Q W</kbd> colours &nbsp; <kbd>E</kbd> eyedropper<br><kbd>Ctrl / ⌘ Z</kbd> undo &nbsp; <kbd>Ctrl / ⌘ Y</kbd> redo &nbsp; <kbd>Delete</kbd> remove<br>Touch: tap to build, use two fingers to orbit or zoom.</p><button class="primary" data-action="close">Let’s make something ${icon('arrow')}</button>`);}
+function showSettings(){openModal(`<div class="eyebrow muted">MAKE YOURSELF AT HOME</div><h2>Your studio, your way.</h2><p class="modal-intro">Progress and sandbox saves stay in this browser.</p><div class="setting-row"><div>Little sounds<p>Soft clicks, pops and a well-earned chime.</p></div><button data-action="settings-sound">${saved.muted?'Turn on':'Turn off'}</button></div><div class="setting-row"><div>Your collection<p>${Object.keys(saved.progress).length} models with saved stars.</p></div><button class="danger" data-action="reset-progress">Reset progress</button></div><div class="setting-row"><div>Model workshop<p>All 12 procedural models checked for bounds,<br>overlaps and support at startup.</p></div><span style="font-size:10px;color:#7f9b69">12 / 12 passed ${icon('check')}</span></div><div class="modal-buttons"><button class="primary" data-action="close">Back to the studio</button></div>`);}
+function requestReset(){openModal(`<div class="eyebrow muted">A FRESH START</div><h2>Reset your stars?</h2><p class="modal-intro">This clears the stars and completion records for all 12 models. Your three sandbox saves will stay right where they are.</p><div class="modal-buttons"><button class="secondary" data-action="settings">Keep my progress</button><button class="primary" data-action="confirm-reset">Reset progress</button></div>`);}
+function encodeBuild(bricks=state.bricks){const data=bricks.map(b=>[TYPES.findIndex(t=>t.id===b.type),COLOURS.findIndex(c=>c.id===b.color),b.x,b.z,b.y,b.rot]);return 'BS1.'+btoa(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function decodeBuild(code){if(typeof code!=='string'||code.length>200000||!code.trim().startsWith('BS1.'))throw Error('That doesn’t look like a BRICKSMITH build code. It should begin with BS1.');let data;try{const raw=code.trim().slice(4);if(!/^[A-Za-z0-9_-]*$/.test(raw))throw Error();data=JSON.parse(atob(raw.replace(/-/g,'+').replace(/_/g,'/')));}catch{throw Error('A piece of that code is missing or changed. Try pasting the whole code again.');}
+ if(!Array.isArray(data)||data.length>2400)throw Error('This code has too many pieces or an unfamiliar format.');const bricks=data.map(row=>{if(!Array.isArray(row)||row.length!==6||row.some(v=>!Number.isInteger(v))||!TYPES[row[0]]||!COLOURS[row[1]]||row[5]<0||row[5]>3)throw Error('This code contains an unfamiliar brick.');return{type:TYPES[row[0]].id,color:COLOURS[row[1]].id,x:row[2],z:row[3],y:row[4],rot:row[5]};});bricks.sort((a,b)=>a.y-b.y);const report=validateModel(bricks);if(!report.ok)throw Error('These pieces don’t fit safely together. Check for overlapping, floating or out-of-bounds bricks.');return bricks;}
+function showSaves(){if(!state.sandbox)return;openModal(`<div class="eyebrow muted">KEEP A LITTLE CREATION</div><h2>A shelf for your ideas.</h2><p class="modal-intro">Three places to come back to. Saving replaces the selected slot.</p>${saved.slots.map((slot,i)=>`<div class="save-slot"><span>Studio ${i+1}<small>${slot&&typeof slot.code==='string'?`${clamp(slot.count,0,2400)} pieces · Saved locally`:'An empty little space'}</small></span><button data-save-slot="${i}">Save here</button><button data-load-slot="${i}" ${!slot?'disabled':''}>Load</button></div>`).join('')}<div class="modal-buttons"><button class="primary" data-action="close">Back to building</button></div>`);}
+function saveSlot(i){if(!state.sandbox||!Number.isInteger(i)||i<0||i>2)return;saved.slots[i]={code:encodeBuild(),count:state.bricks.length,date:Date.now()};if(persist()){showSaves();toast(`Your creation is on shelf ${i+1}.`);}}
+function loadSlot(i){if(!state.sandbox||!saved.slots[i])return;try{const bricks=decodeBuild(saved.slots[i].code);history();state.bricks=bricks;closeModal();updateBuild();studio.frame();toast(`Welcome back to Studio ${i+1}. Undo returns to your previous build.`);}catch(error){toast(error.message,true);}}
+function showCode(){if(!state.sandbox)return;openModal(`<div class="eyebrow muted">POCKET-SIZED POSSIBILITIES</div><h2>Take your build with you.</h2><p class="modal-intro">Copy this compact code to keep or share your creation. Paste a saved code here and import to open it.</p><textarea class="code-box" id="build-code" aria-label="Sandbox build code" spellcheck="false" maxlength="200000">${encodeBuild()}</textarea><p class="code-feedback" id="code-feedback"></p><div class="modal-buttons"><button class="secondary" data-action="copy-code">Copy code ${icon('code')}</button><button class="primary" data-action="import-code">Import build ${icon('arrow')}</button></div>`);}
+async function copyCode(){const input=$('build-code');if(!input)return;input.focus();input.select();try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(input.value);else if(!document.execCommand('copy'))throw Error();$('code-feedback').textContent='Copied. Your little creation is ready to travel.';}catch{$('code-feedback').textContent='The code is selected. Press Ctrl / ⌘ C to copy it.';}}
+function importCode(){if(!state.sandbox)return;try{const bricks=decodeBuild($('build-code')?.value);history();state.bricks=bricks;closeModal();updateBuild();studio.frame();toast('Your creation is back on the plate. Undo restores the previous build.');}catch(error){$('code-feedback').textContent=error.message;}}
+function requestClear(){if(!state.sandbox)return;if(!state.bricks.length){toast('A fresh plate, already waiting for you.');return;}openModal(`<div class="eyebrow muted">ROOM FOR A NEW IDEA</div><h2>Start with a clean plate?</h2><p class="modal-intro">Your saved studios will stay safe. You can also Undo this clear if you change your mind.</p><div class="modal-buttons"><button class="secondary" data-action="close">Keep building</button><button class="primary" data-action="confirm-clear">Clear the plate</button></div>`);}
+function runAction(action){
+ switch(action){case'levels':showScreen('levels');break;case'home':showScreen('title');break;case'sandbox':startLevel('sandbox');break;case'help':showHelp();break;case'settings':showSettings();break;case'close':closeModal();break;
+ case'sound':saved.muted=!saved.muted;persist();updateSoundButton();if(!saved.muted)unlockAudio();break;case'settings-sound':runAction('sound');showSettings();break;case'reset-progress':requestReset();break;case'confirm-reset':saved.progress={};persist();renderCollection();showSettings();toast('A fresh collection. Your sandbox saves are safe.');break;
+ case'place-tool':state.picking=false;updateToolButtons();studio.refreshHover();break;case'pick':state.picking=!state.picking;updateToolButtons();studio.refreshHover();toast(state.picking?'Click a brick here or in the blueprint to pick its type and colour.':'Back to building.');break;
+ case'rotate':state.selection.rot=(state.selection.rot+1)%4;lastGhostKey='';studio.refreshHover();toast(`Brick rotated · ${state.selection.rot*90}°`);break;
+ case'undo':undo();break;case'redo':redo();break;case'compare':state.compare=!state.compare;studio.setCompare(state.compare&&state.difficulty!=='hard',correctKeys());updateGuides();updateToolButtons();$('build-status').textContent=state.compare?`${correctKeys().size} correct · ${state.bricks.length-correctKeys().size} wrong · ${missingBricks().length} missing`:`${correctKeys().size} / ${state.level.bricks.length} pieces in place`;toast(state.compare?(state.difficulty==='hard'?'Comparison counts are in the lower left.':'Green is a match. Red needs another look. Pale pieces are missing.'):'Back to your original colours.');break;case'hint':hint();break;case'frame':studio.frame();break;case'saves':showSaves();break;case'code':showCode();break;case'copy-code':copyCode();break;case'import-code':importCode();break;case'clear':requestClear();break;case'confirm-clear':history();state.bricks=[];closeModal();updateBuild();toast('A clean plate. A new possibility.');break;
+ case'replay':startLevel(state.level.id);break;case'next':{const index=LEVELS.indexOf(state.level)+1;if(index<LEVELS.length)startLevel(index);else showScreen('levels');break;}
+ }
+}
+document.addEventListener('click',e=>{const button=e.target.closest('button');if(!button||button.disabled)return;if(button.dataset.action)runAction(button.dataset.action);else if(button.dataset.level)startLevel(button.dataset.level);else if(button.dataset.difficulty)setDifficulty(button.dataset.difficulty);else if(button.dataset.part)selectPart(button.dataset.part,button.dataset.color);else if(button.dataset.swatch)selectPart(state.selection.type,button.dataset.swatch);else if(button.dataset.filter){state.filter=button.dataset.filter;$('palette-filter').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===button));renderPalette();}else if(button.dataset.view)studio.view(button.dataset.view);else if(button.dataset.saveSlot!==undefined)saveSlot(Number(button.dataset.saveSlot));else if(button.dataset.loadSlot!==undefined)loadSlot(Number(button.dataset.loadSlot));});
+$('home-button').onclick=()=>showScreen('title');
+$('expand-reference').onclick=()=>{const expanded=$('reference-panel').classList.toggle('expanded');$('expand-reference').title=expanded?'Shrink blueprint':'Expand blueprint';$('expand-reference').setAttribute('aria-label',$('expand-reference').title);requestAnimationFrame(()=>studio.resize());setTimeout(()=>studio.resize(),280);};
+$('peel-slider').oninput=e=>{const max=Number(e.target.max),value=clamp(e.target.value,0,max);e.target.value=value;studio.setPeel(value);$('peel-value').textContent=value===max?'All layers':value===0?'Baseplate':`Up to ${(value/3).toFixed(value%3?1:0)}`;};
+$('booklet-toggle').onclick=()=>{state.booklet=!state.booklet;updateBuild();};
+$('modal-backdrop').addEventListener('click',e=>{if(e.target===$('modal-backdrop'))closeModal();});
+document.addEventListener('keydown',e=>{
+ const tag=e.target.tagName;if(['INPUT','TEXTAREA','SELECT'].includes(tag)){if(e.key==='Escape')closeModal();return;}
+ if(!$('modal-backdrop').hidden){if(e.key==='Escape'){e.preventDefault();closeModal();}else if(e.key==='Tab'){const focusable=[...$('modal').querySelectorAll('button:not(:disabled),textarea,input,select')];const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}return;}
+ if(e.key==='?'||e.key==='F1'){e.preventDefault();showHelp();return;}if(state.screen!=='build'||state.completed)return;
+ const k=e.key.toLowerCase();if((e.ctrlKey||e.metaKey)&&(k==='z'||k==='y')){e.preventDefault();(k==='y'||e.shiftKey?redo:undo)();return;}if(e.ctrlKey||e.metaKey||e.altKey)return;
+ if(k==='r')runAction('rotate');else if(k==='e')runAction('pick');else if(k==='q')cycleColor(-1);else if(k==='w')cycleColor(1);else if(k==='[')cycleType(-1);else if(k===']')cycleType(1);else if(/^[1-9]$/.test(k))cycleType(0,Number(k)-1);else if(k==='delete'||k==='backspace'){e.preventDefault();remove(state.hover);}else if(['f','s','t'].includes(k))studio.view({f:'front',s:'side',t:'top'}[k]);else if(k==='escape'){state.picking=false;updateToolButtons();studio.setGhost(null,true);}
+});
+// All generators must pass before the player can reach a level.
+const failedModels=LEVELS.filter(l=>!validateModel(l.bricks).ok);
+if(failedModels.length)throw new Error('Model validation failed: '+failedModels.map(l=>l.name).join(', '));
+studio=createStudio({mainEl:$('stage'),referenceEl:$('reference-canvas'),getSelection:()=>state.selection,onHover,onPlace:place,onRemove:remove,onPick:pick,isPicking:()=>state.picking,isBuilding:()=>state.screen==='build'&&!state.completed&&$('modal-backdrop').hidden});
+updateSoundButton();renderCollection();showScreen('title');ready=true;clearTimeout(bootTimeout);$('loading').hidden=true;$('fatal').hidden=true;
+window.BRICKSMITH={version:'1.0',selfTestPassed:true,models:LEVELS,types:TYPES,colours:COLOURS,validateModel,validatePlacement,footprint,brickKey,makePalette,encodeBuild,decodeBuild,startLevel,setDifficulty,place,remove,undo,redo,selectPart,hint,runAction,get state(){return {...state,palette:Object.fromEntries(state.palette)};},get studio(){return studio;},get saved(){return saved;}};
+console.info('BRICKSMITH ready. All 12 models passed bounds, overlap and support validation.');
+} catch(error) {
+clearTimeout(bootTimeout);
+window.bricksmithFail(error?.message?.includes('Model validation')?'One of the model blueprints couldn’t be checked. Please reload the studio.':'The 3D studio couldn’t start. Please check your connection and enable WebGL / hardware acceleration in your browser, then try again.');
+}
+</script>
+</body>
+</html>

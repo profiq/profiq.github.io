@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d13">
+<title>REMNANT</title>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0a0d13; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    touch-action:none; overscroll-behavior:none;
+  }
+  #c { position:fixed; inset:0; display:block; }
+  #topright { position:fixed; top:12px; right:14px; display:flex; align-items:center; gap:12px; z-index:20; }
+  #swatches { display:flex; gap:8px; align-items:center; }
+  .swatch { width:15px; height:15px; border-radius:50%; border:2px solid rgba(255,255,255,0.22); padding:0; cursor:pointer; opacity:0.6; }
+  .swatch.on { opacity:1; border-color:#fff; }
+  #resetBtn { width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.06); color:#cfd6e0; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  #resetBtn:active { background:rgba(255,255,255,0.18); }
+  #touchui { display:none; position:fixed; inset:0; z-index:15; pointer-events:none; }
+  body.touch #touchui { display:block; }
+  .tbtn { position:absolute; pointer-events:auto; touch-action:none; display:flex; align-items:center; justify-content:center;
+    background:rgba(130,160,195,0.10); border:1.5px solid rgba(170,200,230,0.28); border-radius:18px; color:#d5e8ff; }
+  .tbtn.pressed { background:rgba(140,185,230,0.30); border-color:rgba(200,230,255,0.65); }
+  #btnL { left:16px; bottom:26px; width:68px; height:68px; }
+  #btnR { left:96px; bottom:26px; width:68px; height:68px; }
+  #btnJ { right:22px; bottom:24px; width:86px; height:86px; border-radius:50%; }
+  .tbtn svg { pointer-events:none; }
+  #done { position:fixed; inset:0; z-index:30; display:none; align-items:center; justify-content:center; background:rgba(5,7,11,0.74); }
+  #done.show { display:flex; }
+  #doneCard { text-align:center; padding:40px 52px; border:1px solid rgba(255,210,92,0.4); background:#0d1118; border-radius:14px; box-shadow:0 0 70px rgba(255,210,92,0.09); }
+  #doneCard h1 { margin:0 0 8px; color:#ffd25c; letter-spacing:10px; font-size:26px; font-weight:700; }
+  #doneCard p { color:#9aa3b2; font-size:11px; letter-spacing:2px; margin:4px 0 24px; }
+  #doneCard button { font:inherit; background:#ffd25c; color:#211a05; border:0; padding:13px 28px; letter-spacing:3px; font-size:12px; font-weight:700; border-radius:8px; cursor:pointer; }
+  #doneCard button:active { transform:translateY(1px); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="topright">
+  <div id="swatches"></div>
+  <button id="resetBtn" aria-label="Reset room" title="Reset room (R)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.3h-4.3"/></svg>
+  </button>
+</div>
+<div id="touchui">
+  <div class="tbtn" id="btnL" aria-label="Left"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5l-7 7 7 7"/></svg></div>
+  <div class="tbtn" id="btnR" aria-label="Right"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5l7 7-7 7"/></svg></div>
+  <div class="tbtn" id="btnJ" aria-label="Jump"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17l7-7 7 7"/><path d="M5 10.5l7-7 7 7"/></svg></div>
+</div>
+<div id="done"><div id="doneCard">
+  <h1>COMPLETE</h1>
+  <p id="doneStats"></p>
+  <button id="againBtn">RESTART FROM ROOM 1</button>
+</div></div>
+<script>
+(() => {
+'use strict';
+
+/* ============================= REMNANT =============================
+   One file, no external requests. Physics: fixed 120Hz timestep with
+   render interpolation, coyote time, jump buffering, jump-cut.
+
+   Solvability self-check (hand-verified twice per room; jump height
+   102px, full-jump horizontal range 192px, remnant top ~y484):
+   R1  gap 260  — direct jump lands ~44px short; one remnant anywhere
+       in the pit (full-speed death lands ~x557, near the far wall)
+       bridges it. Placement window is the whole pit.
+   R2  gap 280  — ~64px short directly; one remnant suffices anywhere
+       in [~400,556]. Off placement self-corrects with a second body.
+   R3  two spike islands; ANY death on each island caps it; worst-case
+       left-edge remnants still chain (goal block reachable from the
+       right half of island 2's remnant).
+   R4  three islands; verified: worst-case remnant on EVERY island
+       still reaches the next step (edge-standing adds 26px slack).
+   R5  gap 460  — one remnant max-reaches x~470, ledge needs x~570,
+       so two are required; two deaths spanning the gap always cross.
+   R6  gap 460 +60 rise — one remnant max-reaches 598 vs 648 needed;
+       two cross comfortably.
+   R7  gap 520 + saw — two remnants, timed around the sweep; saw
+       deaths only add harmless extra platforms.
+   R8  altar: any pit death in a 138px window around the gold pad
+       presses the gate AND bridges the pit with the same body.
+   R9  pillar spikes: ANY remnant on the 140px pillar top reaches the
+       tower; full jumps graze the pillar corner and still land on it.
+   R10 gap+saw → pad (104px press window, doubles as the climb-out
+       stone) → D/E/F island ladder (all placements verified) → open
+       gate → goal. Max simultaneous required remnants: 5.
+   No-softlock guarantees: (1) dying only ever ADDS platforms; (2) the
+   remnant cap (8) exceeds every room's requirement, and if the oldest
+   body is ever recycled the player simply re-dies to replace it;
+   (3) R / reset button always restores the hand-verified fresh state.
+==================================================================== */
+
+const RW = 960, RH = 540;
+const STEP = 1/120;
+const PH = 12;                                  // player half-size
+const MOVE = 300, ACCG = 3400, ACCA = 2200;     // run speed / accel
+const GRAV = 2000, JUMPV = 640, MAXFALL = 940;
+const COYOTE = 0.1, JBUF = 0.12;
+const REMH = 14, REMCAP = 8, KILLY = 512;
+const MONO = 'ui-monospace,Menlo,Consolas,monospace';
+
+/* ------------------------------ rooms ------------------------------ */
+const ROOMS = [
+{ name:'AWAKENING', hint:'If you fall, your body remains — use it.',
+  spawn:[70,428],
+  solids:[{x:0,y:440,w:320,h:100},{x:580,y:440,w:380,h:100}],
+  hazards:[], movers:[], pads:[],
+  goal:{x:870,y:412,w:28,h:28} },
+{ name:'DOUBT', hint:'Wider than any single leap.',
+  spawn:[70,428],
+  solids:[{x:0,y:440,w:280,h:100},{x:560,y:440,w:400,h:100},{x:860,y:390,w:100,h:50}],
+  hazards:[], movers:[], pads:[],
+  goal:{x:866,y:362,w:28,h:28} },
+{ name:'ASCENT', hint:'Sacrifice upward.',
+  spawn:[60,468],
+  solids:[{x:0,y:480,w:260,h:60},{x:700,y:290,w:260,h:250}],
+  hazards:[{x:320,y:425,w:160,h:20},{x:480,y:355,w:200,h:20}],
+  movers:[], pads:[],
+  goal:{x:860,y:262,w:28,h:28} },
+{ name:'SPIRE', hint:'A staircase of former selves.',
+  spawn:[60,478],
+  solids:[{x:0,y:490,w:200,h:50},{x:800,y:240,w:160,h:300}],
+  hazards:[{x:280,y:430,w:150,h:20},{x:460,y:365,w:150,h:20},{x:640,y:300,w:150,h:20}],
+  movers:[], pads:[],
+  goal:{x:860,y:212,w:28,h:28} },
+{ name:'THE CROSSING', hint:'One body is not enough.',
+  spawn:[70,428],
+  solids:[{x:0,y:440,w:220,h:100},{x:680,y:440,w:280,h:100}],
+  hazards:[], movers:[], pads:[],
+  goal:{x:868,y:412,w:28,h:28} },
+{ name:'RIFT', hint:'Farther — and higher.',
+  spawn:[70,448],
+  solids:[{x:0,y:460,w:200,h:80},{x:660,y:400,w:300,h:140}],
+  hazards:[], movers:[], pads:[],
+  goal:{x:868,y:372,w:28,h:28} },
+{ name:'SENTINEL', hint:'It sweeps. Wait, then leap.',
+  spawn:[70,448],
+  solids:[{x:0,y:460,w:240,h:80},{x:760,y:460,w:200,h:80}],
+  hazards:[{x:250,y:512,w:510,h:28}],
+  movers:[{x1:300,y1:390,x2:680,y2:390,w:34,h:34,speed:140}],
+  pads:[],
+  goal:{x:868,y:432,w:28,h:28} },
+{ name:'THE OFFERING', hint:'Only a body can hold the altar.',
+  spawn:[70,448],
+  solids:[{x:0,y:460,w:250,h:80},{x:510,y:460,w:130,h:80},{x:700,y:380,w:260,h:160}],
+  hazards:[{x:255,y:512,w:255,h:28},{x:640,y:512,w:60,h:28}],
+  movers:[],
+  pads:[{x:330,y:496,w:100,h:16,gate:{x:674,y:250,w:26,h:130}}],
+  goal:{x:860,y:352,w:28,h:28} },
+{ name:'RAZOR', hint:'Precision. Then sacrifice.',
+  spawn:[60,308],
+  solids:[{x:0,y:320,w:170,h:220},{x:240,y:330,w:70,h:18},{x:470,y:330,w:70,h:18},{x:640,y:380,w:140,h:160},{x:800,y:300,w:160,h:240}],
+  hazards:[{x:640,y:360,w:140,h:20},{x:170,y:512,w:630,h:28}],
+  movers:[{x1:200,y1:258,x2:700,y2:258,w:34,h:34,speed:160}],
+  pads:[],
+  goal:{x:860,y:272,w:28,h:28} },
+{ name:'REQUIEM', hint:'Everything you have learned.',
+  spawn:[60,458],
+  solids:[{x:0,y:470,w:180,h:70},{x:540,y:440,w:110,h:100},{x:650,y:320,w:130,h:30},{x:790,y:190,w:170,h:24}],
+  hazards:[{x:190,y:512,w:350,h:28},{x:660,y:512,w:190,h:28},{x:860,y:430,w:60,h:18},{x:810,y:355,w:60,h:18},{x:700,y:290,w:60,h:18}],
+  movers:[{x1:240,y1:390,x2:500,y2:390,w:34,h:34,speed:130}],
+  pads:[{x:700,y:496,w:80,h:16,gate:{x:764,y:60,w:26,h:130}}],
+  goal:{x:870,y:162,w:28,h:28} },
+];
+
+/* ------------------------------ setup ------------------------------ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const doneOv = document.getElementById('done');
+const doneStats = document.getElementById('doneStats');
+const HAS_LS = ('letterSpacing' in ctx);
+const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+if (IS_TOUCH) document.body.classList.add('touch');
+
+let state = 'menu', roomIdx = 0;
+let remnants = [], particles = [], movers = [], gates = [];
+let deathsTotal = 0, bodiesTotal = 0;
+let time = 0, flash = 0, goldFlash = 0, shake = 0, interp = 0;
+let ACCENT = '#6ff0ff';
+const player = {x:0,y:0,px:0,py:0,vx:0,vy:0,onG:false,coyote:0,jbuf:0,face:1,sx:1,sy:1,alive:true,blink:0,nextBlink:2.5};
+
+let cw=0, ch=0, dpr=1, scale=1, offX=0, offY=0, vign=null;
+
+const rnd = (a,b) => a + Math.random()*(b-a);
+const SPECKS = [];
+(() => { let s = 987; const r = () => { s = (s*9301 + 49297) % 233280; return s/233280; };
+  for (let i=0;i<70;i++) SPECKS.push({x:r(), y:r(), r:0.6+r()*1.3, a:0.04+r()*0.10}); })();
+
+function resize(){
+  cw = Math.max(1, window.innerWidth);
+  ch = Math.max(1, window.innerHeight);
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(cw*dpr);
+  canvas.height = Math.round(ch*dpr);
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  let s;
+  const landscape = ch <= cw*1.2;
+  if (IS_TOUCH && landscape) s = Math.min(cw/RW, Math.max(0.28, (ch-130)/RH));
+  else s = Math.min(cw/RW, ch/RH);
+  s *= (s > 0.55 ? 0.94 : 0.99);
+  scale = s;
+  offX = (cw - RW*s)/2;
+  if (!landscape) offY = (ch - RH*s)*0.30;          // portrait: room sits above the thumb zone
+  else if (IS_TOUCH) offY = (ch - RH*s)*0.40;       // touch landscape: clear the buttons
+  else offY = (ch - RH*s)/2;
+  try {
+    vign = ctx.createRadialGradient(cw/2, ch/2, Math.min(cw,ch)*0.42, cw/2, ch/2, Math.hypot(cw,ch)*0.62);
+    vign.addColorStop(0, 'rgba(0,0,0,0)');
+    vign.addColorStop(1, 'rgba(0,0,0,0.30)');
+  } catch(e) { vign = null; }
+}
+
+/* ------------------------------ helpers ------------------------------ */
+function overlapRect(a,b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
+function inflate(r,n){ return {x:r.x-n, y:r.y-n, w:r.w+2*n, h:r.h+2*n}; }
+function playerBox(){ return {x:player.x-PH, y:player.y-PH, w:PH*2, h:PH*2}; }
+function hexA(hex,a){ const n = parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
+function rrect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function solidRects(){
+  const out = ROOMS[roomIdx].solids.slice();
+  for (const r of remnants) out.push({x:r.x-REMH, y:r.y-REMH, w:REMH*2, h:REMH*2});
+  for (const g of gates) if (!g.open) out.push(g.rect);
+  return out;
+}
+
+/* ------------------------------ room flow ------------------------------ */
+function startRoom(){
+  const room = ROOMS[roomIdx];
+  remnants = [];
+  gates = room.pads.map(p => ({rect:{x:p.gate.x,y:p.gate.y,w:p.gate.w,h:p.gate.h}, open:false, vis:0, pressed:false}));
+  movers = room.movers.map(m => ({x1:m.x1,y1:m.y1,x2:m.x2,y2:m.y2,w:m.w,h:m.h,speed:m.speed, x:m.x1,y:m.y1,px:m.x1,py:m.y1,t:0,rot:0}));
+  respawn();
+}
+function blockedAt(x,y){
+  const box = {x:x-PH, y:y-PH, w:PH*2, h:PH*2};
+  const room = ROOMS[roomIdx];
+  for (const h of room.hazards) if (overlapRect(box,h)) return true;
+  for (const p of room.pads) if (overlapRect(box,p)) return true;
+  for (const m of movers) if (overlapRect(box,{x:m.x-m.w/2,y:m.y-m.h/2,w:m.w,h:m.h})) return true;
+  for (const s of solidRects()) if (overlapRect(box,s)) return true;
+  if (y > KILLY-20) return true;
+  return false;
+}
+function respawn(){
+  const sp = ROOMS[roomIdx].spawn;
+  const tries = [[0,0],[0,-40],[44,0],[-44,0],[0,-72],[92,0],[-92,0],[0,44],[150,0],[-150,0],[0,-116]];
+  let bx = sp[0], by = sp[1];
+  for (const t of tries){ if (!blockedAt(sp[0]+t[0], sp[1]+t[1])){ bx = sp[0]+t[0]; by = sp[1]+t[1]; break; } }
+  player.x = bx; player.y = by; player.px = bx; player.py = by;
+  player.vx = 0; player.vy = 0; player.onG = false; player.coyote = 0; player.jbuf = 0;
+  player.sx = 1; player.sy = 1; player.alive = true;
+}
+function startGame(){ state = 'play'; roomIdx = 0; deathsTotal = 0; bodiesTotal = 0; particles.length = 0; startRoom(); }
+function restartAll(){ doneOv.classList.remove('show'); startGame(); }
+function resetRoom(){ if (state !== 'play') return; startRoom(); flash = Math.max(flash, 0.1); }
+function nextRoom(){
+  goldFlash = 0.55;
+  if (roomIdx >= ROOMS.length - 1){
+    state = 'complete';
+    doneStats.textContent = 'ROOMS 10 / 10   ·   DEATHS ' + deathsTotal + '   ·   BODIES LEFT BEHIND ' + bodiesTotal;
+    doneOv.classList.add('show');
+    return;
+  }
+  roomIdx++;
+  startRoom();
+}
+
+/* ------------------------------ death & remnants ------------------------------ */
+function addRemnant(cx, cy){
+  cy = Math.min(cy, 498);
+  let rx = cx, ry = cy;
+  const room = ROOMS[roomIdx];
+  const list = [];
+  for (const h of room.hazards) list.push(h);
+  for (const p of room.pads) list.push(p);
+  for (const s of room.solids) list.push(s);
+  for (const g of gates) if (!g.open) list.push(g.rect);
+  for (const m of movers) list.push({x:m.x-m.w/2, y:m.y-m.h/2, w:m.w, h:m.h});
+  list.push(inflate(room.goal, 4));   // never let a body seal the goal
+  for (let pass=0; pass<2; pass++){
+    for (const h of list){
+      const l = rx-REMH, t = ry-REMH, r = rx+REMH, b = ry+REMH;
+      if (r <= h.x || b <= h.y || l >= h.x+h.w || t >= h.y+h.h) continue;
+      const pL = r-h.x, pR = h.x+h.w-l, pU = b-h.y, pD = h.y+h.h-t;
+      const m = Math.min(pL, pR, pU, pD);
+      if (m === pU) ry -= pU;
+      else if (m === pD) ry += pD + 26;   // hazard above: extra clearance so a cube fits underneath
+      else if (m === pL) rx -= pL;
+      else rx += pR;
+    }
+  }
+  rx = Math.max(REMH, Math.min(RW-REMH, rx));
+  ry = Math.min(498, Math.max(REMH, ry));
+  remnants.push({x:rx, y:ry, born:time});
+  puff(rx, ry);
+  if (remnants.length > REMCAP){
+    const old = remnants.shift();
+    dissolveP(old.x, old.y);
+  }
+}
+function die(){
+  if (!player.alive) return;   // guard: exactly one remnant per death, no duplicates
+  player.alive = false;
+  deathsTotal++; bodiesTotal++;
+  addRemnant(player.x, player.y);
+  burst(player.x, player.y, 14);
+  flash = Math.max(flash, 0.32);
+  shake = 0.16;
+  respawn();
+}
+
+/* ------------------------------ physics ------------------------------ */
+function moveX(dx){
+  player.x += dx;
+  for (const s of solidRects()){
+    const l = player.x-PH, r = player.x+PH, t = player.y-PH, b = player.y+PH;
+    if (r <= s.x || b <= s.y || l >= s.x+s.w || t >= s.y+s.h) continue;
+    if (dx > 0) player.x = s.x - PH;
+    else if (dx < 0) player.x = s.x + s.w + PH;
+    else player.x = (player.x < s.x + s.w/2) ? s.x - PH : s.x + s.w + PH;
+    player.vx = 0;
+  }
+  if (player.x < PH){ player.x = PH; if (player.vx < 0) player.vx = 0; }
+  if (player.x > RW-PH){ player.x = RW-PH; if (player.vx > 0) player.vx = 0; }
+}
+function moveY(dy){
+  player.y += dy;
+  const fallV = player.vy;
+  player.onG = false;
+  for (const s of solidRects()){
+    const l = player.x-PH, r = player.x+PH, t = player.y-PH, b = player.y+PH;
+    if (r <= s.x || b <= s.y || l >= s.x+s.w || t >= s.y+s.h) continue;
+    if (dy > 0){
+      player.y = s.y - PH;
+      if (fallV > 300){ player.sy = 0.68; player.sx = 1.32; landDust(); }
+      player.vy = 0; player.onG = true;
+    } else if (dy < 0){
+      player.y = s.y + s.h + PH;
+      player.vy = 0;
+    } else {
+      player.y = s.y - PH; player.vy = 0; player.onG = true;
+    }
+  }
+}
+function hazardHit(){
+  const room = ROOMS[roomIdx];
+  const l = player.x-PH, r = player.x+PH, t = player.y-PH, b = player.y+PH;
+  const hit = h => r > h.x+3 && l < h.x+h.w-3 && b > h.y+3 && t < h.y+h.h-3;
+  for (const h of room.hazards) if (hit(h)) return true;
+  for (const p of room.pads) if (hit(p)) return true;
+  for (const m of movers) if (hit({x:m.x-m.w/2, y:m.y-m.h/2, w:m.w, h:m.h})) return true;
+  return false;
+}
+function updateGates(dt){
+  const room = ROOMS[roomIdx];
+  for (let i=0;i<gates.length;i++){
+    const pad = room.pads[i], g = gates[i];
+    const pr = inflate(pad, 10);
+    let pressed = overlapRect(playerBox(), pr);
+    if (!pressed) for (const rem of remnants){
+      if (overlapRect({x:rem.x-REMH, y:rem.y-REMH, w:REMH*2, h:REMH*2}, pr)){ pressed = true; break; }
+    }
+    g.pressed = pressed;
+    const over = player.alive && overlapRect(playerBox(), inflate(g.rect, 6));  // never crush the player
+    g.open = pressed || over;
+    g.vis += ((g.open?1:0) - g.vis) * Math.min(1, dt*7);
+  }
+}
+function step(dt){
+  for (const m of movers){
+    m.px = m.x; m.py = m.y;
+    m.t += dt;
+    const d = Math.hypot(m.x2-m.x1, m.y2-m.y1) || 1;
+    let p = (m.t * m.speed / d) % 2;
+    if (p > 1) p = 2 - p;
+    m.x = m.x1 + (m.x2-m.x1)*p;
+    m.y = m.y1 + (m.y2-m.y1)*p;
+    m.rot += dt*6;
+  }
+  player.px = player.x; player.py = player.y;
+  const dir = (input.right?1:0) - (input.left?1:0);
+  if (dir !== 0) player.face = dir;
+  const acc = player.onG ? ACCG : ACCA;
+  const dv = dir*MOVE - player.vx;
+  player.vx += Math.max(-acc*dt, Math.min(acc*dt, dv));
+  player.vy = Math.min(player.vy + GRAV*dt, MAXFALL);
+  player.jbuf -= dt;
+  if (player.onG) player.coyote = COYOTE; else player.coyote -= dt;
+  if (player.jbuf > 0 && (player.onG || player.coyote > 0)){
+    player.vy = -JUMPV;
+    player.onG = false; player.coyote = 0; player.jbuf = 0;
+    player.sy = 1.26; player.sx = 0.8;
+    jumpDust();
+  }
+  moveX(player.vx*dt);
+  moveY(player.vy*dt);
+  if (hazardHit()){ die(); return; }
+  if (player.y > KILLY){ die(); return; }
+  if (overlapRect(playerBox(), inflate(ROOMS[roomIdx].goal, 6))){ nextRoom(); return; }
+  updateGates(dt);
+  updateParticles(dt);
+  player.sx += (1-player.sx)*Math.min(1, dt*9);
+  player.sy += (1-player.sy)*Math.min(1, dt*9);
+  if (Math.random() < dt*5) goalSpark();
+}
+
+/* ------------------------------ particles ------------------------------ */
+function spawnP(x,y,vx,vy,life,color,r,grav){
+  if (particles.length > 420) particles.shift();
+  particles.push({x,y,vx,vy,life,life0:life,color,r,grav});
+}
+function burst(x,y,n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, sp = rnd(70,250);
+    spawnP(x,y,Math.cos(a)*sp,Math.sin(a)*sp*0.75,rnd(0.25,0.6),Math.random()<0.5?ACCENT:'#ffffff',rnd(1.4,2.6),420);
+  }
+}
+function puff(x,y){
+  for (let i=0;i<12;i++){
+    const a = Math.random()*Math.PI*2, sp = rnd(25,110);
+    spawnP(x,y,Math.cos(a)*sp,Math.sin(a)*sp*0.6,rnd(0.4,0.85),Math.random()<0.5?'#aab2bd':'#79818c',rnd(1.5,2.8),70);
+  }
+}
+function dissolveP(x,y){
+  for (let i=0;i<9;i++) spawnP(x+rnd(-10,10),y+rnd(-10,10),rnd(-24,24),rnd(-70,-16),rnd(0.4,0.8),'#8b93a0',rnd(1.2,2.2),-30);
+}
+function jumpDust(){
+  for (let i=0;i<5;i++) spawnP(player.x+rnd(-8,8), player.y+PH, rnd(-40,40), rnd(10,60), rnd(0.2,0.4), '#9aa3b2', rnd(1,2), 160);
+}
+function landDust(){
+  for (let i=0;i<6;i++) spawnP(player.x+rnd(-10,10), player.y+PH, rnd(-70,70), rnd(-30,10), rnd(0.2,0.45), '#9aa3b2', rnd(1,2.2), 220);
+}
+function goalSpark(){
+  const g = ROOMS[roomIdx].goal;
+  spawnP(g.x+g.w/2+rnd(-9,9), g.y+g.h-4, rnd(-7,7), rnd(-16,-38), rnd(0.8,1.3), '#ffd25c', rnd(1,1.8), -12);
+}
+function updateParticles(dt){
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.life -= dt;
+    if (p.life <= 0){ particles.splice(i,1); continue; }
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += p.grav*dt;
+  }
+}
+
+/* ------------------------------ drawing ------------------------------ */
+function drawSolid(s){
+  ctx.fillStyle = '#232b37';
+  ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.fillStyle = '#46536a';
+  ctx.fillRect(s.x, s.y, s.w, 2.5);
+  ctx.fillStyle = 'rgba(70,83,106,0.55)';
+  ctx.fillRect(s.x, s.y, 1.5, s.h);
+  ctx.fillRect(s.x+s.w-1.5, s.y, 1.5, s.h);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(s.x, s.y+s.h-3, s.w, 3);
+}
+function drawSpikes(h){
+  ctx.fillStyle = '#2d1216';
+  ctx.fillRect(h.x, h.y+8, h.w, h.h-8);
+  const n = Math.max(2, Math.round(h.w/13)), sw = h.w/n;
+  ctx.fillStyle = '#ff5349';
+  ctx.beginPath();
+  for (let i=0;i<n;i++){
+    const x0 = h.x + i*sw;
+    ctx.moveTo(x0, h.y+8);
+    ctx.lineTo(x0+sw/2, h.y-1);
+    ctx.lineTo(x0+sw, h.y+8);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+function drawPad(p, pressed){
+  ctx.fillStyle = pressed ? '#93701f' : '#6e5420';
+  ctx.fillRect(p.x, p.y+7, p.w, p.h-7);
+  ctx.fillStyle = pressed ? '#ffd25c' : '#d9a441';
+  ctx.fillRect(p.x, p.y+7, p.w, 2.5);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(p.x-3, p.y+5, 3, p.h-5);
+  ctx.fillRect(p.x+p.w, p.y+5, 3, p.h-5);
+  const n = Math.max(3, Math.round(p.w/13)), sw = p.w/n;
+  ctx.fillStyle = '#ff5349';
+  ctx.beginPath();
+  for (let i=0;i<n;i++){
+    const x0 = p.x+i*sw;
+    ctx.moveTo(x0, p.y+7);
+    ctx.lineTo(x0+sw/2, p.y-2);
+    ctx.lineTo(x0+sw, p.y+7);
+  }
+  ctx.closePath(); ctx.fill();
+  if (pressed){
+    const a = 0.3 + 0.22*Math.sin(time*6);
+    ctx.strokeStyle = 'rgba(255,210,92,'+a.toFixed(3)+')';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x-6, p.y-6, p.w+12, p.h+12);
+  }
+}
+function drawGate(g){
+  const r = g.rect;
+  const dy = -g.vis * (r.h + 10);
+  ctx.strokeStyle = 'rgba(217,164,65,0.22)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4,6]);
+  ctx.beginPath();
+  ctx.moveTo(r.x+r.w/2, 0);
+  ctx.lineTo(r.x+r.w/2, r.y+dy+4);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#262d39';
+  ctx.fillRect(r.x, r.y+dy, r.w, r.h);
+  ctx.fillStyle = '#d9a441';
+  ctx.fillRect(r.x, r.y+dy, 3, r.h);
+  ctx.fillRect(r.x+r.w-3, r.y+dy, 3, r.h);
+  ctx.fillRect(r.x, r.y+dy, r.w, 3);
+  ctx.fillRect(r.x, r.y+dy+r.h-3, r.w, 3);
+}
+function drawRemnant(r){
+  const age = Math.max(0, Math.min(1, (time - r.born) * 5));
+  const s = 0.75 + 0.25 * (1 - (1-age)*(1-age));
+  ctx.save();
+  ctx.translate(r.x, r.y);
+  ctx.scale(s, s);
+  ctx.fillStyle = 'rgba(146,154,166,0.95)';
+  ctx.fillRect(-14,-14,28,28);
+  ctx.strokeStyle = 'rgba(104,112,124,0.9)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-13,-13,26,26);
+  ctx.strokeStyle = '#565e6a';
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  for (const ex of [-5.5, 5.5]){
+    ctx.beginPath();
+    ctx.moveTo(ex-2.4, -6); ctx.lineTo(ex+2.4, -1.2);
+    ctx.moveTo(ex+2.4, -6); ctx.lineTo(ex-2.4, -1.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawSaw(m){
+  const x = m.px + (m.x-m.px)*interp;
+  const y = m.py + (m.y-m.py)*interp;
+  const R2 = m.w/2;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(m.rot);
+  ctx.fillStyle = '#ff5349';
+  ctx.beginPath();
+  const T = 9;
+  for (let i=0;i<T;i++){
+    const a = i/T*Math.PI*2;
+    ctx.moveTo(Math.cos(a)*R2*0.62, Math.sin(a)*R2*0.62);
+    ctx.lineTo(Math.cos(a+0.22)*R2*1.02, Math.sin(a+0.22)*R2*1.02);
+    ctx.lineTo(Math.cos(a+0.44)*R2*0.62, Math.sin(a+0.44)*R2*0.62);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2c1118';
+  ctx.beginPath(); ctx.arc(0,0,R2*0.52,0,7); ctx.fill();
+  ctx.strokeStyle = '#ff7a63'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#ffa38c';
+  ctx.beginPath(); ctx.arc(0,0,3,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawGoal(g){
+  const cx = g.x+g.w/2, cy = g.y+g.h/2 + Math.sin(time*1.7)*3;
+  const pulse = 0.5+0.5*Math.sin(time*3);
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(Math.PI/4 + time*0.5);
+  ctx.shadowColor = 'rgba(255,210,92,0.85)';
+  ctx.shadowBlur = 13 + 9*pulse;
+  ctx.fillStyle = '#ffd25c';
+  ctx.fillRect(-9,-9,18,18);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,210,92,'+(0.3+0.3*pulse).toFixed(3)+')';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 19 + 3*Math.sin(time*2.2), 0, 7);
+  ctx.stroke();
+}
+function drawPlayer(){
+  const x = player.px + (player.x-player.px)*interp;
+  const y = player.py + (player.y-player.py)*interp;
+  const pulse = 0.5+0.5*Math.sin(time*4.5);
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(player.sx, player.sy);
+  ctx.shadowColor = ACCENT;
+  ctx.shadowBlur = 15 + 9*pulse;
+  ctx.fillStyle = ACCENT;
+  rrect(-12,-12,24,24,5); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.38)';
+  rrect(-7,-7,14,14,3); ctx.fill();
+  ctx.fillStyle = '#0a1016';
+  if (player.blink > 0){
+    ctx.fillRect(-6.5,-3,4.6,1.6);
+    ctx.fillRect(1.9,-3,4.6,1.6);
+  } else {
+    const ex = player.face*2.2;
+    const ey = Math.max(-2.4, Math.min(2.4, player.vy/280));
+    ctx.fillRect(-6.4+ex, -4.4+ey, 3.4, 5.2);
+    ctx.fillRect(3+ex, -4.4+ey, 3.4, 5.2);
+  }
+  ctx.restore();
+}
+function drawRoom(){
+  const room = ROOMS[roomIdx];
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,RW,RH); ctx.clip();
+  ctx.globalAlpha = 0.05;
+  ctx.fillStyle = '#dfe6f2';
+  ctx.font = '700 220px ' + MONO;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(roomIdx+1).padStart(2,'0'), RW/2, RH/2 - 6);
+  ctx.globalAlpha = 1;
+  const vg = ctx.createLinearGradient(0,498,0,RH);
+  vg.addColorStop(0,'rgba(255,70,60,0)'); vg.addColorStop(1,'rgba(255,70,60,0.12)');
+  ctx.fillStyle = vg; ctx.fillRect(0,498,RW,RH-498);
+  ctx.fillStyle = 'rgba(255,95,75,0.12)'; ctx.fillRect(0,500,RW,1.5);
+  for (const s of room.solids) drawSolid(s);
+  for (const g of gates) drawGate(g);
+  for (const h of room.hazards) drawSpikes(h);
+  for (let i=0;i<room.pads.length;i++) drawPad(room.pads[i], gates[i].pressed);
+  for (const r of remnants) drawRemnant(r);
+  for (const m of movers) drawSaw(m);
+  drawGoal(room.goal);
+  drawPlayer();
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life/p.life0);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(207,214,224,0.6)';
+  ctx.font = '600 15px ' + MONO;
+  if (HAS_LS) ctx.letterSpacing = '4px';
+  ctx.fillText(room.name, RW/2, 36);
+  if (HAS_LS) ctx.letterSpacing = '0px';
+  ctx.fillStyle = 'rgba(154,163,178,0.42)';
+  ctx.font = '10px ' + MONO;
+  ctx.fillText(room.hint, RW/2, 58);
+  ctx.restore();
+}
+function miniCube(x,y,s,style){
+  ctx.save();
+  ctx.translate(x,y);
+  if (style === 'live'){
+    ctx.shadowColor = ACCENT; ctx.shadowBlur = 14;
+    ctx.fillStyle = ACCENT;
+  } else ctx.fillStyle = 'rgba(148,156,168,0.95)';
+  rrect(-s/2,-s/2,s,s,s*0.22); ctx.fill();
+  ctx.shadowBlur = 0;
+  if (style === 'live'){
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    rrect(-s*0.3,-s*0.3,s*0.6,s*0.6,s*0.12); ctx.fill();
+    ctx.fillStyle = '#0b1116';
+    ctx.fillRect(-s*0.26,-s*0.18,s*0.14,s*0.22);
+    ctx.fillRect(s*0.12,-s*0.18,s*0.14,s*0.22);
+  } else {
+    ctx.strokeStyle = '#59616d'; ctx.lineWidth = Math.max(1.5, s*0.09); ctx.lineCap = 'round';
+    for (const ex of [-s*0.22, s*0.22]){
+      ctx.beginPath();
+      ctx.moveTo(ex-s*0.09,-s*0.2); ctx.lineTo(ex+s*0.09,-s*0.02);
+      ctx.moveTo(ex+s*0.09,-s*0.2); ctx.lineTo(ex-s*0.09,-s*0.02);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+function drawMenu(){
+  ctx.fillStyle = 'rgba(6,8,12,0.8)';
+  ctx.fillRect(0,0,cw,ch);
+  const cx = cw/2, cy = ch*0.5;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#e9eef6';
+  ctx.font = '700 42px ' + MONO;
+  ctx.fillText('R E M N A N T', cx, cy-96);
+  ctx.fillStyle = 'rgba(154,163,178,0.85)';
+  ctx.font = '11px ' + MONO;
+  ctx.fillText('EVERY DEATH LEAVES A BRIDGE', cx, cy-58);
+  const iy = cy+6;
+  miniCube(cx-74, iy, 30, 'live');
+  ctx.strokeStyle = '#ffd25c';
+  ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx-30, iy-7); ctx.lineTo(cx-20, iy); ctx.lineTo(cx-30, iy+7);
+  ctx.moveTo(cx-22, iy-7); ctx.lineTo(cx-12, iy); ctx.lineTo(cx-22, iy+7);
+  ctx.stroke();
+  miniCube(cx+62, iy, 30, 'dead');
+  ctx.fillStyle = 'rgba(154,163,178,0.75)';
+  ctx.font = '11px ' + MONO;
+  const ctl = IS_TOUCH
+    ? 'HOLD ARROWS TO MOVE  ·  TAP JUMP TO LEAP'
+    : 'A / D — MOVE   ·   SPACE — JUMP   ·   R — RESET ROOM';
+  ctx.fillText(ctl, cx, iy+64);
+  ctx.fillStyle = 'rgba(255,210,92,'+(0.55+0.45*Math.sin(time*3)).toFixed(3)+')';
+  ctx.font = '700 13px ' + MONO;
+  if (HAS_LS) ctx.letterSpacing = '3px';
+  ctx.fillText(IS_TOUCH ? 'TAP TO BEGIN' : 'PRESS SPACE TO BEGIN', cx, iy+104);
+  if (HAS_LS) ctx.letterSpacing = '0px';
+}
+function drawHUD(){
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#cfd6e0';
+  ctx.font = '700 13px ' + MONO;
+  if (HAS_LS) ctx.letterSpacing = '2px';
+  ctx.fillText('ROOM ' + String(roomIdx+1).padStart(2,'0') + ' / ' + ROOMS.length, 16, 14);
+  if (HAS_LS) ctx.letterSpacing = '0px';
+  ctx.fillStyle = 'rgba(154,163,178,0.7)';
+  ctx.font = '10px ' + MONO;
+  ctx.fillText('DEATHS ' + deathsTotal + '   ·   BODIES ' + remnants.length, 16, 34);
+  if (!IS_TOUCH){
+    ctx.fillStyle = 'rgba(154,163,178,0.38)';
+    ctx.textAlign = 'center';
+    ctx.fillText('A / D  MOVE     SPACE  JUMP     R  RESET ROOM', cw/2, ch-24);
+  }
+}
+function render(dt){
+  time += dt;
+  flash = Math.max(0, flash - dt*2.4);
+  goldFlash = Math.max(0, goldFlash - dt*1.5);
+  shake = Math.max(0, shake - dt);
+  if (player.blink > 0) player.blink -= dt;
+  else { player.nextBlink -= dt; if (player.nextBlink <= 0){ player.blink = 0.13; player.nextBlink = rnd(1.8, 4.5); } }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const bg = ctx.createLinearGradient(0,0,0,ch);
+  bg.addColorStop(0,'#090c11'); bg.addColorStop(1,'#121826');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,cw,ch);
+  const rcx = offX + RW*scale/2, rcy = offY + RH*scale/2;
+  const rg = ctx.createRadialGradient(rcx,rcy,0,rcx,rcy,RW*scale*0.6);
+  rg.addColorStop(0, hexA(ACCENT, 0.055)); rg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = rg; ctx.fillRect(0,0,cw,ch);
+  ctx.fillStyle = '#ffffff';
+  for (const s of SPECKS){ ctx.globalAlpha = s.a; ctx.beginPath(); ctx.arc(s.x*cw, s.y*ch, s.r, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.save();
+  let jx = 0, jy = 0;
+  if (shake > 0){ const k = shake*12; jx = (Math.random()*2-1)*k; jy = (Math.random()*2-1)*k; }
+  ctx.translate(offX+jx, offY+jy);
+  ctx.scale(scale, scale);
+  drawRoom();
+  ctx.restore();
+  if (state === 'menu') drawMenu();
+  if (flash > 0){ ctx.fillStyle = 'rgba(225,238,252,'+(flash*0.55).toFixed(3)+')'; ctx.fillRect(0,0,cw,ch); }
+  if (goldFlash > 0){ ctx.fillStyle = 'rgba(255,210,92,'+(goldFlash*0.45).toFixed(3)+')'; ctx.fillRect(0,0,cw,ch); }
+  if (vign){ ctx.fillStyle = vign; ctx.fillRect(0,0,cw,ch); }
+  if (state !== 'menu') drawHUD();
+}
+
+/* ------------------------------ input ------------------------------ */
+const input = {left:false, right:false};
+let lastTouch = -1e9;
+
+function pressJump(){
+  if (state === 'menu'){ startGame(); return; }
+  if (state === 'play' && player.alive) player.jbuf = JBUF;
+}
+function releaseJump(){
+  if (state === 'play' && player.vy < -160) player.vy *= 0.45;
+}
+window.addEventListener('keydown', e => {
+  const c = e.code;
+  if (c === 'Space' || c.indexOf('Arrow') === 0) e.preventDefault();
+  if (state === 'menu'){ if (!e.repeat) startGame(); return; }
+  if (state === 'complete'){ if (!e.repeat && (c === 'Space' || c === 'Enter')) restartAll(); return; }
+  switch (c) {
+    case 'KeyA': case 'ArrowLeft': input.left = true; break;
+    case 'KeyD': case 'ArrowRight': input.right = true; break;
+    case 'Space': case 'ArrowUp': case 'KeyW': if (!e.repeat) pressJump(); break;
+    case 'KeyR': if (!e.repeat) resetRoom(); break;
+  }
+});
+window.addEventListener('keyup', e => {
+  switch (e.code) {
+    case 'KeyA': case 'ArrowLeft': input.left = false; break;
+    case 'KeyD': case 'ArrowRight': input.right = false; break;
+    case 'Space': case 'ArrowUp': case 'KeyW': releaseJump(); break;
+  }
+});
+window.addEventListener('blur', () => { input.left = false; input.right = false; });
+canvas.addEventListener('pointerdown', () => { if (state === 'menu') startGame(); });
+
+function bindHold(el, on, off){
+  let active = false;
+  const start = () => { if (active) return; active = true; el.classList.add('pressed'); on(); };
+  const stop  = () => { if (!active) return; active = false; el.classList.remove('pressed'); off(); };
+  el.addEventListener('touchstart',  e => { e.preventDefault(); lastTouch = performance.now(); start(); }, {passive:false});
+  el.addEventListener('touchend',    e => { e.preventDefault(); stop(); }, {passive:false});
+  el.addEventListener('touchcancel', e => { e.preventDefault(); stop(); }, {passive:false});
+  el.addEventListener('mousedown', e => { if (performance.now() - lastTouch < 700) return; e.preventDefault(); start(); });
+  el.addEventListener('mouseleave', () => { if (performance.now() - lastTouch < 700) return; stop(); });
+  window.addEventListener('mouseup', () => { if (performance.now() - lastTouch < 700) return; stop(); });
+}
+bindHold(document.getElementById('btnL'), () => input.left = true,  () => input.left = false);
+bindHold(document.getElementById('btnR'), () => input.right = true, () => input.right = false);
+bindHold(document.getElementById('btnJ'), pressJump, releaseJump);
+
+document.getElementById('resetBtn').addEventListener('click', e => {
+  e.currentTarget.blur();
+  if (state === 'play') resetRoom();
+});
+document.getElementById('againBtn').addEventListener('click', e => {
+  e.currentTarget.blur();
+  restartAll();
+});
+(function buildSwatches(){
+  const THEMES = ['#6ff0ff', '#c9a0ff', '#c8f56e', '#ffffff'];
+  const div = document.getElementById('swatches');
+  THEMES.forEach((col, i) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (i === 0 ? ' on' : '');
+    b.style.background = col;
+    b.setAttribute('aria-label', 'theme');
+    b.addEventListener('click', () => {
+      ACCENT = col;
+      div.querySelectorAll('.swatch').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      b.blur();
+    });
+    div.appendChild(b);
+  });
+})();
+
+/* ------------------------------ main loop ------------------------------ */
+let last = performance.now(), acc = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000;
+  last = now;
+  if (!(dt > 0)) dt = 0;
+  if (dt > 0.1) dt = 0.1;
+  if (state === 'play'){
+    acc += dt;
+    let n = 0;
+    while (acc >= STEP && n < 10){ step(STEP); acc -= STEP; n++; }
+    if (n >= 10) acc = 0;
+    interp = Math.min(1, Math.max(0, acc/STEP));
+  } else {
+    interp = 0;
+  }
+  render(dt);
+}
+
+/* ------------------------------ boot ------------------------------ */
+resize();
+startRoom();   // room 1 waits behind the menu
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => { resize(); setTimeout(resize, 150); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
