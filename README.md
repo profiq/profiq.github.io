@@ -19,6 +19,12 @@ self-contained `index.html` that runs in any browser.
 - `quadbloom/` — QUADBLOOM, a color-matching logic puzzle
 - `andrii-kruhliak/` — DEAD ZONE, a first-person survival looter-shooter
 - `sonar-maze-profiq-contest/` — SONAR MAZE, a blackout maze crawler
+- `pastel-rush-ai-minigame/` — PASTEL RUSH, a lasso-the-falling-shapes canvas game
+- `profiq-summer-challenge/` — NEON TETRIS, a neon-lit Tetris clone
+- `svacina-finale/` — SVAČINA, a reversed Snake where you play the fleeing apple
+- `don-t-look-away/` — DON'T LOOK AWAY, a CCTV anomaly-spotting game
+- `bloom/` — BLOOM, a seed-planting puzzle built on Conway's Game of Life
+- `vesper/` — VESPER, an atmospheric Art Nouveau shadow-thief RPG
 - `media/` — gameplay screenshots used on the landing page
 
 No build step. Push to the default branch and GitHub Pages serves it.

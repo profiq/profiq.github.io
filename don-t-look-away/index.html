@@ -1,0 +1,3382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DON'T LOOK AWAY — CCTV Anomaly Observation</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-color: #050608;
+  --accent-amber: #d4973b;
+  --accent-amber-glow: rgba(212, 151, 59, 0.4);
+  --accent-red: #d9383a;
+  --accent-red-glow: rgba(217, 56, 58, 0.4);
+  --accent-green: #38c172;
+  --accent-cyan: #38b2ac;
+  --ui-bg: rgba(10, 14, 18, 0.88);
+  --ui-border: rgba(80, 110, 130, 0.28);
+  --font-mono: 'Consolas', 'Courier New', 'SF Mono', monospace;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: #cfd8dc;
+  font-family: var(--font-mono);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #0a0e14 0%, #030406 100%);
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#canvas-wrapper {
+  position: relative;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 30, 40, 0.2);
+  border: 1px solid rgba(50, 70, 80, 0.35);
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-canvas {
+  display: block;
+  image-rendering: auto;
+}
+
+/* CRT Screen Effects */
+#crt-scanlines {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.16) 2px,
+    rgba(0, 0, 0, 0.16) 4px
+  );
+  opacity: 0.85;
+}
+
+#crt-vignette {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 6;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.75) 100%);
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.8);
+}
+
+#exposure-glow {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(180, 20, 20, 0.6) 100%);
+  transition: opacity 0.15s ease-out;
+}
+
+#noise-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0.04;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Flashlight / Reticle overlay during Report */
+#report-reticle-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 12;
+  display: none;
+}
+
+/* HUD System */
+#hud {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 15;
+  display: none;
+}
+
+.hud-element {
+  pointer-events: auto;
+}
+
+/* Top Bar */
+.hud-top {
+  position: absolute;
+  top: 14px; left: 20px; right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #94a3b8;
+  text-shadow: 0 0 5px rgba(0,0,0,0.8);
+}
+
+.hud-tl {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rec-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(200, 30, 30, 0.2);
+  border: 1px solid rgba(220, 50, 50, 0.4);
+  padding: 3px 9px;
+  border-radius: 2px;
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff3333;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #ff3333;
+  animation: pulse-dot 1.2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(0.85); }
+}
+
+.cam-name {
+  color: #e2e8f0;
+  font-weight: bold;
+}
+
+.hud-tr {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.hud-stat-box {
+  text-align: right;
+}
+
+.hud-stat-label {
+  font-size: 9px;
+  color: #64748b;
+  letter-spacing: 1.5px;
+}
+
+.hud-stat-val {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f1f5f9;
+}
+
+.hud-stat-val.gold { color: var(--accent-amber); text-shadow: 0 0 10px var(--accent-amber-glow); }
+.hud-stat-val.cyan { color: var(--accent-cyan); }
+
+/* Exposure Bar Container (Pinned under Top Bar) */
+#exposure-meter-wrap {
+  position: absolute;
+  top: 48px; left: 50%;
+  transform: translateX(-50%);
+  width: 440px;
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.meter-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: #e2e8f0;
+}
+
+#meter-status {
+  font-weight: bold;
+  color: var(--accent-green);
+}
+
+.exposure-track {
+  width: 100%;
+  height: 7px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+}
+
+#exposure-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+  transition: width 0.08s linear;
+  box-shadow: 0 0 12px currentColor;
+}
+
+/* Bottom Bar */
+.hud-bottom {
+  position: absolute;
+  bottom: 14px; left: 20px; right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+  color: #94a3b8;
+  letter-spacing: 1.5px;
+}
+
+.hud-bl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-br {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Report Button */
+#btn-report {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--accent-amber);
+  color: var(--accent-amber);
+  padding: 10px 32px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  cursor: pointer;
+  border-radius: 2px;
+  box-shadow: 0 0 16px var(--accent-amber-glow), inset 0 0 8px rgba(212, 151, 59, 0.1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 20;
+  pointer-events: auto;
+}
+
+#btn-report:hover {
+  background: rgba(212, 151, 59, 0.2);
+  color: #fff;
+  border-color: #f59e0b;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.6);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+#btn-report.reporting-active {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+  box-shadow: 0 0 20px var(--accent-red-glow);
+  animation: pulse-report-btn 1s infinite alternate;
+}
+
+@keyframes pulse-report-btn {
+  0% { box-shadow: 0 0 10px var(--accent-red-glow); }
+  100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); }
+}
+
+/* Report Crosshair Overlay */
+#report-mode-banner {
+  position: absolute;
+  top: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 15, 22, 0.9);
+  border: 1px solid var(--accent-amber);
+  color: #f8fafc;
+  padding: 8px 24px;
+  font-size: 12px;
+  letter-spacing: 3px;
+  display: none;
+  z-index: 18;
+  pointer-events: none;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+}
+
+#report-mode-banner span {
+  color: var(--accent-amber);
+  font-weight: bold;
+}
+
+/* Clickable Transparent Target Layer for Reporting */
+#report-click-surface {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 16;
+  cursor: crosshair;
+  display: none;
+}
+
+/* Floating Feedback Notifications */
+#feedback-banner {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  z-index: 25;
+  pointer-events: none;
+  opacity: 0;
+  text-align: center;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#feedback-banner.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.fb-title {
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  text-shadow: 0 0 15px currentColor;
+}
+
+.fb-subtitle {
+  font-size: 13px;
+  color: #cbd5e1;
+  letter-spacing: 2px;
+  margin-top: 6px;
+  background: rgba(5, 8, 12, 0.85);
+  padding: 4px 16px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* UI Screens (Menu, HowTo, Settings, Codex, GameOver, Win) */
+.screen-layer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 40;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 12, 0.74);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  padding: 24px;
+  animation: screen-fade-in 0.25s ease-out;
+}
+
+.screen-layer.active {
+  display: flex;
+}
+
+@keyframes screen-fade-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.screen-dialog {
+  max-width: 620px;
+  width: 100%;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(20, 30, 40, 0.2);
+  padding: 32px 36px;
+  border-radius: 4px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.screen-dialog::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 3px;
+  background: linear-gradient(to right, transparent, var(--accent-amber), transparent);
+}
+
+.screen-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  color: #f8fafc;
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.screen-tagline {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #64748b;
+  margin-bottom: 28px;
+  text-transform: uppercase;
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.btn-tactical {
+  width: 280px;
+  padding: 13px 0;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 3.5px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.btn-tactical:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent-amber);
+  color: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px var(--accent-amber-glow);
+}
+
+.btn-tactical:active {
+  transform: translateY(0);
+}
+
+.btn-tactical.btn-primary {
+  border-color: rgba(212, 151, 59, 0.6);
+  color: #f1f5f9;
+  background: rgba(30, 35, 45, 0.95);
+}
+
+.btn-tactical.btn-primary:hover {
+  background: rgba(212, 151, 59, 0.25);
+  border-color: var(--accent-amber);
+}
+
+/* Sub-panels & Grids */
+.stats-preview {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 24px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 2px;
+}
+
+.stats-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stats-preview-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #64748b;
+}
+
+.stats-preview-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #f1f5f9;
+}
+
+/* How to Play Content */
+.instructions-list {
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #94a3b8;
+  margin-bottom: 24px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.instructions-list::-webkit-scrollbar {
+  width: 4px;
+}
+.instructions-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.inst-step {
+  margin-bottom: 14px;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent-amber);
+}
+
+.inst-step strong {
+  color: #f8fafc;
+  letter-spacing: 1px;
+}
+
+.ctrl-table {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 12px;
+  margin-top: 14px;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 10px;
+  border-radius: 2px;
+}
+
+.kbd-badge {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 2px 6px;
+  font-size: 10px;
+  text-align: center;
+  color: var(--accent-amber);
+  border-radius: 2px;
+}
+
+/* Settings Controls */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+.setting-label-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-title {
+  font-size: 12px;
+  color: #e2e8f0;
+  letter-spacing: 1px;
+  font-weight: bold;
+}
+
+.setting-desc {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.toggle-switch {
+  width: 44px;
+  height: 22px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: #94a3b8;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.toggle-switch.active {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: #22c55e;
+}
+
+.toggle-switch.active::after {
+  left: 24px;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.segmented-control {
+  display: flex;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.segmented-btn {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 1px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.segmented-btn:hover {
+  color: #e2e8f0;
+}
+
+.segmented-btn.active {
+  background: rgba(212, 151, 59, 0.25);
+  color: var(--accent-amber);
+  font-weight: bold;
+}
+
+/* Codex / Anomaly Archive */
+.codex-container {
+  max-height: 52vh;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  padding-right: 6px;
+}
+
+.codex-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  padding: 10px;
+  border-radius: 2px;
+  text-align: left;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.codex-card.locked {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.codex-card-threat {
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.codex-card-title {
+  font-weight: bold;
+  color: #f1f5f9;
+  letter-spacing: 0.5px;
+}
+
+.codex-card-desc {
+  color: #94a3b8;
+  line-height: 1.4;
+  font-size: 9px;
+}
+
+/* Game Over / Victory Screen Results */
+.gameover-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+  margin: 20px 0 28px 0;
+  text-align: left;
+}
+
+.result-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  padding: 10px 14px;
+  border-radius: 2px;
+}
+
+.result-card-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.result-card-value {
+  font-size: 22px;
+  font-weight: bold;
+  color: #f8fafc;
+}
+
+.result-card-value.highlight {
+  color: var(--accent-amber);
+}
+
+.result-card-value.success {
+  color: var(--accent-green);
+}
+
+.result-card-value.danger {
+  color: var(--accent-red);
+}
+
+/* Shift Victory Banner */
+.victory-grade {
+  font-size: 56px;
+  font-weight: 900;
+  color: var(--accent-green);
+  text-shadow: 0 0 25px rgba(34, 197, 94, 0.5);
+  margin: 6px 0;
+}
+
+/* Pause Overlay */
+#pause-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(3, 5, 8, 0.85);
+  z-index: 35;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Camera Glitch Shake */
+@keyframes cam-glitch-shake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -1px); }
+  80% { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.shake-active {
+  animation: cam-glitch-shake 0.14s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="canvas-wrapper">
+    <canvas id="game-canvas"></canvas>
+    <div id="crt-scanlines"></div>
+    <div id="crt-vignette"></div>
+    <div id="exposure-glow"></div>
+    <div id="noise-overlay"></div>
+    <div id="report-reticle-overlay"></div>
+    <div id="report-click-surface"></div>
+  </div>
+
+  <!-- IN-GAME HUD -->
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-tl">
+        <div class="rec-badge">
+          <div class="rec-dot"></div>
+          <span>LIVE REC</span>
+        </div>
+        <span class="cam-name" id="hud-cam-id">CAM-04 [EAST STUDY]</span>
+        <span id="hud-timestamp">00:00:00</span>
+      </div>
+      <div class="hud-tr">
+        <div class="hud-stat-box">
+          <div class="hud-stat-label">SHIFT TIME</div>
+          <div class="hud-stat-val cyan" id="hud-shift-clock">12:00 AM</div>
+        </div>
+        <div class="hud-stat-box">
+          <div class="hud-stat-label">SCORE</div>
+          <div class="hud-stat-val gold" id="hud-score">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPOSURE PROGRESS BAR -->
+    <div id="exposure-meter-wrap">
+      <div class="meter-header">
+        <span>COGNITIVE HAZARD EXPOSURE</span>
+        <span id="meter-status">NOMINAL (0%)</span>
+      </div>
+      <div class="exposure-track">
+        <div id="exposure-bar"></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR -->
+    <div class="hud-bottom">
+      <div class="hud-bl">
+        <div>ANOMALIES RESOLVED: <strong id="hud-anom-count" style="color:#f1f5f9;">0</strong></div>
+        <div>STREAK: <strong id="hud-streak-count" style="color:var(--accent-amber);">x1</strong> &nbsp;|&nbsp; STATUS: <span id="hud-room-status" style="color:#22c55e;">FEED STABLE</span></div>
+      </div>
+      <div class="hud-br">
+        <div>ESC: PAUSE</div>
+        <div>R: REPORT</div>
+      </div>
+    </div>
+
+    <!-- REPORT BUTTON -->
+    <button id="btn-report" class="hud-element">[R] REPORT ANOMALY</button>
+  </div>
+
+  <!-- REPORT BANNER OVERLAY -->
+  <div id="report-mode-banner">
+    ▣ <span>TARGET MODE ACTIVE</span> — CLICK ANOMALY LOCATION TO LOG &amp; PURGE [ESC TO CANCEL]
+  </div>
+
+  <!-- FEEDBACK BANNER -->
+  <div id="feedback-banner">
+    <div class="fb-title" id="fb-main-text">ANOMALY PURGED</div>
+    <div class="fb-subtitle" id="fb-sub-text">+350 PTS — OBJECT DISPLACED</div>
+  </div>
+
+  <!-- PAUSE OVERLAY -->
+  <div id="pause-overlay">
+    <h2 style="font-size:28px; letter-spacing:6px; color:#f8fafc;">SURVEILLANCE PAUSED</h2>
+    <p style="font-size:11px; letter-spacing:2px; color:#94a3b8;">FEED MONITORING TEMPORARILY SUSPENDED</p>
+    <div class="menu-buttons" style="margin-top:16px;">
+      <button class="btn-tactical btn-primary" id="btn-resume">RESUME SHIFT</button>
+      <button class="btn-tactical" id="btn-pause-howto">HOW TO PLAY</button>
+      <button class="btn-tactical" id="btn-pause-menu">ABANDON TO MENU</button>
+    </div>
+  </div>
+
+  <!-- MAIN MENU SCREEN -->
+  <div id="screen-menu" class="screen-layer active">
+    <div class="screen-dialog">
+      <h1 class="screen-title">DON'T LOOK AWAY</h1>
+      <p class="screen-tagline">OBSERVE THE ROOM. SPOT THE ANOMALIES. DO NOT STARE.</p>
+
+      <div class="stats-preview">
+        <div class="stats-preview-item">
+          <span class="stats-preview-label">HIGH SCORE</span>
+          <span class="stats-preview-value" id="menu-best-score" style="color:var(--accent-amber);">0</span>
+        </div>
+        <div class="stats-preview-item">
+          <span class="stats-preview-label">SHIFTS COMPLETED</span>
+          <span class="stats-preview-value" id="menu-shifts-won">0</span>
+        </div>
+        <div class="stats-preview-item">
+          <span class="stats-preview-label">ARCHIVE CODEX</span>
+          <span class="stats-preview-value" id="menu-codex-progress">0 / 25</span>
+        </div>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="btn-tactical btn-primary" id="btn-menu-start">BEGIN NIGHT SHIFT (12 AM - 6 AM)</button>
+        <button class="btn-tactical" id="btn-menu-endless">ENDLESS SURVIVAL MODE</button>
+        <button class="btn-tactical" id="btn-menu-inspect">INSPECT BASELINE ROOM</button>
+        <button class="btn-tactical" id="btn-menu-archive">INCIDENT ARCHIVE (CODEX)</button>
+        <button class="btn-tactical" id="btn-menu-howto">HOW TO PLAY</button>
+        <button class="btn-tactical" id="btn-menu-settings">SYSTEM SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY SCREEN -->
+  <div id="screen-howto" class="screen-layer">
+    <div class="screen-dialog" style="max-width:680px;">
+      <h2 class="screen-title" style="font-size:26px;">SECURITY PROTOCOLS</h2>
+      <p class="screen-tagline">STANDARD OPERATING PROCEDURE FOR COGNITIVE HAZARDS</p>
+
+      <div class="instructions-list">
+        <div class="inst-step">
+          <strong>1. OBSERVE THE FEED</strong><br>
+          Study the study room. Every object — the clock, portrait, lamp, door, monitor, books, plant, chair, mug — has a fixed baseline state.
+        </div>
+        <div class="inst-step">
+          <strong>2. SPOT THE DEVIATION</strong><br>
+          Supernatural anomalies will distort reality. Objects may move, disappear, duplicate, deform, or sinister entities may manifest.
+        </div>
+        <div class="inst-step">
+          <strong>3. DO NOT STARE (CRITICAL)</strong><br>
+          Hovering your inspection reticle directly over an active anomaly builds <strong>COGNITIVE EXPOSURE</strong>. The closer you hover, the faster your gauge fills. At 100%, the feed is severed and you perish. Spot changes using quick glances and peripheral vision!
+        </div>
+        <div class="inst-step">
+          <strong>4. REPORT &amp; PURGE</strong><br>
+          Press <strong>[R]</strong> or click <strong>REPORT</strong> to arm the purge relay, then click the anomaly location. Correct reports clear the anomaly and award points. False reports drain system integrity.
+        </div>
+        <div class="inst-step">
+          <strong>5. SURVIVE UNTIL 6:00 AM</strong><br>
+          Survive the 6-hour shift to achieve victory, or push your limits in Endless Mode.
+        </div>
+
+        <div class="ctrl-table">
+          <span class="kbd-badge">MOUSE</span><span>Move reticle &amp; aim camera view</span>
+          <span class="kbd-badge">R / CLICK</span><span>Enter / exit anomaly report targeting</span>
+          <span class="kbd-badge">ESC</span><span>Cancel report mode / Pause shift</span>
+          <span class="kbd-badge">SPACE</span><span>Quick toggle report mode</span>
+        </div>
+      </div>
+
+      <button class="btn-tactical" id="btn-howto-back">RETURN</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div id="screen-settings" class="screen-layer">
+    <div class="screen-dialog">
+      <h2 class="screen-title" style="font-size:26px;">SYSTEM CONFIGURATION</h2>
+      <p class="screen-tagline">AUDIO-VISUAL AND DIFFICULTY PREFERENCES</p>
+
+      <div class="settings-group">
+        <div class="setting-row">
+          <div class="setting-label-block">
+            <div class="setting-title">SYNTHESIZED AUDIO &amp; SFX</div>
+            <div class="setting-desc">Ambient CCTV hum, clock ticks, and anomaly cues</div>
+          </div>
+          <div class="toggle-switch active" id="toggle-sound"></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label-block">
+            <div class="setting-title">HEARTBEAT EXPOSURE AUDIO</div>
+            <div class="setting-desc">Dynamic acoustic pulse as cognitive hazard rises</div>
+          </div>
+          <div class="toggle-switch active" id="toggle-heartbeat"></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label-block">
+            <div class="setting-title">CRT &amp; VHS ARTIFACTS</div>
+            <div class="setting-desc">Scanlines, lens distortion, noise, and camera jitter</div>
+          </div>
+          <div class="toggle-switch active" id="toggle-crt"></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label-block">
+            <div class="setting-title">SHIFT DIFFICULTY</div>
+            <div class="setting-desc">Tunes exposure sensitivity and anomaly frequency</div>
+          </div>
+          <div class="segmented-control" id="diff-control">
+            <button class="segmented-btn" data-diff="casual">CASUAL</button>
+            <button class="segmented-btn active" data-diff="standard">STANDARD</button>
+            <button class="segmented-btn" data-diff="nightmare">NIGHTMARE</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-tactical" id="btn-settings-back">SAVE &amp; RETURN</button>
+    </div>
+  </div>
+
+  <!-- CODEX / ARCHIVE SCREEN -->
+  <div id="screen-archive" class="screen-layer">
+    <div class="screen-dialog" style="max-width:760px;">
+      <h2 class="screen-title" style="font-size:26px;">INCIDENT ARCHIVE</h2>
+      <p class="screen-tagline" id="archive-subtitle">CLASSIFIED PHENOMENA CATALOG (0 / 25 DISCOVERED)</p>
+
+      <div class="codex-container" id="codex-grid">
+        <!-- Injected dynamically -->
+      </div>
+
+      <button class="btn-tactical" id="btn-archive-back">RETURN</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="screen-gameover" class="screen-layer">
+    <div class="screen-dialog">
+      <h2 class="screen-title" style="color:var(--accent-red); font-size:32px;">SURVEILLANCE SEVERED</h2>
+      <p class="screen-tagline" id="go-cause-text">COGNITIVE HAZARD REACHED FATAL CONCENTRATION</p>
+
+      <div class="gameover-stats-grid">
+        <div class="result-card">
+          <div class="result-card-label">FINAL SCORE</div>
+          <div class="result-card-value highlight" id="go-score">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">BEST RECORD</div>
+          <div class="result-card-value" id="go-best">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">ANOMALIES PURGED</div>
+          <div class="result-card-value" id="go-anomalies">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">BEST STREAK</div>
+          <div class="result-card-value" id="go-streak">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">TIME SURVIVED</div>
+          <div class="result-card-value" id="go-survived-time">02:14</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">ACCURACY</div>
+          <div class="result-card-value" id="go-accuracy">100%</div>
+        </div>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="btn-tactical btn-primary" id="btn-go-retry">RETRY SHIFT</button>
+        <button class="btn-tactical" id="btn-go-menu">RETURN TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY SCREEN -->
+  <div id="screen-victory" class="screen-layer">
+    <div class="screen-dialog">
+      <h2 class="screen-title" style="color:var(--accent-green); font-size:32px;">SHIFT SURVIVED — 06:00 AM</h2>
+      <p class="screen-tagline">MORNING RELIEF HAS ARRIVED. ALL SECTORS SECURED.</p>
+
+      <div class="victory-grade" id="vic-grade">RANK S</div>
+
+      <div class="gameover-stats-grid">
+        <div class="result-card">
+          <div class="result-card-label">FINAL SCORE</div>
+          <div class="result-card-value highlight" id="vic-score">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">ANOMALIES PURGED</div>
+          <div class="result-card-value success" id="vic-anomalies">0</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">REPORT ACCURACY</div>
+          <div class="result-card-value" id="vic-accuracy">100%</div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-label">MAX STREAK</div>
+          <div class="result-card-value highlight" id="vic-streak">0</div>
+        </div>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="btn-tactical btn-primary" id="btn-vic-again">COMMENCE NEXT SHIFT</button>
+        <button class="btn-tactical" id="btn-vic-menu">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+// CONSTANTS & RESOLUTION SPECS
+// ═══════════════════════════════════════════════════════
+const CANVAS_W = 1280;
+const CANVAS_H = 720;
+const FLOOR_RATIO = 0.65; // Floor horizon at y = 468px
+const BASE_REPORT_RADIUS = 95; // In canvas pixels
+const BASE_EXPOSURE_RADIUS = 115; // In canvas pixels
+
+const DIFFICULTIES = {
+  casual: {
+    name: 'Casual',
+    exposureRate: 0.18,
+    decayRate: 0.14,
+    minDelay: 5.5,
+    maxDelay: 9.0,
+    scoreMultiplier: 0.75,
+    maxWrongReports: 6,
+    hourLength: 30
+  },
+  standard: {
+    name: 'Standard',
+    exposureRate: 0.32,
+    decayRate: 0.09,
+    minDelay: 3.5,
+    maxDelay: 6.5,
+    scoreMultiplier: 1.0,
+    maxWrongReports: 4,
+    hourLength: 40
+  },
+  nightmare: {
+    name: 'Nightmare',
+    exposureRate: 0.55,
+    decayRate: 0.055,
+    minDelay: 1.8,
+    maxDelay: 4.2,
+    scoreMultiplier: 1.8,
+    maxWrongReports: 3,
+    hourLength: 50
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// FIXED ROOM OBJECT GEOMETRY (Normalized coordinates 0-1)
+// ═══════════════════════════════════════════════════════
+const OBJ_GEO = {
+  door:   { x: 0.038, y: 0.165, w: 0.13,  h: 0.50 },
+  clock:  { cx: 0.46, cy: 0.105, r: 0.038 },
+  pic:    { x: 0.215, y: 0.11,  w: 0.11,  h: 0.16 },
+  shelf:  { x: 0.595, y: 0.12,  w: 0.155, h: 0.32 },
+  win:    { x: 0.775, y: 0.08,  w: 0.18,  h: 0.36 },
+  desk:   { x: 0.22,  y: 0.52,  w: 0.46,  h: 0.15 },
+  mon:    { x: 0.385, y: 0.38,  w: 0.12,  h: 0.14 },
+  lamp:   { bx: 0.585, by: 0.52 },
+  mug:    { x: 0.28,  y: 0.495, w: 0.026, h: 0.038 },
+  chair:  { x: 0.385, y: 0.63,  w: 0.12,  h: 0.17 },
+  plant:  { x: 0.835, y: 0.51,  w: 0.08,  h: 0.18 },
+};
+
+const INSPECT_TARGETS = [
+  { name: 'SECURITY DOORWAY', desc: 'Solid wood office door, securely latched shut.', box: { x: 0.038, y: 0.165, w: 0.13, h: 0.50 } },
+  { name: 'GILDED PORTRAIT', desc: 'Framed mountain landscape, mounted level & secure.', box: { x: 0.215, y: 0.11, w: 0.11, h: 0.16 } },
+  { name: 'ANALOG WALL CLOCK', desc: 'System-synced 10:00 wall clock, clockwise ticking.', box: { x: 0.42, y: 0.065, w: 0.08, h: 0.08 } },
+  { name: 'DUAL BOOKSHELVES', desc: 'Two-tier wood shelves, all 13 volumes upright.', box: { x: 0.595, y: 0.12, w: 0.155, h: 0.32 } },
+  { name: 'OBSERVATION WINDOW', desc: '4-pane glass frame with nighttime sky and skyline.', box: { x: 0.775, y: 0.08, w: 0.18, h: 0.36 } },
+  { name: 'TERMINAL WORKSTATION', desc: 'Walnut desk with center drawer and protective mat.', box: { x: 0.22, y: 0.52, w: 0.46, h: 0.15 } },
+  { name: 'CCTV MONITOR', desc: 'CAM-04 diagnostics terminal, green phosphor display.', box: { x: 0.385, y: 0.38, w: 0.12, h: 0.14 } },
+  { name: 'COFFEE MUG', desc: 'Ceramic mug resting on left desk edge with warm steam.', box: { x: 0.27, y: 0.49, w: 0.05, h: 0.05 } },
+  { name: 'BANKER DESK LAMP', desc: 'Brass articulated lamp, amber illumination active.', box: { x: 0.56, y: 0.38, w: 0.08, h: 0.16 } },
+  { name: 'OFFICE SWIVEL CHAIR', desc: 'Ergonomic mesh chair with casters, facing desk.', box: { x: 0.385, y: 0.63, w: 0.12, h: 0.17 } },
+  { name: 'POTTED MONSTERA', desc: 'Healthy green foliage in terracotta planter on floor.', box: { x: 0.835, y: 0.51, w: 0.08, h: 0.18 } },
+];
+
+// ═══════════════════════════════════════════════════════
+// DOM REFERENCES
+// ═══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const container = $('game-container');
+const canvasWrapper = $('canvas-wrapper');
+const cvs = $('game-canvas');
+const ctx = cvs.getContext('2d');
+
+const hud = $('hud');
+const hudCamId = $('hud-cam-id');
+const hudTimestamp = $('hud-timestamp');
+const hudShiftClock = $('hud-shift-clock');
+const hudScore = $('hud-score');
+const hudAnomCount = $('hud-anom-count');
+const hudStreakCount = $('hud-streak-count');
+const hudRoomStatus = $('hud-room-status');
+
+const expMeterWrap = $('exposure-meter-wrap');
+const expBar = $('exposure-bar');
+const meterStatus = $('meter-status');
+const expGlow = $('exposure-glow');
+const crtScanlines = $('crt-scanlines');
+const noiseOverlay = $('noise-overlay');
+
+const btnReport = $('btn-report');
+const reportBanner = $('report-mode-banner');
+const reportClickSurface = $('report-click-surface');
+
+const feedbackBanner = $('feedback-banner');
+const fbMainText = $('fb-main-text');
+const fbSubText = $('fb-sub-text');
+const pauseOverlay = $('pause-overlay');
+
+// Screens
+const screenMenu = $('screen-menu');
+const screenHowTo = $('screen-howto');
+const screenSettings = $('screen-settings');
+const screenArchive = $('screen-archive');
+const screenGameOver = $('screen-gameover');
+const screenVictory = $('screen-victory');
+
+// ═══════════════════════════════════════════════════════
+// PROCEDURAL WEB AUDIO SYNTHESIZER (No external files)
+// ═══════════════════════════════════════════════════════
+const AudioEngine = {
+  ctx: null,
+  isReady: false,
+  ambienceGain: null,
+  hissGain: null,
+  heartbeatOsc: null,
+  heartbeatGain: null,
+  heartbeatTimer: null,
+  humOsc: null,
+
+  init() {
+    if (this.isReady) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+      this.isReady = true;
+    } catch (e) {
+      console.warn('Web Audio API not supported:', e);
+    }
+  },
+
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  },
+
+  playTone(freq, duration, type = 'sine', volume = 0.1, delay = 0) {
+    if (!this.isReady || !Settings.sound) return;
+    try {
+      const t = this.ctx.currentTime + delay;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(Math.min(volume, 0.4), t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + duration);
+    } catch (e){}
+  },
+
+  startAmbience() {
+    if (!this.isReady || !Settings.sound) return;
+    this.stopAmbience();
+    try {
+      // 54Hz sub-drone with subtle slow sweep
+      const now = this.ctx.currentTime;
+      const droneOsc = this.ctx.createOscillator();
+      const droneGain = this.ctx.createGain();
+      droneOsc.type = 'sine';
+      droneOsc.frequency.setValueAtTime(54, now);
+      droneGain.gain.setValueAtTime(0.025, now);
+      droneOsc.connect(droneGain);
+      droneGain.connect(this.ctx.destination);
+      droneOsc.start();
+      this.humOsc = droneOsc;
+      this.ambienceGain = droneGain;
+
+      // Filtered tape hiss / room air noise
+      const bufferSize = this.ctx.sampleRate * 2;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.015;
+      }
+      const noiseSrc = this.ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuffer;
+      noiseSrc.loop = true;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2200, now);
+      filter.Q.setValueAtTime(1.5, now);
+
+      const hissGain = this.ctx.createGain();
+      hissGain.gain.setValueAtTime(0.012, now);
+
+      noiseSrc.connect(filter);
+      filter.connect(hissGain);
+      hissGain.connect(this.ctx.destination);
+      noiseSrc.start();
+      this.hissGain = hissGain;
+    } catch (e){}
+  },
+
+  stopAmbience() {
+    if (this.humOsc) {
+      try { this.humOsc.stop(); } catch(e){}
+      this.humOsc = null;
+    }
+    if (this.hissGain) {
+      try { this.hissGain.disconnect(); } catch(e){}
+      this.hissGain = null;
+    }
+  },
+
+  clickSound() {
+    this.playTone(850, 0.025, 'square', 0.04);
+  },
+
+  toggleSound() {
+    this.playTone(420, 0.04, 'sine', 0.06);
+    this.playTone(680, 0.05, 'sine', 0.06, 0.03);
+  },
+
+  clockTick(isTock = false) {
+    if (!this.isReady || !Settings.sound) return;
+    try {
+      const f = isTock ? 620 : 880;
+      this.playTone(f, 0.015, 'triangle', 0.02);
+    } catch(e){}
+  },
+
+  reportArm() {
+    this.playTone(320, 0.08, 'sawtooth', 0.05);
+    this.playTone(720, 0.12, 'sine', 0.07, 0.05);
+  },
+
+  reportDisarm() {
+    this.playTone(600, 0.05, 'sine', 0.04);
+    this.playTone(300, 0.06, 'sine', 0.03, 0.03);
+  },
+
+  anomalyStinger() {
+    if (!this.isReady || !Settings.sound) return;
+    // Dissonant harmonic chord
+    this.playTone(110, 0.9, 'sine', 0.08);
+    this.playTone(155.5, 0.8, 'sawtooth', 0.04, 0.05);
+    this.playTone(220, 0.7, 'sine', 0.05, 0.1);
+  },
+
+  successChime() {
+    if (!this.isReady || !Settings.sound) return;
+    this.playTone(523.25, 0.15, 'sine', 0.09); // C5
+    this.playTone(659.25, 0.18, 'sine', 0.08, 0.07); // E5
+    this.playTone(783.99, 0.22, 'sine', 0.09, 0.14); // G5
+    this.playTone(1046.5, 0.35, 'sine', 0.07, 0.21); // C6
+  },
+
+  errorBuzz() {
+    if (!this.isReady || !Settings.sound) return;
+    this.playTone(160, 0.25, 'sawtooth', 0.1);
+    this.playTone(148, 0.30, 'sawtooth', 0.08, 0.1);
+  },
+
+  playHeartbeat(intensity) {
+    if (!this.isReady || !Settings.sound || !Settings.heartbeat) return;
+    try {
+      const now = this.ctx.currentTime;
+      // First lub
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(65 + intensity * 25, now);
+      gain1.gain.setValueAtTime(0.04 + intensity * 0.14, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.12);
+
+      // Second dub
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(55 + intensity * 20, now + 0.14);
+      gain2.gain.setValueAtTime(0.03 + intensity * 0.11, now + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(now + 0.14);
+      osc2.stop(now + 0.26);
+    } catch(e){}
+  },
+
+  gameOverSound() {
+    if (!this.isReady || !Settings.sound) return;
+    this.playTone(90, 1.4, 'sawtooth', 0.18);
+    this.playTone(60, 2.2, 'sine', 0.14, 0.2);
+    this.playTone(45, 2.8, 'sine', 0.12, 0.5);
+  },
+
+  victoryFanfare() {
+    if (!this.isReady || !Settings.sound) return;
+    const notes = [440, 554.37, 659.25, 880];
+    notes.forEach((f, i) => {
+      this.playTone(f, 0.4, 'sine', 0.08, i * 0.16);
+    });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// GAME STATE & PERSISTENCE
+// ═══════════════════════════════════════════════════════
+const Settings = {
+  sound: true,
+  heartbeat: true,
+  crtEffects: true,
+  difficulty: 'standard',
+
+  save() {
+    try {
+      localStorage.setItem('dla_settings_v2', JSON.stringify({
+        sound: this.sound,
+        heartbeat: this.heartbeat,
+        crtEffects: this.crtEffects,
+        difficulty: this.difficulty
+      }));
+    } catch(e){}
+  },
+
+  load() {
+    try {
+      const data = localStorage.getItem('dla_settings_v2');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (typeof parsed.sound === 'boolean') this.sound = parsed.sound;
+        if (typeof parsed.heartbeat === 'boolean') this.heartbeat = parsed.heartbeat;
+        if (typeof parsed.crtEffects === 'boolean') this.crtEffects = parsed.crtEffects;
+        if (DIFFICULTIES[parsed.difficulty]) this.difficulty = parsed.difficulty;
+      }
+    } catch(e){}
+  }
+};
+
+const Storage = {
+  highScore: 0,
+  shiftsCompleted: 0,
+  discoveredAnomalies: {},
+
+  save() {
+    try {
+      localStorage.setItem('dla_data_v2', JSON.stringify({
+        highScore: this.highScore,
+        shiftsCompleted: this.shiftsCompleted,
+        discoveredAnomalies: this.discoveredAnomalies
+      }));
+    } catch(e){}
+  },
+
+  load() {
+    try {
+      const data = localStorage.getItem('dla_data_v2');
+      if (data) {
+        const parsed = JSON.parse(data);
+        this.highScore = parsed.highScore || 0;
+        this.shiftsCompleted = parsed.shiftsCompleted || 0;
+        this.discoveredAnomalies = parsed.discoveredAnomalies || {};
+      }
+    } catch(e){}
+  },
+
+  recordDiscovery(anomId) {
+    if (!this.discoveredAnomalies[anomId]) {
+      this.discoveredAnomalies[anomId] = true;
+      this.save();
+    }
+  },
+
+  getDiscoveryCount() {
+    return Object.keys(this.discoveredAnomalies).length;
+  }
+};
+
+// Current Session Room State
+let Room = createBaselineRoom();
+
+function createBaselineRoom() {
+  return {
+    door:   { open: false, ajar: 0, redEyes: false },
+    clock:  { visible: true, frozen: false, backwards: false, timeShiftH: 0, timeShiftM: 0 },
+    pic:    { tilt: 0, corrupted: false, creepyEyes: false },
+    shelf:  { bookFallen: -1, dollPresent: false, booksFloating: false },
+    win:    { figureOutside: false, bloodRain: false, handprint: false },
+    desk:   { flipped: false, bloodPuddle: false },
+    mon:    { message: 'normal', skullActive: false },
+    lamp:   { on: true, redLight: false, displacedX: 0 },
+    mug:    { gone: false, displacedX: 0, floating: false, duplicate: false },
+    chair:  { displacedX: 0, turnedAway: false, duplicate: false },
+    plant:  { gone: false, overgrown: false },
+    wall:   { crack: false, writing: false, drippingBlood: false },
+    shadow: { visible: false, x: 0.5, y: 0.5 }
+  };
+}
+
+let Game = {
+  mode: 'shift', // 'shift', 'endless', 'inspect'
+  screen: 'menu', // 'menu', 'playing', 'paused', 'gameover', 'victory'
+  running: false,
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  foundCount: 0,
+  wrongReports: 0,
+  totalReportsMade: 0,
+  correctReportsMade: 0,
+  exposure: 0,
+  lastHeartbeatTime: 0,
+
+  // Shift Timing (12:00 AM to 06:00 AM: 6 hours total, 45 seconds per in-game hour = 270 seconds)
+  shiftHourLength: 45, // seconds per shift hour
+  shiftTimeElapsed: 0, // real seconds
+
+  // Anomaly scheduler
+  activeAnomaly: null,
+  anomalyTimer: 0,
+  anomalySpawnTimestamp: 0,
+  lastAnomalyId: null,
+
+  // Reporting Mode
+  isReporting: false,
+
+  // Mouse & Screen
+  mouseX: CANVAS_W / 2,
+  mouseY: CANVAS_H / 2,
+
+  // Visual clock tick
+  secTickAcc: 0,
+  analogH: 10,
+  analogM: 0,
+  analogS: 0,
+
+  // Camera jitter / shake
+  screenShake: 0,
+  cameraSwayTime: 0
+};
+
+// ═══════════════════════════════════════════════════════
+// 25 DIVERSE & BALANCED ANOMALIES
+// ═══════════════════════════════════════════════════════
+const ANOMALIES = [
+  // DIFFICULTY 1 — EASY (Clear visual markers)
+  {
+    id: 'door_opened',
+    name: 'Door Ajar',
+    threat: 'Low',
+    desc: 'The study door opened silently into the dark corridor.',
+    difficulty: 1,
+    apply: () => { Room.door.open = true; Room.door.ajar = 1.0; },
+    center: () => ({ x: OBJ_GEO.door.x + OBJ_GEO.door.w / 2, y: OBJ_GEO.door.y + OBJ_GEO.door.h / 2 })
+  },
+  {
+    id: 'lamp_off',
+    name: 'Extinguished Lamp',
+    threat: 'Low',
+    desc: 'The desk lamp turned off, plunging the right workspace into shadow.',
+    difficulty: 1,
+    apply: () => { Room.lamp.on = false; },
+    center: () => ({ x: OBJ_GEO.lamp.bx + 0.015, y: OBJ_GEO.lamp.by - 0.09 })
+  },
+  {
+    id: 'plant_vanished',
+    name: 'Vanishing Plant',
+    threat: 'Low',
+    desc: 'The potted Monstera plant on the floor vanished completely.',
+    difficulty: 1,
+    apply: () => { Room.plant.gone = true; },
+    center: () => ({ x: OBJ_GEO.plant.x + OBJ_GEO.plant.w / 2, y: OBJ_GEO.plant.y + OBJ_GEO.plant.h / 2 })
+  },
+  {
+    id: 'chair_slid',
+    name: 'Displaced Chair',
+    threat: 'Low',
+    desc: 'The office chair rolled away from the desk toward the right.',
+    difficulty: 1,
+    apply: () => { Room.chair.displacedX = 0.12; },
+    center: () => ({ x: OBJ_GEO.chair.x + 0.12 + OBJ_GEO.chair.w / 2, y: OBJ_GEO.chair.y + OBJ_GEO.chair.h / 2 })
+  },
+  {
+    id: 'mug_vanished',
+    name: 'Missing Mug',
+    threat: 'Low',
+    desc: 'The hot coffee mug disappeared from the desk surface.',
+    difficulty: 1,
+    apply: () => { Room.mug.gone = true; },
+    center: () => ({ x: OBJ_GEO.mug.x + OBJ_GEO.mug.w / 2, y: OBJ_GEO.mug.y + OBJ_GEO.mug.h / 2 })
+  },
+
+  // DIFFICULTY 2 — MEDIUM (Subtle changes & eerie manifestations)
+  {
+    id: 'portrait_tilted',
+    name: 'Tilted Frame',
+    threat: 'Medium',
+    desc: 'The gilded landscape painting was knocked askew at an angle.',
+    difficulty: 2,
+    apply: () => { Room.pic.tilt = 16; },
+    center: () => ({ x: OBJ_GEO.pic.x + OBJ_GEO.pic.w / 2, y: OBJ_GEO.pic.y + OBJ_GEO.pic.h / 2 })
+  },
+  {
+    id: 'clock_reversal',
+    name: 'Temporal Anomaly',
+    threat: 'Medium',
+    desc: 'The wall clock hands are rapidly rotating counter-clockwise.',
+    difficulty: 2,
+    apply: () => { Room.clock.backwards = true; },
+    center: () => ({ x: OBJ_GEO.clock.cx, y: OBJ_GEO.clock.cy })
+  },
+  {
+    id: 'shadow_lurker',
+    name: 'Shadow Manifestation',
+    threat: 'Medium',
+    desc: 'A dark silhouette looms between the desk and the door.',
+    difficulty: 2,
+    apply: () => { Room.shadow.visible = true; Room.shadow.x = 0.18; Room.shadow.y = 0.52; },
+    center: () => ({ x: 0.18, y: 0.52 })
+  },
+  {
+    id: 'window_observer',
+    name: 'Outside Observer',
+    threat: 'Medium',
+    desc: 'A pale face is peering through the glass window panes from outside.',
+    difficulty: 2,
+    apply: () => { Room.win.figureOutside = true; },
+    center: () => ({ x: OBJ_GEO.win.x + OBJ_GEO.win.w * 0.42, y: OBJ_GEO.win.y + OBJ_GEO.win.h * 0.45 })
+  },
+  {
+    id: 'monitor_skull',
+    name: 'Terminal Corrupted',
+    threat: 'Medium',
+    desc: 'The surveillance screen displayed an ominous ASCII skull and red warning.',
+    difficulty: 2,
+    apply: () => { Room.mon.skullActive = true; },
+    center: () => ({ x: OBJ_GEO.mon.x + OBJ_GEO.mon.w / 2, y: OBJ_GEO.mon.y + OBJ_GEO.mon.h / 2 })
+  },
+  {
+    id: 'lamp_crimson',
+    name: 'Crimson Glow',
+    threat: 'Medium',
+    desc: 'The banker desk lamp shifted to a sinister deep crimson illumination.',
+    difficulty: 2,
+    apply: () => { Room.lamp.redLight = true; },
+    center: () => ({ x: OBJ_GEO.lamp.bx + 0.015, y: OBJ_GEO.lamp.by - 0.08 })
+  },
+  {
+    id: 'mug_relocated',
+    name: 'Mug Repositioned',
+    threat: 'Medium',
+    desc: 'The coffee mug moved across to the far right corner of the desk.',
+    difficulty: 2,
+    apply: () => { Room.mug.displacedX = 0.16; },
+    center: () => ({ x: OBJ_GEO.mug.x + 0.16 + OBJ_GEO.mug.w / 2, y: OBJ_GEO.mug.y + OBJ_GEO.mug.h / 2 })
+  },
+  {
+    id: 'book_dislodged',
+    name: 'Fallen Book',
+    threat: 'Medium',
+    desc: 'A heavy leather-bound book tumbled flat onto the lower shelf.',
+    difficulty: 2,
+    apply: () => { Room.shelf.bookFallen = 2; },
+    center: () => ({ x: OBJ_GEO.shelf.x + 0.05, y: OBJ_GEO.shelf.y + OBJ_GEO.shelf.h * 0.45 })
+  },
+  {
+    id: 'plant_growth',
+    name: 'Botanical Surge',
+    threat: 'Medium',
+    desc: 'The floor plant swelled in volume with dark, twisted foliage.',
+    difficulty: 2,
+    apply: () => { Room.plant.overgrown = true; },
+    center: () => ({ x: OBJ_GEO.plant.x + OBJ_GEO.plant.w / 2, y: OBJ_GEO.plant.y + OBJ_GEO.plant.h * 0.35 })
+  },
+  {
+    id: 'hallway_eyes',
+    name: 'Hallway Watcher',
+    threat: 'Medium',
+    desc: 'Twin glowing crimson eyes are staring from the open doorway void.',
+    difficulty: 2,
+    apply: () => { Room.door.open = true; Room.door.ajar = 0.85; Room.door.redEyes = true; },
+    center: () => ({ x: OBJ_GEO.door.x + OBJ_GEO.door.w * 0.45, y: OBJ_GEO.door.y + OBJ_GEO.door.h * 0.42 })
+  },
+
+  // DIFFICULTY 3 — HARD (Uncanny, psychological, and subtle)
+  {
+    id: 'portrait_void',
+    name: 'Living Portrait',
+    threat: 'High',
+    desc: 'The landscape in the picture frame was consumed by an abyssal void.',
+    difficulty: 3,
+    apply: () => { Room.pic.corrupted = true; },
+    center: () => ({ x: OBJ_GEO.pic.x + OBJ_GEO.pic.w / 2, y: OBJ_GEO.pic.y + OBJ_GEO.pic.h / 2 })
+  },
+  {
+    id: 'clock_vanished',
+    name: 'Vanished Clock',
+    threat: 'High',
+    desc: 'The analog clock disappeared entirely, leaving bare wall behind.',
+    difficulty: 3,
+    apply: () => { Room.clock.visible = false; },
+    center: () => ({ x: OBJ_GEO.clock.cx, y: OBJ_GEO.clock.cy })
+  },
+  {
+    id: 'wall_fracture',
+    name: 'Structural Crack',
+    threat: 'High',
+    desc: 'A jagged black fissure ripped through the wallpaper behind the shelf.',
+    difficulty: 3,
+    apply: () => { Room.wall.crack = true; },
+    center: () => ({ x: 0.52, y: 0.28 })
+  },
+  {
+    id: 'blood_trickle',
+    name: 'Ceiling Seepage',
+    threat: 'High',
+    desc: 'Dark crimson fluid is trickling down the back wall onto the desk.',
+    difficulty: 3,
+    apply: () => { Room.wall.drippingBlood = true; },
+    center: () => ({ x: 0.35, y: 0.32 })
+  },
+  {
+    id: 'floating_mug',
+    name: 'Zero-G Phenomenon',
+    threat: 'High',
+    desc: 'The coffee mug is hovering suspended several inches above the desk.',
+    difficulty: 3,
+    apply: () => { Room.mug.floating = true; },
+    center: () => ({ x: OBJ_GEO.mug.x + OBJ_GEO.mug.w / 2, y: OBJ_GEO.mug.y - 0.07 })
+  },
+  {
+    id: 'chair_reversed',
+    name: 'Rotated Chair',
+    threat: 'High',
+    desc: 'The office chair spun 180 degrees to directly face the camera lens.',
+    difficulty: 3,
+    apply: () => { Room.chair.turnedAway = true; },
+    center: () => ({ x: OBJ_GEO.chair.x + OBJ_GEO.chair.w / 2, y: OBJ_GEO.chair.y + OBJ_GEO.chair.h / 2 })
+  },
+  {
+    id: 'shelf_doll',
+    name: 'Occult Effigy',
+    threat: 'High',
+    desc: 'A vintage porcelain doll appeared standing between the shelf books.',
+    difficulty: 3,
+    apply: () => { Room.shelf.dollPresent = true; },
+    center: () => ({ x: OBJ_GEO.shelf.x + OBJ_GEO.shelf.w * 0.78, y: OBJ_GEO.shelf.y + OBJ_GEO.shelf.h * 0.78 })
+  },
+  {
+    id: 'wall_inscriptions',
+    name: 'Wall Inscription',
+    threat: 'High',
+    desc: 'Carved tally marks and the phrase "DON\'T BLINK" scratched into plaster.',
+    difficulty: 3,
+    apply: () => { Room.wall.writing = true; },
+    center: () => ({ x: 0.42, y: 0.28 })
+  },
+  {
+    id: 'blood_moon',
+    name: 'Lunar Eclipse',
+    threat: 'High',
+    desc: 'The moon outside turned a sickly blood-red hue with eerie haze.',
+    difficulty: 3,
+    apply: () => { Room.win.bloodRain = true; },
+    center: () => ({ x: OBJ_GEO.win.x + OBJ_GEO.win.w * 0.72, y: OBJ_GEO.win.y + OBJ_GEO.win.h * 0.24 })
+  },
+
+  // DIFFICULTY 4 — NIGHTMARE
+  {
+    id: 'duplicate_entity',
+    name: 'Doppelganger Clone',
+    threat: 'Nightmare',
+    desc: 'An uncanny duplicate office chair and coffee mug phased into reality.',
+    difficulty: 4,
+    apply: () => { Room.chair.duplicate = true; Room.mug.duplicate = true; },
+    center: () => ({ x: OBJ_GEO.chair.x + 0.16, y: OBJ_GEO.chair.y + OBJ_GEO.chair.h / 2 })
+  }
+];
+
+// ═══════════════════════════════════════════════════════
+// ANOMALY GENERATION & TIMING
+// ═══════════════════════════════════════════════════════
+function selectNextAnomaly() {
+  const diff = DIFFICULTIES[Settings.difficulty];
+  let maxDiffAllowed = 1;
+
+  if (Game.mode === 'shift') {
+    const currentHour = Math.floor(Game.shiftTimeElapsed / Game.shiftHourLength);
+    if (currentHour >= 1) maxDiffAllowed = 2;
+    if (currentHour >= 3) maxDiffAllowed = 3;
+    if (currentHour >= 5) maxDiffAllowed = 4;
+  } else {
+    // Endless mode scales with found count
+    if (Game.foundCount >= 3) maxDiffAllowed = 2;
+    if (Game.foundCount >= 7) maxDiffAllowed = 3;
+    if (Game.foundCount >= 12) maxDiffAllowed = 4;
+  }
+
+  if (Settings.difficulty === 'nightmare') {
+    maxDiffAllowed = Math.max(2, maxDiffAllowed);
+  }
+
+  let candidates = ANOMALIES.filter(a => a.difficulty <= maxDiffAllowed && a.id !== Game.lastAnomalyId);
+  if (!candidates.length) candidates = ANOMALIES;
+
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function spawnAnomaly() {
+  Room = createBaselineRoom();
+  const anomaly = selectNextAnomaly();
+  anomaly.apply();
+
+  Game.activeAnomaly = anomaly;
+  Game.lastAnomalyId = anomaly.id;
+  Game.anomalySpawnTimestamp = performance.now();
+  Storage.recordDiscovery(anomaly.id);
+
+  AudioEngine.anomalyStinger();
+  Game.screenShake = 0.25; // Brief CRT jitter when anomaly manifests
+
+  hudRoomStatus.textContent = 'ANOMALOUS DEVIATION DETECTED';
+  hudRoomStatus.style.color = '#ef4444';
+}
+
+function resolveActiveAnomaly() {
+  Game.activeAnomaly = null;
+  Room = createBaselineRoom();
+  scheduleNextAnomaly();
+
+  hudRoomStatus.textContent = 'FEED STABLE';
+  hudRoomStatus.style.color = '#22c55e';
+}
+
+function scheduleNextAnomaly() {
+  const diff = DIFFICULTIES[Settings.difficulty];
+  let speedMultiplier = 1.0;
+
+  if (Game.mode === 'shift') {
+    const hour = Math.floor(Game.shiftTimeElapsed / Game.shiftHourLength);
+    speedMultiplier = Math.max(0.4, 1.0 - (hour * 0.11));
+  } else {
+    speedMultiplier = Math.max(0.35, 1.0 - (Game.foundCount * 0.04));
+  }
+
+  Game.anomalyTimer = (diff.minDelay + Math.random() * (diff.maxDelay - diff.minDelay)) * speedMultiplier;
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPOSURE & HAZARD MECHANICS
+// ═══════════════════════════════════════════════════════
+function updateCognitiveHazard(dt) {
+  const diff = DIFFICULTIES[Settings.difficulty];
+
+  if (!Game.activeAnomaly) {
+    // Natural decay when no anomaly is present
+    Game.exposure = Math.max(0, Game.exposure - diff.decayRate * dt * 2.2);
+    return;
+  }
+
+  // Calculate distance from cursor to anomaly center in canvas space
+  const center = Game.activeAnomaly.center();
+  const ax = center.x * CANVAS_W;
+  const ay = center.y * CANVAS_H;
+
+  const dx = Game.mouseX - ax;
+  const dy = Game.mouseY - ay;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist < BASE_EXPOSURE_RADIUS) {
+    // Proximity factor: closer = exponentially faster hazard build
+    const proximity = 1.0 - (dist / BASE_EXPOSURE_RADIUS);
+    const buildFactor = proximity * proximity * diff.exposureRate;
+    Game.exposure = Math.min(1.0, Game.exposure + buildFactor * dt * 3.5);
+
+    // Heartbeat audio cues
+    const now = performance.now();
+    const interval = Math.max(350, 1100 - Game.exposure * 850);
+    if (now - Game.lastHeartbeatTime > interval) {
+      AudioEngine.playHeartbeat(Game.exposure);
+      Game.lastHeartbeatTime = now;
+    }
+  } else {
+    // Decay slowly when looking away
+    Game.exposure = Math.max(0, Game.exposure - diff.decayRate * dt);
+  }
+
+  // Critical Exposure Game Over
+  if (Game.exposure >= 1.0) {
+    triggerGameOver('FATAL COGNITIVE EXPOSURE — YOU STARED DIRECTLY AT THE HAZARD');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// REPORTING SYSTEM
+// ═══════════════════════════════════════════════════════
+function enterReportMode() {
+  if (Game.isReporting || Game.screen !== 'playing') return;
+  Game.isReporting = true;
+  btnReport.classList.add('reporting-active');
+  btnReport.textContent = '[ESC] CANCEL REPORT';
+  reportBanner.style.display = 'block';
+  reportClickSurface.style.display = 'block';
+  AudioEngine.reportArm();
+}
+
+function exitReportMode() {
+  if (!Game.isReporting) return;
+  Game.isReporting = false;
+  btnReport.classList.remove('reporting-active');
+  btnReport.textContent = '[R] REPORT ANOMALY';
+  reportBanner.style.display = 'none';
+  reportClickSurface.style.display = 'none';
+  AudioEngine.reportDisarm();
+}
+
+function submitReport(canvasX, canvasY) {
+  if (!Game.isReporting) return;
+  exitReportMode();
+
+  Game.totalReportsMade++;
+
+  if (Game.activeAnomaly) {
+    const c = Game.activeAnomaly.center();
+    const targetX = c.x * CANVAS_W;
+    const targetY = c.y * CANVAS_H;
+    const dist = Math.hypot(canvasX - targetX, canvasY - targetY);
+
+    if (dist <= BASE_REPORT_RADIUS) {
+      // SUCCESSFUL REPORT!
+      Game.correctReportsMade++;
+      const timeTakenSec = (performance.now() - Game.anomalySpawnTimestamp) / 1000;
+      const speedBonus = Math.max(0, Math.floor((12 - timeTakenSec) * 25));
+
+      Game.streak++;
+      Game.maxStreak = Math.max(Game.maxStreak, Game.streak);
+
+      const diff = DIFFICULTIES[Settings.difficulty];
+      const basePoints = 250;
+      const streakMultiplier = 1.0 + (Game.streak - 1) * 0.25;
+      const earned = Math.floor((basePoints + speedBonus) * streakMultiplier * diff.scoreMultiplier);
+
+      Game.score += earned;
+      Game.foundCount++;
+
+      // Flash feedback
+      triggerFeedback(true, `+${earned} PTS`, `${Game.activeAnomaly.name.toUpperCase()} PURGED`);
+      AudioEngine.successChime();
+
+      // Clear hazard exposure bonus
+      Game.exposure = Math.max(0, Game.exposure - 0.25);
+
+      resolveActiveAnomaly();
+      return;
+    }
+  }
+
+  // FALSE REPORT!
+  Game.streak = 0;
+  Game.wrongReports++;
+  const penalty = 120;
+  Game.score = Math.max(0, Game.score - penalty);
+
+  AudioEngine.errorBuzz();
+  Game.screenShake = 0.35;
+
+  const diff = DIFFICULTIES[Settings.difficulty];
+  const remainingWarnings = diff.maxWrongReports - Game.wrongReports;
+
+  if (remainingWarnings <= 0) {
+    triggerGameOver('EXCESSIVE FALSE ALARMS — INTEGRITY REVOKED BY COMMAND');
+  } else {
+    triggerFeedback(false, 'NEGATIVE DEVIATION', `MISREPORT REGISTERED (${remainingWarnings} CHANCES REMAIN)`);
+  }
+}
+
+let fbTimeout = null;
+function triggerFeedback(isSuccess, main, sub) {
+  if (fbTimeout) clearTimeout(fbTimeout);
+  fbMainText.textContent = main;
+  fbMainText.style.color = isSuccess ? 'var(--accent-green)' : 'var(--accent-red)';
+  fbSubText.textContent = sub;
+  feedbackBanner.classList.add('show');
+  fbTimeout = setTimeout(() => {
+    feedbackBanner.classList.remove('show');
+  }, isSuccess ? 1400 : 2000);
+}
+
+// ═══════════════════════════════════════════════════════
+// PROCEDURAL CANVAS RENDERING PIPELINE
+// ═══════════════════════════════════════════════════════
+function renderFrame() {
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Apply subtle camera vibration / sway
+  ctx.save();
+  if (Game.screenShake > 0) {
+    const ox = (Math.random() - 0.5) * Game.screenShake * 16;
+    const oy = (Math.random() - 0.5) * Game.screenShake * 16;
+    ctx.translate(ox, oy);
+  }
+
+  const floorY = CANVAS_H * FLOOR_RATIO;
+
+  // 1. Back Wall Gradient
+  const wallGrad = ctx.createLinearGradient(0, 0, 0, floorY);
+  wallGrad.addColorStop(0, '#23272d');
+  wallGrad.addColorStop(0.6, '#1d2025');
+  wallGrad.addColorStop(1, '#181b1f');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(0, 0, CANVAS_W, floorY);
+
+  // Wall Texture / Plaster imperfections
+  if (Settings.crtEffects) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.007)';
+    for (let i = 0; i < 90; i++) {
+      ctx.fillRect((i * 97) % CANVAS_W, (i * 53) % floorY, 2, 1);
+    }
+  }
+
+  // 2. Floor Planks with Specular Walnut Finish
+  const floorGrad = ctx.createLinearGradient(0, floorY, 0, CANVAS_H);
+  floorGrad.addColorStop(0, '#1a1612');
+  floorGrad.addColorStop(0.35, '#14110e');
+  floorGrad.addColorStop(1, '#0c0a08');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(0, floorY, CANVAS_W, CANVAS_H - floorY);
+
+  // Floor Baseboard Molding
+  ctx.fillStyle = '#111315';
+  ctx.fillRect(0, floorY - 12, CANVAS_W, 14);
+  ctx.fillStyle = '#2d3339';
+  ctx.fillRect(0, floorY - 12, CANVAS_W, 2);
+
+  // Floor Plank Perspective Lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+  ctx.lineWidth = 1;
+  const numPlanks = 7;
+  for (let i = 1; i <= numPlanks; i++) {
+    const py = floorY + (CANVAS_H - floorY) * (i / numPlanks);
+    ctx.beginPath();
+    ctx.moveTo(0, py);
+    ctx.lineTo(CANVAS_W, py);
+    ctx.stroke();
+  }
+
+  // 3. Wall Anomalies (Cracks, Blood, Scratches)
+  drawWallPhenomena();
+
+  // 4. Background Fixtures: Window, Bookshelf, Picture, Clock, Door
+  drawWindow();
+  drawBookshelf();
+  drawPictureFrame();
+  drawAnalogClock();
+  drawDoorway();
+
+  // 5. Shadow Manifestation
+  if (Room.shadow.visible) {
+    drawShadowEntity();
+  }
+
+  // 6. Furniture: Desk, Monitor, Lamp, Mug, Floor Plant, Office Chair
+  drawDeskStation();
+  drawComputerMonitor();
+  drawDeskLamp();
+  drawCoffeeMug();
+  drawPottedPlant();
+  drawOfficeChair();
+
+  // 7. Dynamic Ambient & Lamp Lighting Composite Pass
+  drawAtmosphericLighting();
+
+  // 8. Targeting Reticle in Report Mode or Inspect Mode Highlights
+  if (Game.isReporting) {
+    drawReportReticle();
+  } else if (Game.mode === 'inspect') {
+    drawInspectModeOverlay();
+  }
+
+  ctx.restore();
+}
+
+// Sub-renderers
+function drawDoorway() {
+  const x = OBJ_GEO.door.x * CANVAS_W;
+  const y = OBJ_GEO.door.y * CANVAS_H;
+  const w = OBJ_GEO.door.w * CANVAS_W;
+  const h = OBJ_GEO.door.h * CANVAS_H;
+
+  // Frame architrave
+  ctx.fillStyle = '#14171a';
+  ctx.fillRect(x - 6, y - 6, w + 12, h + 10);
+  ctx.fillStyle = '#22272c';
+  ctx.fillRect(x - 2, y - 2, w + 4, h + 6);
+
+  if (Room.door.open) {
+    // Darkness of void hallway
+    ctx.fillStyle = '#030406';
+    ctx.fillRect(x, y, w, h);
+
+    // Dim perspective door panel swung inward
+    const openW = w * 0.35;
+    ctx.fillStyle = '#2c251e';
+    ctx.beginPath();
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x + w - openW, y + 16);
+    ctx.lineTo(x + w - openW, y + h - 16);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Hallway Glowing Eyes
+    if (Room.door.redEyes) {
+      ctx.fillStyle = '#ff2222';
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(x + w * 0.42, y + h * 0.42, 4, 0, Math.PI * 2);
+      ctx.arc(x + w * 0.54, y + h * 0.42, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  } else {
+    // Closed Door with Wood Finish & Molded Panels
+    ctx.fillStyle = '#382f25';
+    ctx.fillRect(x, y, w, h);
+
+    // Panels
+    ctx.strokeStyle = '#272018';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x + 12, y + 14, w - 24, h * 0.34);
+    ctx.strokeRect(x + 12, y + h * 0.44, w - 24, h * 0.48);
+
+    // Brass Handle
+    ctx.fillStyle = '#c89d52';
+    ctx.beginPath();
+    ctx.arc(x + w - 20, y + h * 0.50, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(x + w - 32, y + h * 0.50 - 3, 14, 6);
+
+    // Floor light leak under door
+    ctx.fillStyle = 'rgba(230, 200, 140, 0.12)';
+    ctx.fillRect(x, y + h, w, 3);
+  }
+}
+
+function drawWindow() {
+  const x = OBJ_GEO.win.x * CANVAS_W;
+  const y = OBJ_GEO.win.y * CANVAS_H;
+  const w = OBJ_GEO.win.w * CANVAS_W;
+  const h = OBJ_GEO.win.h * CANVAS_H;
+
+  // Window Frame
+  ctx.fillStyle = '#16191c';
+  ctx.fillRect(x - 8, y - 8, w + 16, h + 16);
+
+  // Night Sky Gradient Outside
+  const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
+  if (Room.win.bloodRain) {
+    skyGrad.addColorStop(0, '#2d080a');
+    skyGrad.addColorStop(1, '#5a1215');
+  } else {
+    skyGrad.addColorStop(0, '#0a0d18');
+    skyGrad.addColorStop(1, '#111728');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(x, y, w, h);
+
+  // Stars
+  ctx.fillStyle = 'rgba(210, 225, 255, 0.6)';
+  const starData = [0.15,0.22, 0.4,0.15, 0.75,0.3, 0.28,0.55, 0.85,0.65, 0.55,0.8];
+  for (let i = 0; i < starData.length; i += 2) {
+    ctx.fillRect(x + w * starData[i], y + h * starData[i+1], 1.5, 1.5);
+  }
+
+  // Moon
+  const moonX = x + w * 0.72;
+  const moonY = y + h * 0.24;
+  ctx.fillStyle = Room.win.bloodRain ? '#ea3943' : '#e6edf8';
+  ctx.shadowColor = Room.win.bloodRain ? '#ea3943' : 'rgba(200, 220, 255, 0.5)';
+  ctx.shadowBlur = 18;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Crescent Shadow Overlay
+  ctx.fillStyle = Room.win.bloodRain ? '#2d080a' : '#0a0d18';
+  ctx.beginPath();
+  ctx.arc(moonX + 8, moonY - 4, 16, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Distant City Skyline Silhouettes
+  ctx.fillStyle = '#06080e';
+  const buildings = [0, 0.15, 0.35, 0.55, 0.7, 0.85];
+  buildings.forEach((bx, idx) => {
+    const bh = 24 + ((idx * 37) % 35);
+    ctx.fillRect(x + w * bx, y + h - bh, w * 0.18, bh);
+  });
+
+  // Lurking Figure Outside Window Anomaly
+  if (Room.win.figureOutside) {
+    const fx = x + w * 0.42;
+    const fy = y + h * 0.45;
+    ctx.fillStyle = 'rgba(10, 14, 20, 0.9)';
+    ctx.beginPath();
+    ctx.arc(fx, fy - 18, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(fx - 14, fy - 4, 28, 60);
+
+    // Pale Glowing Eyes
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(fx - 6, fy - 20, 3, 3);
+    ctx.fillRect(fx + 3, fy - 20, 3, 3);
+  }
+
+  // Window Panes Crossbars
+  ctx.fillStyle = '#252b32';
+  ctx.fillRect(x + w / 2 - 3, y, 6, h);
+  ctx.fillRect(x, y + h / 2 - 3, w, 6);
+}
+
+function drawBookshelf() {
+  const x = OBJ_GEO.shelf.x * CANVAS_W;
+  const y = OBJ_GEO.shelf.y * CANVAS_H;
+  const w = OBJ_GEO.shelf.w * CANVAS_W;
+  const h = OBJ_GEO.shelf.h * CANVAS_H;
+
+  // Wall Mount Brackets
+  ctx.fillStyle = '#1c1f24';
+  ctx.fillRect(x + 10, y + h * 0.38, 6, 18);
+  ctx.fillRect(x + w - 16, y + h * 0.38, 6, 18);
+  ctx.fillRect(x + 10, y + h * 0.88, 6, 18);
+  ctx.fillRect(x + w - 16, y + h * 0.88, 6, 18);
+
+  // Shelves Wood Planks
+  ctx.fillStyle = '#3a3026';
+  ctx.fillRect(x, y + h * 0.45, w, 8);
+  ctx.fillRect(x, y + h * 0.92, w, 8);
+
+  // Books Array
+  const bookColors = ['#8b2635', '#2a4d38', '#2d3b59', '#73522f', '#4a3356', '#264e5a'];
+  const widths = [13, 11, 16, 12, 15, 10, 14];
+
+  // Top Shelf Books
+  let curX = x + 8;
+  for (let i = 0; i < widths.length; i++) {
+    const bh = 32 + (i % 3) * 8;
+    const by = y + h * 0.45 - bh;
+    ctx.fillStyle = bookColors[i % bookColors.length];
+    ctx.fillRect(curX, by, widths[i], bh);
+
+    // Gold spine ribbon
+    ctx.fillStyle = 'rgba(230, 200, 120, 0.25)';
+    ctx.fillRect(curX + 2, by + 4, widths[i] - 4, 3);
+    curX += widths[i] + 3;
+  }
+
+  // Bottom Shelf Books
+  curX = x + 6;
+  for (let i = 0; i < 6; i++) {
+    const bh = 34 + (i % 2) * 6;
+    const by = y + h * 0.92 - bh;
+
+    if (Room.shelf.bookFallen === i) {
+      // Fallen Book Anomaly
+      ctx.save();
+      ctx.translate(curX + widths[i], y + h * 0.92);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = bookColors[(i + 2) % bookColors.length];
+      ctx.fillRect(0, -widths[i], bh * 0.8, widths[i]);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = bookColors[(i + 2) % bookColors.length];
+      ctx.fillRect(curX, by, widths[i], bh);
+    }
+    curX += widths[i] + 4;
+  }
+
+  // Occult Effigy / Porcelain Doll Anomaly
+  if (Room.shelf.dollPresent) {
+    const dollX = x + w * 0.78;
+    const dollY = y + h * 0.92 - 34;
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.arc(dollX, dollY, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(dollX - 4, dollY - 2, 2, 2);
+    ctx.fillRect(dollX + 2, dollY - 2, 2, 2);
+    // Dress
+    ctx.fillStyle = '#47141f';
+    ctx.beginPath();
+    ctx.moveTo(dollX, dollY + 7);
+    ctx.lineTo(dollX + 9, dollY + 34);
+    ctx.lineTo(dollX - 9, dollY + 34);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawPictureFrame() {
+  const x = OBJ_GEO.pic.x * CANVAS_W;
+  const y = OBJ_GEO.pic.y * CANVAS_H;
+  const w = OBJ_GEO.pic.w * CANVAS_W;
+  const h = OBJ_GEO.pic.h * CANVAS_H;
+
+  ctx.save();
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  if (Room.pic.tilt !== 0) {
+    ctx.translate(cx, cy);
+    ctx.rotate((Room.pic.tilt * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  // Gilded Outer Frame
+  ctx.fillStyle = '#5c4828';
+  ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+  ctx.fillStyle = '#7a633a';
+  ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+
+  if (Room.pic.corrupted) {
+    // Abyssal Void Anomaly
+    const voidGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, w * 0.6);
+    voidGrad.addColorStop(0, '#5a0e16');
+    voidGrad.addColorStop(0.5, '#1e0508');
+    voidGrad.addColorStop(1, '#050204');
+    ctx.fillStyle = voidGrad;
+    ctx.fillRect(x, y, w, h);
+
+    // Swirling Tentacle / Void lines
+    ctx.strokeStyle = '#c42838';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18, 0, Math.PI * 1.6);
+    ctx.stroke();
+  } else {
+    // Tranquil Mountain Landscape
+    const skyG = ctx.createLinearGradient(x, y, x, y + h * 0.6);
+    skyG.addColorStop(0, '#3a4a60');
+    skyG.addColorStop(1, '#657a94');
+    ctx.fillStyle = skyG;
+    ctx.fillRect(x, y, w, h * 0.6);
+
+    // Mountain Peaks
+    ctx.fillStyle = '#232b36';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.6);
+    ctx.lineTo(x + w * 0.35, y + h * 0.2);
+    ctx.lineTo(x + w * 0.7, y + h * 0.6);
+    ctx.fill();
+
+    ctx.fillStyle = '#1c232c';
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.45, y + h * 0.6);
+    ctx.lineTo(x + w * 0.8, y + h * 0.28);
+    ctx.lineTo(x + w, y + h * 0.6);
+    ctx.fill();
+
+    // Forest Foothills
+    ctx.fillStyle = '#1e2c1e';
+    ctx.fillRect(x, y + h * 0.6, w, h * 0.4);
+  }
+
+  ctx.restore();
+}
+
+function drawAnalogClock() {
+  if (!Room.clock.visible) return;
+
+  const cx = OBJ_GEO.clock.cx * CANVAS_W;
+  const cy = OBJ_GEO.clock.cy * CANVAS_H;
+  const r = OBJ_GEO.clock.r * CANVAS_W;
+
+  // Bezel & Frame
+  ctx.fillStyle = '#221f1b';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#d5cebe';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tick Marks
+  ctx.fillStyle = '#1a1815';
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    const tx = cx + Math.sin(angle) * (r - 7);
+    const ty = cy - Math.cos(angle) * (r - 7);
+    ctx.beginPath();
+    ctx.arc(tx, ty, i % 3 === 0 ? 2.5 : 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Calculate hands angle
+  let hourVal = Game.analogH;
+  let minVal = Game.analogM;
+  let secVal = Game.analogS;
+
+  if (Room.clock.backwards) {
+    const fastBack = (performance.now() / 60) % 60;
+    secVal = 60 - fastBack;
+    minVal = 60 - (performance.now() / 300) % 60;
+  }
+
+  const hourAngle = ((hourVal % 12) + minVal / 60) * (Math.PI / 6);
+  const minAngle = (minVal + secVal / 60) * (Math.PI / 30);
+  const secAngle = secVal * (Math.PI / 30);
+
+  // Hour Hand
+  ctx.strokeStyle = '#181614';
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(hourAngle) * (r * 0.5), cy - Math.cos(hourAngle) * (r * 0.5));
+  ctx.stroke();
+
+  // Minute Hand
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(minAngle) * (r * 0.75), cy - Math.cos(minAngle) * (r * 0.75));
+  ctx.stroke();
+
+  // Red Second Hand
+  ctx.strokeStyle = '#c42838';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(secAngle) * (r * 0.85), cy - Math.cos(secAngle) * (r * 0.85));
+  ctx.stroke();
+
+  // Center Cap
+  ctx.fillStyle = '#221f1b';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawWallPhenomena() {
+  // Crack anomaly
+  if (Room.wall.crack) {
+    ctx.strokeStyle = '#0e1114';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(CANVAS_W * 0.50, CANVAS_H * 0.20);
+    ctx.lineTo(CANVAS_W * 0.52, CANVAS_H * 0.27);
+    ctx.lineTo(CANVAS_W * 0.49, CANVAS_H * 0.33);
+    ctx.lineTo(CANVAS_W * 0.53, CANVAS_H * 0.40);
+    ctx.stroke();
+  }
+
+  // Wall writing anomaly
+  if (Room.wall.writing) {
+    ctx.fillStyle = 'rgba(217, 56, 58, 0.75)';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText("DON'T BLINK", CANVAS_W * 0.39, CANVAS_H * 0.28);
+    ctx.fillText("||||  ||||  ||||", CANVAS_W * 0.40, CANVAS_H * 0.31);
+  }
+
+  // Dripping blood from ceiling
+  if (Room.wall.drippingBlood) {
+    ctx.fillStyle = '#6b0f1a';
+    ctx.fillRect(CANVAS_W * 0.34, 0, 4, CANVAS_H * 0.35);
+    ctx.fillRect(CANVAS_W * 0.37, 0, 3, CANVAS_H * 0.28);
+    ctx.beginPath();
+    ctx.arc(CANVAS_W * 0.34 + 2, CANVAS_H * 0.35, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawDeskStation() {
+  const x = OBJ_GEO.desk.x * CANVAS_W;
+  const y = OBJ_GEO.desk.y * CANVAS_H;
+  const w = OBJ_GEO.desk.w * CANVAS_W;
+  const h = OBJ_GEO.desk.h * CANVAS_H;
+  const floorY = CANVAS_H * FLOOR_RATIO;
+
+  // Sturdy Walnut Desk Legs
+  ctx.fillStyle = '#221b14';
+  ctx.fillRect(x + 16, y + h * 0.6, 12, floorY - (y + h * 0.6) + 4);
+  ctx.fillRect(x + w - 28, y + h * 0.6, 12, floorY - (y + h * 0.6) + 4);
+
+  // Front Fascia & Drawers
+  ctx.fillStyle = '#2c221a';
+  ctx.fillRect(x, y + h * 0.45, w, h * 0.55);
+
+  // Center Drawer with Brass Handle
+  ctx.strokeStyle = '#1e1711';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + w * 0.3, y + h * 0.52, w * 0.4, h * 0.4);
+  ctx.fillStyle = '#8a6e42';
+  ctx.fillRect(x + w * 0.46, y + h * 0.68, w * 0.08, 4);
+
+  // Top Surface Bevel
+  const deskTopGrad = ctx.createLinearGradient(x, y, x, y + h * 0.45);
+  deskTopGrad.addColorStop(0, '#423427');
+  deskTopGrad.addColorStop(1, '#34291f');
+  ctx.fillStyle = deskTopGrad;
+  ctx.fillRect(x, y, w, h * 0.45);
+
+  ctx.fillStyle = '#564434';
+  ctx.fillRect(x, y, w, 2.5);
+
+  // Desk Mat under monitor
+  ctx.fillStyle = '#16191d';
+  ctx.fillRect(x + w * 0.25, y + 6, w * 0.5, h * 0.35);
+}
+
+function drawComputerMonitor() {
+  const x = OBJ_GEO.mon.x * CANVAS_W;
+  const y = OBJ_GEO.mon.y * CANVAS_H;
+  const w = OBJ_GEO.mon.w * CANVAS_W;
+  const h = OBJ_GEO.mon.h * CANVAS_H;
+
+  // Stand
+  ctx.fillStyle = '#1e2226';
+  ctx.fillRect(x + w * 0.4, y + h, w * 0.2, 16);
+  ctx.fillRect(x + w * 0.28, y + h + 14, w * 0.44, 4);
+
+  // Bezel
+  ctx.fillStyle = '#14171a';
+  ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+
+  // Terminal Screen
+  if (Room.mon.skullActive) {
+    ctx.fillStyle = '#1a0508';
+    ctx.fillRect(x, y, w, h);
+
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText('CRITICAL ERROR', x + 16, y + 20);
+    ctx.fillText('[ I SEE YOU ]', x + 22, y + 42);
+
+    // Skull ASCII
+    ctx.fillText('  (o.o)  ', x + 38, y + 62);
+    ctx.fillText(' ==( )== ', x + 34, y + 74);
+  } else {
+    ctx.fillStyle = '#060a08';
+    ctx.fillRect(x, y, w, h);
+
+    // Green Phosphor CCTV Terminal
+    ctx.fillStyle = '#22c55e';
+    ctx.font = '7.5px monospace';
+    const lines = [
+      '> FEED: CAM-04 ACTIVE',
+      '> SENSOR ARRAY: OK',
+      '> REC STREAM: 60 FPS',
+      `> TIME: ${new Date().toTimeString().slice(0, 8)}`,
+      '> ARCHIVE: ONLINE'
+    ];
+    lines.forEach((l, i) => {
+      ctx.fillText(l, x + 6, y + 14 + i * 13);
+    });
+
+    // Blinking green prompt
+    if (Math.floor(performance.now() / 500) % 2 === 0) {
+      ctx.fillRect(x + 6, y + 14 + lines.length * 13, 5, 8);
+    }
+  }
+
+  // Power LED
+  ctx.fillStyle = Room.mon.skullActive ? '#ef4444' : '#22c55e';
+  ctx.beginPath();
+  ctx.arc(x + w - 6, y + h + 2, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawDeskLamp() {
+  const bx = (OBJ_GEO.lamp.bx + Room.lamp.displacedX) * CANVAS_W;
+  const by = OBJ_GEO.lamp.by * CANVAS_H;
+
+  // Base
+  ctx.fillStyle = '#2c2e33';
+  ctx.fillRect(bx - 12, by - 4, 24, 6);
+
+  // Articulated Brass Arm
+  ctx.strokeStyle = '#635338';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(bx, by - 4);
+  ctx.lineTo(bx - 8, by - 65);
+  ctx.lineTo(bx + 18, by - 85);
+  ctx.stroke();
+
+  // Banker Lamp Hood
+  ctx.fillStyle = Room.lamp.on ? (Room.lamp.redLight ? '#7f1d1d' : '#22553b') : '#18251e';
+  ctx.beginPath();
+  ctx.moveTo(bx + 5, by - 92);
+  ctx.lineTo(bx + 38, by - 74);
+  ctx.lineTo(bx - 4, by - 74);
+  ctx.closePath();
+  ctx.fill();
+
+  // Emitting bulb
+  if (Room.lamp.on) {
+    ctx.fillStyle = Room.lamp.redLight ? '#ff6666' : '#fff3c4';
+    ctx.beginPath();
+    ctx.arc(bx + 17, by - 74, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCoffeeMug() {
+  if (Room.mug.gone) return;
+
+  const drawOneMug = (offsetX, isFloating) => {
+    const x = (OBJ_GEO.mug.x + offsetX) * CANVAS_W;
+    const floatYOffset = isFloating ? -35 : 0;
+    const y = OBJ_GEO.mug.y * CANVAS_H + floatYOffset;
+    const w = OBJ_GEO.mug.w * CANVAS_W;
+    const h = OBJ_GEO.mug.h * CANVAS_H;
+
+    // Ceramic Body
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(x + 2, y + h - 4, w - 4, 4);
+
+    // Handle
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(x + w + 3, y + h * 0.5, 5, -Math.PI * 0.5, Math.PI * 0.5);
+    ctx.stroke();
+
+    // Dark Coffee Top
+    ctx.fillStyle = '#261810';
+    ctx.fillRect(x + 2, y + 2, w - 4, 4);
+
+    // Rising Steam particles
+    if (!isFloating) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      const steamShift = (performance.now() / 200) % 10;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.5, y - 2);
+      ctx.quadraticCurveTo(x + w * 0.5 + 4, y - 10 - steamShift, x + w * 0.5 - 2, y - 20 - steamShift);
+      ctx.stroke();
+    }
+  };
+
+  drawOneMug(Room.mug.displacedX, Room.mug.floating);
+  if (Room.mug.duplicate) {
+    drawOneMug(Room.mug.displacedX + 0.08, false);
+  }
+}
+
+function drawPottedPlant() {
+  if (Room.plant.gone) return;
+
+  const scale = Room.plant.overgrown ? 1.6 : 1.0;
+  const x = OBJ_GEO.plant.x * CANVAS_W;
+  const baseH = OBJ_GEO.plant.h * CANVAS_H;
+  const h = baseH * scale;
+  const w = OBJ_GEO.plant.w * CANVAS_W * scale;
+  const y = (OBJ_GEO.plant.y * CANVAS_H) + (baseH - h);
+
+  // Terracotta Pot
+  ctx.fillStyle = '#9a5132';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.18, y + h * 0.55);
+  ctx.lineTo(x + w * 0.82, y + h * 0.55);
+  ctx.lineTo(x + w * 0.72, y + h);
+  ctx.lineTo(x + w * 0.28, y + h);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#b3613d';
+  ctx.fillRect(x + w * 0.12, y + h * 0.52, w * 0.76, h * 0.06);
+
+  // Soil
+  ctx.fillStyle = '#1e140d';
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.5, y + h * 0.56, w * 0.28, h * 0.035, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Foliage Stems & Leaves
+  const leaves = [
+    { ex: 0.25, ey: 0.15 },
+    { ex: 0.75, ey: 0.10 },
+    { ex: 0.45, ey: 0.04 },
+    { ex: 0.82, ey: 0.28 },
+    { ex: 0.18, ey: 0.32 }
+  ];
+
+  ctx.strokeStyle = '#22552a';
+  ctx.lineWidth = 2.5 * scale;
+  leaves.forEach(l => {
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.5, y + h * 0.55);
+    ctx.quadraticCurveTo(x + w * 0.5, y + h * 0.3, x + w * l.ex, y + h * l.ey);
+    ctx.stroke();
+
+    ctx.fillStyle = '#2e743a';
+    ctx.beginPath();
+    ctx.ellipse(x + w * l.ex, y + h * l.ey, 10 * scale, 5 * scale, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawOfficeChair() {
+  const drawOneChair = (ox, turned) => {
+    const x = (OBJ_GEO.chair.x + ox) * CANVAS_W;
+    const y = OBJ_GEO.chair.y * CANVAS_H;
+    const w = OBJ_GEO.chair.w * CANVAS_W;
+    const h = OBJ_GEO.chair.h * CANVAS_H;
+
+    // Ambient Floor Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h + 2, w * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Wheel Caster Base
+    ctx.fillStyle = '#181b1e';
+    ctx.fillRect(x + w * 0.2, y + h * 0.85, w * 0.6, 6);
+    ctx.fillRect(x + w * 0.45, y + h * 0.6, 10, h * 0.3);
+
+    // Seat Cushion
+    ctx.fillStyle = '#2c333a';
+    ctx.fillRect(x + 4, y + h * 0.45, w - 8, h * 0.18);
+    ctx.fillStyle = '#3a444e';
+    ctx.fillRect(x + 4, y + h * 0.45, w - 8, 3);
+
+    // Ergonomic Mesh Backrest
+    ctx.fillStyle = '#242a30';
+    ctx.fillRect(x + 8, y, w - 16, h * 0.45);
+
+    // Ribbed Mesh Lines
+    ctx.strokeStyle = '#181c20';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 12, y + 6, w - 24, h * 0.35);
+
+    if (turned) {
+      // Turned 180 degrees: Draw front seat cushion facing forward
+      ctx.fillStyle = '#3d4853';
+      ctx.fillRect(x + 14, y + 8, w - 28, h * 0.3);
+    }
+  };
+
+  drawOneChair(Room.chair.displacedX, Room.chair.turnedAway);
+  if (Room.chair.duplicate) {
+    drawOneChair(Room.chair.displacedX + 0.16, false);
+  }
+}
+
+function drawShadowEntity() {
+  const sx = Room.shadow.x * CANVAS_W;
+  const sy = Room.shadow.y * CANVAS_H;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+  // Head
+  ctx.beginPath();
+  ctx.arc(sx, sy - 50, 16, 0, Math.PI * 2);
+  ctx.fill();
+  // Torso & Arms
+  ctx.fillRect(sx - 16, sy - 34, 32, 70);
+  ctx.fillRect(sx - 26, sy - 28, 52, 10);
+  // Shadow fade at feet
+  const fade = ctx.createLinearGradient(sx, sy + 36, sx, sy + 90);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 0.72)');
+  fade.addColorStop(1, 'transparent');
+  ctx.fillStyle = fade;
+  ctx.fillRect(sx - 18, sy + 36, 36, 54);
+}
+
+function drawAtmosphericLighting() {
+  // 1. Desk Lamp Radial Cone Light
+  if (Room.lamp.on) {
+    const lx = (OBJ_GEO.lamp.bx + Room.lamp.displacedX) * CANVAS_W + 18;
+    const ly = OBJ_GEO.lamp.by * CANVAS_H - 74;
+
+    const lampLight = ctx.createRadialGradient(lx, ly, 10, lx, ly + 80, 280);
+    if (Room.lamp.redLight) {
+      lampLight.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+      lampLight.addColorStop(0.4, 'rgba(185, 28, 28, 0.15)');
+      lampLight.addColorStop(1, 'transparent');
+    } else {
+      lampLight.addColorStop(0, 'rgba(254, 240, 138, 0.22)');
+      lampLight.addColorStop(0.5, 'rgba(217, 151, 59, 0.08)');
+      lampLight.addColorStop(1, 'transparent');
+    }
+    ctx.fillStyle = lampLight;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+
+  // 2. Monitor Green Phosphor Cast
+  const mx = OBJ_GEO.mon.x * CANVAS_W + (OBJ_GEO.mon.w * CANVAS_W) / 2;
+  const my = OBJ_GEO.mon.y * CANVAS_H + (OBJ_GEO.mon.h * CANVAS_H) / 2;
+  const monGlow = ctx.createRadialGradient(mx, my, 8, mx, my, 160);
+  monGlow.addColorStop(0, Room.mon.skullActive ? 'rgba(239, 68, 68, 0.16)' : 'rgba(34, 197, 94, 0.12)');
+  monGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = monGlow;
+  ctx.fillRect(mx - 160, my - 160, 320, 320);
+
+  // 3. Moon Cast through window
+  const wx = OBJ_GEO.win.x * CANVAS_W + (OBJ_GEO.win.w * CANVAS_W) / 2;
+  const wy = OBJ_GEO.win.y * CANVAS_H + (OBJ_GEO.win.h * CANVAS_H) / 2;
+  const moonGlow = ctx.createRadialGradient(wx, wy, 20, wx, wy + 90, 320);
+  moonGlow.addColorStop(0, Room.win.bloodRain ? 'rgba(234, 57, 67, 0.15)' : 'rgba(180, 200, 240, 0.08)');
+  moonGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = moonGlow;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+}
+
+function drawReportReticle() {
+  const mx = Game.mouseX;
+  const my = Game.mouseY;
+
+  ctx.strokeStyle = 'rgba(212, 151, 59, 0.85)';
+  ctx.lineWidth = 1.5;
+
+  // Outer Crosshair Ring
+  ctx.beginPath();
+  ctx.arc(mx, my, 32, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner Dot
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(mx, my, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cross lines
+  ctx.beginPath();
+  ctx.moveTo(mx - 44, my); ctx.lineTo(mx - 10, my);
+  ctx.moveTo(mx + 10, my); ctx.lineTo(mx + 44, my);
+  ctx.moveTo(mx, my - 44); ctx.lineTo(mx, my - 10);
+  ctx.moveTo(mx, my + 10); ctx.lineTo(mx, my + 44);
+  ctx.stroke();
+
+  // Coordinate readout
+  ctx.fillStyle = '#d4973b';
+  ctx.font = '10px monospace';
+  ctx.fillText(`TARGET: [X:${Math.round(mx)} Y:${Math.round(my)}]`, mx + 16, my - 16);
+}
+
+function drawInspectModeOverlay() {
+  const normX = Game.mouseX / CANVAS_W;
+  const normY = Game.mouseY / CANVAS_H;
+
+  let hoveredItem = null;
+  for (const item of INSPECT_TARGETS) {
+    const b = item.box;
+    if (normX >= b.x && normX <= b.x + b.w && normY >= b.y && normY <= b.y + b.h) {
+      hoveredItem = item;
+      break;
+    }
+  }
+
+  if (hoveredItem) {
+    const b = hoveredItem.box;
+    const bx = b.x * CANVAS_W;
+    const by = b.y * CANVAS_H;
+    const bw = b.w * CANVAS_W;
+    const bh = b.h * CANVAS_H;
+
+    // Corner brackets
+    ctx.strokeStyle = 'rgba(56, 178, 172, 0.9)';
+    ctx.lineWidth = 2;
+    const cl = 14;
+
+    // Top-left
+    ctx.beginPath(); ctx.moveTo(bx, by + cl); ctx.lineTo(bx, by); ctx.lineTo(bx + cl, by); ctx.stroke();
+    // Top-right
+    ctx.beginPath(); ctx.moveTo(bx + bw - cl, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + cl); ctx.stroke();
+    // Bottom-left
+    ctx.beginPath(); ctx.moveTo(bx, by + bh - cl); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + cl, by + bh); ctx.stroke();
+    // Bottom-right
+    ctx.beginPath(); ctx.moveTo(bx + bw - cl, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - cl); ctx.stroke();
+
+    // Tooltip card near mouse
+    const tx = Math.min(CANVAS_W - 320, Math.max(20, Game.mouseX + 18));
+    const ty = Math.min(CANVAS_H - 75, Math.max(30, Game.mouseY + 20));
+
+    ctx.fillStyle = 'rgba(10, 16, 24, 0.94)';
+    ctx.fillRect(tx, ty, 300, 52);
+    ctx.strokeStyle = '#38b2ac';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx, ty, 300, 52);
+
+    ctx.fillStyle = '#38b2ac';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(`[STUDY: ${hoveredItem.name}]`, tx + 10, ty + 18);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '9.5px monospace';
+    ctx.fillText(hoveredItem.desc, tx + 10, ty + 36);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MAIN GAME LOOP
+// ═══════════════════════════════════════════════════════
+let lastFrameTimestamp = performance.now();
+
+function gameLoop(timestamp) {
+  requestAnimationFrame(gameLoop);
+
+  const dt = Math.min((timestamp - lastFrameTimestamp) / 1000, 0.1);
+  lastFrameTimestamp = timestamp;
+
+  if (Game.screenShake > 0) {
+    Game.screenShake = Math.max(0, Game.screenShake - dt * 2.5);
+  }
+
+  // Update real-time room clock ticking
+  Game.secTickAcc += dt;
+  if (Game.secTickAcc >= 1.0) {
+    Game.secTickAcc -= 1.0;
+    Game.analogS = (Game.analogS + 1) % 60;
+    if (Game.analogS === 0) {
+      Game.analogM = (Game.analogM + 1) % 60;
+      if (Game.analogM === 0) {
+        Game.analogH = (Game.analogH + 1) % 12;
+      }
+    }
+    if (Game.screen === 'playing') {
+      AudioEngine.clockTick(Game.analogS % 2 === 0);
+    }
+  }
+
+  if (Game.screen === 'playing' && Game.running) {
+    if (Game.mode !== 'inspect') {
+      // 1. Shift Time Progression
+      Game.shiftTimeElapsed += dt;
+
+      if (Game.mode === 'shift') {
+        const totalShiftDuration = Game.shiftHourLength * 6; // 6 hours (12AM - 6AM)
+        if (Game.shiftTimeElapsed >= totalShiftDuration) {
+          triggerVictory();
+          return;
+        }
+      }
+
+      // 2. Anomaly Scheduling & Spawning
+      if (!Game.activeAnomaly) {
+        Game.anomalyTimer -= dt;
+        if (Game.anomalyTimer <= 0) {
+          spawnAnomaly();
+        }
+      }
+
+      // 3. Cognitive Hazard Update
+      updateCognitiveHazard(dt);
+    }
+
+    // 4. Update In-Game HUD Elements
+    updateHUDDisplays();
+  }
+
+  // Render Canvas
+  renderFrame();
+}
+
+function updateHUDDisplays() {
+  // Exposure meter
+  if (Game.exposure > 0.01) {
+    expMeterWrap.style.opacity = '1';
+    expBar.style.width = `${Math.min(100, Game.exposure * 100)}%`;
+    const pct = Math.round(Game.exposure * 100);
+    meterStatus.textContent = `${pct}% CRITICAL`;
+    meterStatus.style.color = pct < 40 ? 'var(--accent-green)' : pct < 75 ? 'var(--accent-amber)' : 'var(--accent-red)';
+  } else {
+    expMeterWrap.style.opacity = '0';
+  }
+
+  expGlow.style.opacity = Game.exposure > 0.1 ? String(Game.exposure * 0.75) : '0';
+
+  // HUD Stats
+  hudScore.textContent = Game.score;
+  hudStreakCount.textContent = `x${Game.streak}`;
+  hudAnomCount.textContent = Game.foundCount;
+
+  // Shift Clock (12 AM to 6 AM)
+  if (Game.mode === 'shift') {
+    const hourProg = (Game.shiftTimeElapsed / Game.shiftHourLength);
+    const inGameHour = Math.floor(hourProg);
+    const inGameMin = Math.floor((hourProg - inGameHour) * 60);
+    const displayHour = inGameHour === 0 ? 12 : inGameHour;
+    hudShiftClock.textContent = `${displayHour}:${String(inGameMin).padStart(2, '0')} AM`;
+  } else if (Game.mode === 'inspect') {
+    hudShiftClock.textContent = 'INSPECT';
+    hudRoomStatus.textContent = 'BASELINE INSPECTION MODE (NO HAZARDS)';
+    hudRoomStatus.style.color = 'var(--accent-cyan)';
+  } else {
+    // Endless mode displays MM:SS survived
+    const m = Math.floor(Game.shiftTimeElapsed / 60);
+    const s = Math.floor(Game.shiftTimeElapsed % 60);
+    hudShiftClock.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  // Real-time live timestamp
+  const now = new Date();
+  hudTimestamp.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// GAME STATE TRANSITIONS
+// ═══════════════════════════════════════════════════════
+function startShift(mode) {
+  AudioEngine.init();
+  AudioEngine.resume();
+
+  const diff = DIFFICULTIES[Settings.difficulty];
+  Game.shiftHourLength = diff.hourLength || 40;
+
+  Game.mode = mode;
+  Game.running = true;
+  Game.screen = 'playing';
+  Game.score = 0;
+  Game.streak = 0;
+  Game.maxStreak = 0;
+  Game.foundCount = 0;
+  Game.wrongReports = 0;
+  Game.totalReportsMade = 0;
+  Game.correctReportsMade = 0;
+  Game.exposure = 0;
+  Game.shiftTimeElapsed = 0;
+  Game.activeAnomaly = null;
+  Game.lastAnomalyId = null;
+
+  Room = createBaselineRoom();
+  if (mode !== 'inspect') {
+    scheduleNextAnomaly();
+  }
+
+  hideAllScreens();
+  hud.style.display = 'block';
+
+  AudioEngine.startAmbience();
+  AudioEngine.clickSound();
+}
+
+function triggerGameOver(cause) {
+  Game.running = false;
+  Game.screen = 'gameover';
+  exitReportMode();
+
+  AudioEngine.stopAmbience();
+  AudioEngine.gameOverSound();
+
+  // Update high score
+  if (Game.score > Storage.highScore) {
+    Storage.highScore = Game.score;
+    Storage.save();
+  }
+
+  $('go-cause-text').textContent = cause.toUpperCase();
+  $('go-score').textContent = Game.score;
+  $('go-best').textContent = Storage.highScore;
+  $('go-anomalies').textContent = Game.foundCount;
+  $('go-streak').textContent = Game.maxStreak;
+
+  const m = Math.floor(Game.shiftTimeElapsed / 60);
+  const s = Math.floor(Game.shiftTimeElapsed % 60);
+  $('go-survived-time').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  const accuracy = Game.totalReportsMade > 0 ? Math.round((Game.correctReportsMade / Game.totalReportsMade) * 100) : 100;
+  $('go-accuracy').textContent = `${accuracy}%`;
+
+  hud.style.display = 'none';
+  screenGameOver.classList.add('active');
+}
+
+function triggerVictory() {
+  Game.running = false;
+  Game.screen = 'victory';
+  exitReportMode();
+
+  AudioEngine.stopAmbience();
+  AudioEngine.victoryFanfare();
+
+  Storage.shiftsCompleted++;
+  if (Game.score > Storage.highScore) {
+    Storage.highScore = Game.score;
+  }
+  Storage.save();
+
+  // Performance Rating Calculation
+  const accuracy = Game.totalReportsMade > 0 ? Math.round((Game.correctReportsMade / Game.totalReportsMade) * 100) : 100;
+  let grade = 'RANK S';
+  if (accuracy < 70 || Game.wrongReports >= 2) grade = 'RANK B';
+  else if (accuracy < 85 || Game.wrongReports >= 1) grade = 'RANK A';
+
+  $('vic-grade').textContent = grade;
+  $('vic-score').textContent = Game.score;
+  $('vic-anomalies').textContent = Game.foundCount;
+  $('vic-accuracy').textContent = `${accuracy}%`;
+  $('vic-streak').textContent = Game.maxStreak;
+
+  hud.style.display = 'none';
+  screenVictory.classList.add('active');
+}
+
+function hideAllScreens() {
+  document.querySelectorAll('.screen-layer').forEach(s => s.classList.remove('active'));
+  pauseOverlay.style.display = 'none';
+}
+
+function showMainMenu() {
+  Game.running = false;
+  Game.screen = 'menu';
+  exitReportMode();
+  AudioEngine.stopAmbience();
+
+  hideAllScreens();
+  hud.style.display = 'none';
+  screenMenu.classList.add('active');
+
+  // Refresh menu summary
+  $('menu-best-score').textContent = Storage.highScore;
+  $('menu-shifts-won').textContent = Storage.shiftsCompleted;
+  $('menu-codex-progress').textContent = `${Storage.getDiscoveryCount()} / ${ANOMALIES.length}`;
+}
+
+function togglePause() {
+  if (Game.screen === 'playing') {
+    Game.screen = 'paused';
+    pauseOverlay.style.display = 'flex';
+  } else if (Game.screen === 'paused') {
+    Game.screen = 'playing';
+    pauseOverlay.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CODEX / ARCHIVE POPULATION
+// ═══════════════════════════════════════════════════════
+function populateArchiveModal() {
+  const grid = $('codex-grid');
+  grid.innerHTML = '';
+
+  let discoveredTotal = 0;
+
+  ANOMALIES.forEach(a => {
+    const isUnlocked = !!Storage.discoveredAnomalies[a.id];
+    if (isUnlocked) discoveredTotal++;
+
+    const card = document.createElement('div');
+    card.className = `codex-card ${isUnlocked ? '' : 'locked'}`;
+
+    const threatColor = a.threat === 'Low' ? '#22c55e' : a.threat === 'Medium' ? '#eab308' : a.threat === 'High' ? '#ef4444' : '#a855f7';
+
+    card.innerHTML = `
+      <div class="codex-card-threat" style="color:${threatColor};">${isUnlocked ? `${a.threat} Hazard` : 'Unidentified'}</div>
+      <div class="codex-card-title">${isUnlocked ? a.name : 'Unknown Anomaly'}</div>
+      <div class="codex-card-desc">${isUnlocked ? a.desc : 'Anomaly not yet logged or purged in security feed.'}</div>
+    `;
+
+    grid.appendChild(card);
+  });
+
+  $('archive-subtitle').textContent = `CLASSIFIED PHENOMENA CATALOG (${discoveredTotal} / ${ANOMALIES.length} DISCOVERED)`;
+}
+
+// ═══════════════════════════════════════════════════════
+// RESPONSIVE RESIZING
+// ═══════════════════════════════════════════════════════
+function resizeCanvas() {
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const aspect = CANVAS_W / CANVAS_H;
+
+  let finalW, finalH;
+  if (cw / ch > aspect) {
+    finalH = ch;
+    finalW = finalH * aspect;
+  } else {
+    finalW = cw;
+    finalH = finalW / aspect;
+  }
+
+  canvasWrapper.style.width = `${Math.floor(finalW)}px`;
+  canvasWrapper.style.height = `${Math.floor(finalH)}px`;
+
+  cvs.width = CANVAS_W;
+  cvs.height = CANVAS_H;
+  cvs.style.width = '100%';
+  cvs.style.height = '100%';
+}
+
+function clientToCanvasCoords(clientX, clientY) {
+  const rect = cvs.getBoundingClientRect();
+  const scaleX = CANVAS_W / rect.width;
+  const scaleY = CANVAS_H / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// INPUT HANDLERS
+// ═══════════════════════════════════════════════════════
+window.addEventListener('mousemove', e => {
+  const coords = clientToCanvasCoords(e.clientX, e.clientY);
+  Game.mouseX = coords.x;
+  Game.mouseY = coords.y;
+});
+
+// Click targeting in report mode via dedicated transparent surface
+reportClickSurface.addEventListener('click', e => {
+  if (Game.screen === 'playing' && Game.isReporting) {
+    const coords = clientToCanvasCoords(e.clientX, e.clientY);
+    submitReport(coords.x, coords.y);
+  }
+});
+
+btnReport.addEventListener('click', e => {
+  e.stopPropagation();
+  AudioEngine.init();
+  if (Game.isReporting) {
+    exitReportMode();
+  } else {
+    enterReportMode();
+  }
+});
+
+window.addEventListener('keydown', e => {
+  if (Game.screen === 'playing') {
+    if (e.key === 'r' || e.key === 'R') {
+      Game.isReporting ? exitReportMode() : enterReportMode();
+      e.preventDefault();
+    }
+    if (e.key === 'Escape') {
+      if (Game.isReporting) {
+        exitReportMode();
+      } else {
+        togglePause();
+      }
+      e.preventDefault();
+    }
+    if (e.key === ' ') {
+      Game.isReporting ? exitReportMode() : enterReportMode();
+      e.preventDefault();
+    }
+  } else if (Game.screen === 'paused') {
+    if (e.key === 'Escape') {
+      togglePause();
+      e.preventDefault();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// MENU & BUTTON ACTIONS
+// ═══════════════════════════════════════════════════════
+$('btn-menu-start').onclick = () => startShift('shift');
+$('btn-menu-endless').onclick = () => startShift('endless');
+$('btn-menu-inspect').onclick = () => {
+  startShift('inspect');
+  hudRoomStatus.textContent = 'BASELINE INSPECTION MODE (NO HAZARDS)';
+};
+
+$('btn-menu-howto').onclick = () => {
+  AudioEngine.init();
+  AudioEngine.clickSound();
+  hideAllScreens();
+  screenHowTo.classList.add('active');
+};
+$('btn-howto-back').onclick = () => {
+  AudioEngine.clickSound();
+  showMainMenu();
+};
+
+$('btn-menu-settings').onclick = () => {
+  AudioEngine.init();
+  AudioEngine.clickSound();
+  hideAllScreens();
+  screenSettings.classList.add('active');
+};
+$('btn-settings-back').onclick = () => {
+  AudioEngine.clickSound();
+  Settings.save();
+  showMainMenu();
+};
+
+$('btn-menu-archive').onclick = () => {
+  AudioEngine.init();
+  AudioEngine.clickSound();
+  populateArchiveModal();
+  hideAllScreens();
+  screenArchive.classList.add('active');
+};
+$('btn-archive-back').onclick = () => {
+  AudioEngine.clickSound();
+  showMainMenu();
+};
+
+$('btn-go-retry').onclick = () => startShift(Game.mode);
+$('btn-go-menu').onclick = () => showMainMenu();
+$('btn-vic-again').onclick = () => startShift('shift');
+$('btn-vic-menu').onclick = () => showMainMenu();
+
+$('btn-resume').onclick = () => togglePause();
+$('btn-pause-howto').onclick = () => {
+  togglePause();
+  hideAllScreens();
+  screenHowTo.classList.add('active');
+};
+$('btn-pause-menu').onclick = () => showMainMenu();
+
+// Settings Controls
+$('toggle-sound').onclick = function() {
+  Settings.sound = !Settings.sound;
+  this.classList.toggle('active', Settings.sound);
+  if (!Settings.sound) AudioEngine.stopAmbience();
+  else if (Game.screen === 'playing') AudioEngine.startAmbience();
+  AudioEngine.toggleSound();
+};
+
+$('toggle-heartbeat').onclick = function() {
+  Settings.heartbeat = !Settings.heartbeat;
+  this.classList.toggle('active', Settings.heartbeat);
+  AudioEngine.toggleSound();
+};
+
+$('toggle-crt').onclick = function() {
+  Settings.crtEffects = !Settings.crtEffects;
+  this.classList.toggle('active', Settings.crtEffects);
+  crtScanlines.style.display = Settings.crtEffects ? 'block' : 'none';
+  noiseOverlay.style.display = Settings.crtEffects ? 'block' : 'none';
+  AudioEngine.toggleSound();
+};
+
+document.querySelectorAll('#diff-control .segmented-btn').forEach(btn => {
+  btn.onclick = () => {
+    Settings.difficulty = btn.dataset.diff;
+    document.querySelectorAll('#diff-control .segmented-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    AudioEngine.clickSound();
+  };
+});
+
+function syncSettingsUI() {
+  $('toggle-sound').classList.toggle('active', Settings.sound);
+  $('toggle-heartbeat').classList.toggle('active', Settings.heartbeat);
+  $('toggle-crt').classList.toggle('active', Settings.crtEffects);
+  crtScanlines.style.display = Settings.crtEffects ? 'block' : 'none';
+  noiseOverlay.style.display = Settings.crtEffects ? 'block' : 'none';
+
+  document.querySelectorAll('#diff-control .segmented-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === Settings.difficulty);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════
+function initialize() {
+  Settings.load();
+  Storage.load();
+  syncSettingsUI();
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  window.addEventListener('pointerdown', () => { AudioEngine.init(); AudioEngine.resume(); }, { passive: true });
+  window.addEventListener('keydown', () => { AudioEngine.init(); AudioEngine.resume(); }, { passive: true });
+
+  showMainMenu();
+  requestAnimationFrame(gameLoop);
+}
+
+initialize();
+
+})();
+</script>
+</body>
+</html>

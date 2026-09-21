@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PASTEL RUSH</title>
+    <style>
+        /* CSS Reset & Setup */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #fdfbf7;
+            font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #4a4a4a;
+            touch-action: none; /* Prevent scroll on touch */
+        }
+
+        /* Canvas */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay.active {
+            pointer-events: auto;
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 30px;
+            padding: 40px;
+            max-width: 90%;
+            width: 450px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .overlay.active .glass-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff9aa2, #ffb3ba, #bae1ff, #baffc9);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 5s ease infinite, float 3s ease-in-out infinite;
+            letter-spacing: 2px;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .margin-bottom {
+            margin-bottom: 30px;
+        }
+
+        /* Buttons */
+        button {
+            background: linear-gradient(135deg, #ffb3ba, #ff9aa2);
+            border: none;
+            border-radius: 50px;
+            padding: 15px 40px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(255, 154, 162, 0.3);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            outline: none;
+        }
+
+        button:hover, button:active {
+            transform: scale(1.08) translateY(-3px);
+            box-shadow: 0 15px 25px rgba(255, 154, 162, 0.4);
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #hud.active {
+            opacity: 1;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #4a4a4a;
+            text-shadow: 0 2px 5px rgba(255,255,255,0.8);
+        }
+
+        .energy-container {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+            border: 2px solid rgba(255,255,255,0.6);
+        }
+
+        #energy-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ff9aa2, #ffb3ba, #baffc9);
+            border-radius: 10px;
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-row">
+            <div id="score-display">SKÓRE: 0</div>
+            <div style="font-size: 1rem; letter-spacing: 1px;">ENERGIE</div>
+        </div>
+        <div class="energy-container">
+            <div id="energy-bar"></div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start-screen" class="overlay active">
+        <div class="glass-card">
+            <h1>PASTEL RUSH</h1>
+            <p>Chytej trojúhelníky (10 bodů) a čtverce (20 bodů) obkreslením.</p>
+            <p>Vyhni se červeným kruhům!</p>
+            <p>Kreslení dlouhých čar spotřebovává energii.</p>
+            <p class="margin-bottom">Hodně štěstí, ať máš co nejvyšší skóre.</p>
+            <button onclick="startGame()">NOVÁ HRA</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="overlay hidden">
+        <div class="glass-card">
+            <h1>KONEC HRY</h1>
+            <p id="final-score">Vaše konečné skóre: 0</p>
+            <p>Pokoříš své skóre?</p>
+            <p class="margin-bottom">Kreslení dlouhých čar spotřebovává energii!</p>
+            <button onclick="startGame()">HRÁT ZNOVU</button>
+        </div>
+    </div>
+
+    <script>
+        /** @type {HTMLCanvasElement} */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const hud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('score-display');
+        const energyBar = document.getElementById('energy-bar');
+        const finalScore = document.getElementById('final-score');
+
+        // Game State Variables
+        let w, h;
+        let isPlaying = false;
+        let score = 0;
+        let energy = 100;
+        let lastTime = 0;
+        let cameraShake = 0;
+        let flashArea = null; 
+        let flashTimer = 0;
+
+        // Path drawing variables
+        let isDrawing = false;
+        let path = [];
+
+        // Entities
+        let shapes = [];
+        let particles = [];
+        let shapeSpawnTimer = 0;
+
+        // Tuning / Constants
+        const CONSTANTS = {
+            MAX_ENERGY: 100,
+            PASSIVE_ENERGY_DRAIN: 2.5, // % per second
+            DRAWING_ENERGY_PENALTY: 0.025, // % per pixel (4000px drains 100%)
+            COLORS: {
+                TRIANGLE: '#baffc9',
+                SQUARE: '#bae1ff',
+                CIRCLE: '#ff9aa2',
+                PATH: '#ffb3ba',
+                PATH_PREVIEW: 'rgba(255, 179, 186, 0.4)',
+                FLASH: 'rgba(255, 179, 186, 0.3)'
+            }
+        };
+
+        // Resize handler
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- UTILS ---
+        function rand(min, max) { return Math.random() * (max - min) + min; }
+        function dist(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+
+        // Ray-casting algorithm to check if point is in polygon
+        function pointInPolygon(point, vs) {
+            let x = point.x, y = point.y;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i].x, yi = vs[i].y;
+                let xj = vs[j].x, yj = vs[j].y;
+                let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // --- CLASSES ---
+        class Shape {
+            constructor(type) {
+                this.type = type;
+                this.size = type === 'circle' ? 25 : 30;
+                this.x = rand(this.size, w - this.size);
+                this.y = rand(this.size, h - this.size);
+                this.markedForDeletion = false;
+                
+                // Behavior based on type
+                if (this.type === 'triangle') {
+                    this.vx = rand(-1.5, 1.5);
+                    this.vy = rand(-1.5, 1.5);
+                    this.roamTimer = rand(1, 3);
+                } else if (this.type === 'square') {
+                    let angle = rand(0, Math.PI * 2);
+                    let speed = rand(2, 4);
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                } else if (this.type === 'circle') {
+                    let angle = rand(0, Math.PI * 2);
+                    let speed = rand(0.5, 1.2); // Slow
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                }
+                this.rotation = 0;
+                this.rotSpeed = rand(-0.05, 0.05);
+            }
+
+            update(dt) {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.rotSpeed;
+
+                // Triangle roaming logic
+                if (this.type === 'triangle') {
+                    this.roamTimer -= dt;
+                    if (this.roamTimer <= 0) {
+                        this.vx = rand(-1.5, 1.5);
+                        this.vy = rand(-1.5, 1.5);
+                        this.roamTimer = rand(1, 3);
+                    }
+                }
+
+                // Screen boundaries bounce
+                if (this.x < this.size || this.x > w - this.size) this.vx *= -1;
+                if (this.y < this.size || this.y > h - this.size) this.vy *= -1;
+                
+                // Clamp position
+                this.x = Math.max(this.size, Math.min(w - this.size, this.x));
+                this.y = Math.max(this.size, Math.min(h - this.size, this.y));
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+
+                if (this.type === 'triangle') {
+                    ctx.fillStyle = CONSTANTS.COLORS.TRIANGLE;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.size);
+                    ctx.lineTo(this.size, this.size);
+                    ctx.lineTo(-this.size, this.size);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (this.type === 'square') {
+                    ctx.fillStyle = CONSTANTS.COLORS.SQUARE;
+                    ctx.beginPath();
+                    ctx.rect(-this.size + 5, -this.size + 5, (this.size-5)*2, (this.size-5)*2);
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (this.type === 'circle') {
+                    ctx.fillStyle = CONSTANTS.COLORS.CIRCLE;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = rand(5, 12);
+                let angle = rand(0, Math.PI * 2);
+                let speed = rand(2, 8);
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.decay = rand(0.01, 0.03);
+                this.rotation = rand(0, Math.PI * 2);
+                this.rotSpeed = rand(-0.2, 0.2);
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.15; // Gravity
+                this.rotation += this.rotSpeed;
+                this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        // --- GAME LOGIC ---
+        function startGame() {
+            startScreen.classList.remove('active');
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.remove('active');
+            gameOverScreen.classList.add('hidden');
+            hud.classList.add('active');
+
+            score = 0;
+            energy = CONSTANTS.MAX_ENERGY;
+            shapes = [];
+            particles = [];
+            path = [];
+            isDrawing = false;
+            cameraShake = 0;
+            flashTimer = 0;
+            updateHUD();
+
+            // Initial spawns
+            for(let i=0; i<3; i++) shapes.push(new Shape('triangle'));
+            for(let i=0; i<2; i++) shapes.push(new Shape('square'));
+            
+            isPlaying = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            isPlaying = false;
+            hud.classList.remove('active');
+            gameOverScreen.classList.remove('hidden');
+            gameOverScreen.classList.add('active');
+            finalScore.innerText = `Vaše konečné skóre: ${score}`;
+        }
+
+        function modifyEnergy(amount) {
+            energy += amount;
+            if (energy > CONSTANTS.MAX_ENERGY) energy = CONSTANTS.MAX_ENERGY;
+            if (energy <= 0) {
+                energy = 0;
+                endGame();
+            }
+            updateHUD();
+        }
+
+        function updateHUD() {
+            scoreDisplay.innerText = `SKÓRE: ${score}`;
+            energyBar.style.width = `${energy}%`;
+            if (energy < 20) {
+                energyBar.style.background = '#ff9aa2';
+            } else {
+                energyBar.style.background = 'linear-gradient(90deg, #ff9aa2, #ffb3ba, #baffc9)';
+            }
+        }
+
+        function spawnConfetti(x, y, color) {
+            for(let i = 0; i < 15; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        // --- INPUT HANDLING ---
+        function addPointToPath(x, y) {
+            if (!isDrawing) return;
+            
+            let newPoint = {x, y};
+            if (path.length > 0) {
+                let lastPoint = path[path.length - 1];
+                let distance = dist(lastPoint.x, lastPoint.y, newPoint.x, newPoint.y);
+                
+                // Crucial anti-exploit penalty
+                if (distance > 0) {
+                    modifyEnergy(-(distance * CONSTANTS.DRAWING_ENERGY_PENALTY));
+                }
+            }
+            path.push(newPoint);
+        }
+
+        function closePath() {
+            if (!isDrawing || path.length < 3) {
+                path = [];
+                isDrawing = false;
+                return;
+            }
+
+            // Ray-cast all shapes against the closed polygon
+            let captures = 0;
+            shapes.forEach(shape => {
+                if (pointInPolygon({x: shape.x, y: shape.y}, path)) {
+                    shape.markedForDeletion = true;
+                    captures++;
+                    
+                    if (shape.type === 'triangle') {
+                        score += 10;
+                        modifyEnergy(15);
+                        spawnConfetti(shape.x, shape.y, CONSTANTS.COLORS.TRIANGLE);
+                    } else if (shape.type === 'square') {
+                        score += 20;
+                        modifyEnergy(20);
+                        spawnConfetti(shape.x, shape.y, CONSTANTS.COLORS.SQUARE);
+                    } else if (shape.type === 'circle') {
+                        modifyEnergy(-30);
+                        cameraShake = 15;
+                        spawnConfetti(shape.x, shape.y, CONSTANTS.COLORS.CIRCLE);
+                    }
+                }
+            });
+
+            // Clean dead shapes
+            shapes = shapes.filter(s => !s.markedForDeletion);
+
+            // Flash effect if closed properly
+            flashArea = [...path];
+            flashTimer = 0.2; // Seconds
+
+            path = [];
+            isDrawing = false;
+            updateHUD();
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', (e) => {
+            if(!isPlaying) return;
+            isDrawing = true;
+            path = [];
+            addPointToPath(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(!isPlaying) return;
+            addPointToPath(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => {
+            if(!isPlaying) return;
+            closePath();
+        });
+
+        // Touch Events
+        canvas.addEventListener('touchstart', (e) => {
+            if(!isPlaying) return;
+            isDrawing = true;
+            path = [];
+            let touch = e.touches[0];
+            addPointToPath(touch.clientX, touch.clientY);
+        }, {passive: false});
+        window.addEventListener('touchmove', (e) => {
+            if(!isPlaying || !isDrawing) return;
+            let touch = e.touches[0];
+            addPointToPath(touch.clientX, touch.clientY);
+        }, {passive: false});
+        window.addEventListener('touchend', () => {
+            if(!isPlaying) return;
+            closePath();
+        });
+
+
+        // --- MAIN LOOP ---
+        function gameLoop(timestamp) {
+            if (!isPlaying) return;
+            
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // Passive energy drain
+            modifyEnergy(-(CONSTANTS.PASSIVE_ENERGY_DRAIN * dt));
+
+            // Spawning Logic (Dynamic based on score)
+            shapeSpawnTimer -= dt;
+            if (shapeSpawnTimer <= 0) {
+                // Base spawn interval 1.5s, gets faster as score goes up
+                let spawnInterval = Math.max(0.3, 1.5 - (score * 0.002));
+                shapeSpawnTimer = spawnInterval;
+
+                let r = Math.random();
+                if (r < 0.5) shapes.push(new Shape('triangle'));
+                else if (r < 0.8) shapes.push(new Shape('square'));
+                else shapes.push(new Shape('circle')); // 20% chance for bombs
+            }
+
+            // Update Entities
+            shapes.forEach(s => s.update(dt));
+            particles.forEach(p => p.update());
+            particles = particles.filter(p => p.life > 0);
+
+            // Rendering
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.save();
+            // Camera Shake
+            if (cameraShake > 0) {
+                ctx.translate(rand(-cameraShake, cameraShake), rand(-cameraShake, cameraShake));
+                cameraShake -= 1;
+            }
+
+            // Flash effect
+            if (flashTimer > 0 && flashArea.length > 2) {
+                ctx.fillStyle = CONSTANTS.COLORS.FLASH;
+                ctx.beginPath();
+                ctx.moveTo(flashArea[0].x, flashArea[0].y);
+                for(let i=1; i<flashArea.length; i++) {
+                    ctx.lineTo(flashArea[i].x, flashArea[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                flashTimer -= dt;
+            }
+
+            // Draw Shapes
+            shapes.forEach(s => s.draw(ctx));
+            
+            // Draw Particles
+            particles.forEach(p => p.draw(ctx));
+
+            // Draw Lasso Trail
+            if (isDrawing && path.length > 0) {
+                ctx.lineWidth = 10;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // Solid drawn path
+                ctx.strokeStyle = CONSTANTS.COLORS.PATH;
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i].x, path[i].y);
+                }
+                ctx.stroke();
+
+                // Faint Preview Line
+                let lastP = path[path.length - 1];
+                let firstP = path[0];
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = CONSTANTS.COLORS.PATH_PREVIEW;
+                ctx.setLineDash([15, 10]);
+                ctx.beginPath();
+                ctx.moveTo(lastP.x, lastP.y);
+                ctx.lineTo(firstP.x, firstP.y);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset
+            }
+
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
