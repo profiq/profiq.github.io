@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SONAR</title>
+<style>
+:root{
+  --bg:#06080b;
+  --panel:#090c11;
+  --line:#151a22;
+  --fg:#c7cfda;
+  --dim:#59616e;
+  --accent:#41d6c4;
+  --warn:#ff5a6b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--fg);
+  font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+#hud{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:20px;
+  padding:8px 14px;
+  background:var(--panel);
+  border-bottom:1px solid var(--line);
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);
+  user-select:none;-webkit-user-select:none;
+  white-space:nowrap;
+}
+#hud .stat b{
+  display:inline-block;margin-left:8px;
+  color:var(--fg);font-weight:600;letter-spacing:.1em;
+  font-variant-numeric:tabular-nums;
+}
+#hud .stat.acc b{color:var(--accent)}
+#hud .spacer{flex:1}
+#hud .brand{color:var(--accent);letter-spacing:.4em;font-weight:600}
+button{
+  font:inherit;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--fg);background:transparent;
+  border:1px solid var(--line);border-radius:3px;
+  padding:5px 11px;cursor:pointer;
+}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible{outline:1px solid var(--accent);outline-offset:2px}
+#stage{
+  flex:1 1 auto;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  min-height:0;overflow:hidden;
+}
+canvas{display:block;background:#000;border:1px solid var(--line)}
+.overlay{
+  position:absolute;inset:0;
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:16px;
+  background:rgba(4,6,9,.88);
+}
+.overlay.on{display:flex}
+.overlay h1{
+  font-size:32px;font-weight:600;letter-spacing:.5em;
+  color:var(--accent);margin-left:.5em;margin-bottom:14px;
+}
+.overlay h2{
+  font-size:15px;font-weight:600;letter-spacing:.34em;
+  margin-left:.34em;margin-bottom:14px;
+}
+.overlay p{color:var(--dim);max-width:430px;margin-bottom:16px;font-size:12px}
+.overlay .keys{
+  display:grid;grid-template-columns:auto auto;gap:4px 16px;
+  margin-bottom:20px;font-size:11px;color:var(--dim);
+}
+.overlay .keys i{font-style:normal;color:var(--fg);text-align:right;letter-spacing:.06em}
+.overlay .big{
+  font-size:11px;padding:9px 26px;letter-spacing:.28em;
+  border-color:var(--accent);color:var(--accent);
+}
+.overlay .big:hover{background:rgba(65,214,196,.1)}
+.overlay .score{
+  display:flex;gap:34px;margin-bottom:20px;
+  font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);
+}
+.overlay .score b{
+  display:block;font-size:24px;letter-spacing:.04em;color:var(--fg);
+  margin-top:5px;font-variant-numeric:tabular-nums;
+}
+.overlay .score .a b{color:var(--accent)}
+.hint{margin-top:14px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#3d444f}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <span class="brand">SONAR</span>
+  <span class="stat">Kolo<b id="hLevel">1</b></span>
+  <span class="stat acc">Krystaly<b id="hCry">0/3</b></span>
+  <span class="stat">Sk&oacute;re<b id="hScore">0</b></span>
+  <span class="stat">Nejlep&scaron;&iacute;<b id="hBest">0</b></span>
+  <span class="spacer"></span>
+  <button id="btnMute" type="button">Zvuk: zap</button>
+  <button id="btnPause" type="button">Pauza</button>
+  <button id="btnRestart" type="button">Restart</button>
+</div>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+
+  <div class="overlay on" id="ovStart">
+    <h1>SONAR</h1>
+    <p>Ar&eacute;na je tm&aacute;. Vid&iacute;&scaron; jen to, co si ozvu&ccaron;&iacute;&scaron; &mdash; a ka&zcaron;d&yacute; ping t&ecaron; prozrad&iacute; lovc&uring;m. Seber t&rcaron;i krystaly a dob&ecaron;hni k v&yacute;chodu.</p>
+    <div class="keys">
+      <i>WASD / &scaron;ipky</i><span>pohyb</span>
+      <i>mezern&iacute;k / lev&yacute; klik</i><span>ping</span>
+      <i>P nebo Esc &middot; R</i><span>pauza &middot; restart</span>
+    </div>
+    <button class="big" id="btnStart" type="button">Start</button>
+  </div>
+
+  <div class="overlay" id="ovPause">
+    <h2>PAUZA</h2>
+    <button class="big" id="btnResume" type="button">Pokra&ccaron;ovat</button>
+    <div class="hint">P nebo Esc &mdash; pokra&ccaron;ovat &nbsp;&middot;&nbsp; R &mdash; restart</div>
+  </div>
+
+  <div class="overlay" id="ovOver">
+    <h2>KONEC</h2>
+    <div class="score">
+      <div class="a">Sk&oacute;re<b id="oScore">0</b></div>
+      <div>Nejlep&scaron;&iacute;<b id="oBest">0</b></div>
+      <div>Kolo<b id="oLevel">1</b></div>
+    </div>
+    <button class="big" id="btnAgain" type="button">Hr&aacute;t znovu</button>
+    <div class="hint">nebo stiskni R</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- konstanty ---------- */
+var TS = 32, GW = 30, GH = 20;
+var W = TS * GW, H = TS * GH;          /* 960 x 640 */
+var TAU = Math.PI * 2;
+
+var PLAYER_SPEED  = 180;
+var HUNTER_SPEED  = 115;
+var WAVE_SPEED    = 420;
+var PING_RANGE    = 520;
+var PING_CD       = 0.45;
+var PASSIVE_RANGE = 90;
+var PASSIVE_CD    = 0.33;
+var ECHO_LIFE     = 2.5;
+var MAX_ECHOES    = 3800;
+var PING_COST     = 2;
+var CRYSTALS      = 3;
+var PR = 9, HR = 10;
+
+/* ---------- DOM ---------- */
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d', { alpha: false });
+var stage = document.getElementById('stage');
+var ovStart = document.getElementById('ovStart');
+var ovPause = document.getElementById('ovPause');
+var ovOver = document.getElementById('ovOver');
+var elLevel = document.getElementById('hLevel');
+var elCry = document.getElementById('hCry');
+var elScore = document.getElementById('hScore');
+var elBest = document.getElementById('hBest');
+var btnMute = document.getElementById('btnMute');
+
+/* ---------- stav ---------- */
+var state = 'menu';                    /* menu | play | pause | over */
+var grid = null, openCells = [];
+var player = { x: 0, y: 0, r: PR, moving: false };
+var hunters = [], crystals = [];
+var exitPos = { x: 0, y: 0 }, exitOpen = false;
+var echoes = [], pings = [];
+var gameTime = 0, pingCd = 0, passiveCd = 0, revealCd = 0;
+var level = 1, score = 0, best = 0, collected = 0;
+var banner = null, flash = 0;
+var mouse = { x: -999, y: -999, on: false };
+var keys = Object.create(null);
+var lastTs = 0;
+
+/* ---------- localStorage: jen nejlepsi skore ---------- */
+function loadBest(){
+  try{
+    var n = parseInt(window.localStorage.getItem('sonar.best'), 10);
+    if (isFinite(n) && n >= 0) return n;
+  }catch(e){}
+  return 0;
+}
+function saveBest(){
+  try{ window.localStorage.setItem('sonar.best', String(best)); }catch(e){}
+}
+
+/* ---------- audio ---------- */
+var actx = null, master = null, muted = false, audioDead = false;
+function ensureAudio(){
+  if (actx || audioDead) return;
+  try{
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC){ audioDead = true; return; }
+    actx = new AC();
+    master = actx.createGain();
+    master.gain.value = muted ? 0 : 0.5;
+    master.connect(actx.destination);
+  }catch(e){
+    audioDead = true; actx = null; master = null;
+  }
+}
+function resumeAudio(){
+  if (!actx) return;
+  try{
+    if (actx.state === 'suspended'){
+      var p = actx.resume();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    }
+  }catch(e){}
+}
+function tone(f1, f2, dur, type, vol){
+  if (muted || !actx || !master) return;
+  try{
+    var t0 = actx.currentTime;
+    var o = actx.createOscillator();
+    var g = actx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f1, t0);
+    if (f2 && f2 !== f1) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g);
+    g.connect(master);
+    o.onended = function(){ try{ o.disconnect(); g.disconnect(); }catch(e){} };
+    o.start(t0);
+    o.stop(t0 + dur + 0.03);
+  }catch(e){}
+}
+var SFX = {
+  active:  function(){ tone(660, 300, 0.20, 'sine', 0.16); },
+  passive: function(){ tone(240, 190, 0.06, 'sine', 0.035); },
+  crystal: function(){ tone(720, 1180, 0.16, 'triangle', 0.13); tone(1180, 1180, 0.26, 'sine', 0.05); },
+  exit:    function(){ tone(300, 720, 0.45, 'sine', 0.12); },
+  level:   function(){ tone(420, 840, 0.40, 'triangle', 0.12); },
+  death:   function(){ tone(180, 48, 0.75, 'sawtooth', 0.18); tone(90, 40, 0.9, 'sine', 0.11); }
+};
+function setMuted(m){
+  muted = m;
+  btnMute.textContent = 'Zvuk: ' + (muted ? 'vyp' : 'zap');
+  btnMute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+  if (actx && master){
+    try{ master.gain.setTargetAtTime(muted ? 0 : 0.5, actx.currentTime, 0.01); }catch(e){}
+  }
+}
+
+/* ---------- sprity svetelnych stop ---------- */
+var sprites = {};
+function makeBlob(size, r, g, b, core){
+  var c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  var x = c.getContext('2d');
+  var gr = x.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',' + core + ')');
+  gr.addColorStop(0.35, 'rgba(' + r + ',' + g + ',' + b + ',' + (core * 0.4) + ')');
+  gr.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+  x.fillStyle = gr;
+  x.fillRect(0, 0, size, size);
+  return c;
+}
+function buildSprites(){
+  sprites.wall       = makeBlob(64, 150, 168, 190, 0.95);
+  sprites.item       = makeBlob(64, 65, 214, 196, 1);
+  sprites.exit       = makeBlob(64, 65, 214, 196, 1);
+  sprites.exitClosed = makeBlob(64, 118, 140, 152, 0.8);
+  sprites.hunter     = makeBlob(64, 255, 90, 107, 1);
+  sprites.player     = makeBlob(64, 130, 200, 210, 0.5);
+}
+var ECHO_STYLE = {
+  wall:       { size: 26, gain: 1.15, life: ECHO_LIFE },
+  item:       { size: 34, gain: 1.00, life: ECHO_LIFE + 0.4 },
+  exit:       { size: 44, gain: 1.00, life: ECHO_LIFE + 0.4 },
+  exitClosed: { size: 32, gain: 0.55, life: ECHO_LIFE },
+  hunter:     { size: 32, gain: 1.00, life: 1.5 }
+};
+
+/* ---------- mrizka ---------- */
+function idx(tx, ty){ return ty * GW + tx; }
+function isWallTile(tx, ty){
+  if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return true;
+  return grid[idx(tx, ty)] === 1;
+}
+function isWallAt(x, y){
+  return isWallTile(Math.floor(x / TS), Math.floor(y / TS));
+}
+function cellCenter(i){
+  return { x: ((i % GW) + 0.5) * TS, y: (((i / GW) | 0) + 0.5) * TS };
+}
+function genGrid(sparse){
+  var g = new Uint8Array(GW * GH);
+  var tx, ty, i;
+  for (ty = 0; ty < GH; ty++){
+    for (tx = 0; tx < GW; tx++){
+      g[idx(tx, ty)] = (tx === 0 || ty === 0 || tx === GW - 1 || ty === GH - 1) ? 1 : 0;
+    }
+  }
+  if (sparse){
+    for (i = 0; i < 18; i++){
+      tx = 2 + ((Math.random() * (GW - 4)) | 0);
+      ty = 2 + ((Math.random() * (GH - 4)) | 0);
+      g[idx(tx, ty)] = 1;
+    }
+    return g;
+  }
+  var blocks = 24 + ((Math.random() * 10) | 0);
+  for (i = 0; i < blocks; i++){
+    var bw = 1 + ((Math.random() * 3) | 0);
+    var bh = 1 + ((Math.random() * 3) | 0);
+    var ox = 2 + ((Math.random() * (GW - 4 - bw)) | 0);
+    var oy = 2 + ((Math.random() * (GH - 4 - bh)) | 0);
+    for (ty = oy; ty < oy + bh; ty++){
+      for (tx = ox; tx < ox + bw; tx++) g[idx(tx, ty)] = 1;
+    }
+  }
+  for (ty = 2; ty < GH - 2; ty++){
+    for (tx = 2; tx < GW - 2; tx++){
+      if (Math.random() < 0.05) g[idx(tx, ty)] = 1;
+    }
+  }
+  return g;
+}
+function floodOpen(g, startIdx){
+  var seen = new Uint8Array(GW * GH);
+  var out = [];
+  var stack = [startIdx];
+  seen[startIdx] = 1;
+  while (stack.length){
+    var c = stack.pop();
+    out.push(c);
+    var cx = c % GW, cy = (c / GW) | 0;
+    pushN(cx + 1, cy); pushN(cx - 1, cy);
+    pushN(cx, cy + 1); pushN(cx, cy - 1);
+  }
+  return out;
+  function pushN(nx, ny){
+    if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) return;
+    var ni = idx(nx, ny);
+    if (seen[ni] || g[ni] === 1) return;
+    seen[ni] = 1;
+    stack.push(ni);
+  }
+}
+/* Vygeneruje arenu a floodfillem overi pruchodnost.
+   Vse mimo nejvetsi souvislou oblast zazdi, takze nedostupna mista neexistuji. */
+function buildArena(){
+  for (var attempt = 0; attempt < 20; attempt++){
+    var g = genGrid(false);
+    var region = largestRegion(g);
+    if (region && region.length >= 240) return seal(g, region);
+  }
+  var fg = genGrid(true);
+  var fr = largestRegion(fg);
+  return seal(fg, fr || []);
+}
+function largestRegion(g){
+  var seen = new Uint8Array(GW * GH);
+  var best2 = null;
+  for (var i = 0; i < g.length; i++){
+    if (g[i] === 1 || seen[i]) continue;
+    var comp = floodOpen(g, i);
+    for (var k = 0; k < comp.length; k++) seen[comp[k]] = 1;
+    if (!best2 || comp.length > best2.length) best2 = comp;
+  }
+  return best2;
+}
+function seal(g, region){
+  var keep = new Uint8Array(GW * GH);
+  for (var k = 0; k < region.length; k++) keep[region[k]] = 1;
+  for (var i = 0; i < g.length; i++) if (!keep[i]) g[i] = 1;
+  return { grid: g, open: region.slice() };
+}
+
+/* ---------- hledani cesty (BFS) ---------- */
+var bfsPrev = new Int32Array(GW * GH);
+var bfsSeen = new Uint8Array(GW * GH);
+var bfsQueue = new Int32Array(GW * GH);
+function findPath(from, to){
+  if (from === to) return [];
+  if (grid[from] === 1 || grid[to] === 1) return null;
+  bfsSeen.fill(0);
+  var head = 0, tail = 0;
+  bfsQueue[tail++] = from;
+  bfsSeen[from] = 1;
+  bfsPrev[from] = -1;
+  while (head < tail){
+    var c = bfsQueue[head++];
+    if (c === to){
+      var path = [];
+      var n = c;
+      while (n !== from && n !== -1){ path.push(n); n = bfsPrev[n]; }
+      path.reverse();
+      return path;
+    }
+    var cx = c % GW, cy = (c / GW) | 0;
+    visit(cx + 1, cy, c); visit(cx - 1, cy, c);
+    visit(cx, cy + 1, c); visit(cx, cy - 1, c);
+  }
+  return null;
+  function visit(nx, ny, prev){
+    if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) return;
+    var ni = idx(nx, ny);
+    if (bfsSeen[ni] || grid[ni] === 1) return;
+    bfsSeen[ni] = 1;
+    bfsPrev[ni] = prev;
+    bfsQueue[tail++] = ni;
+  }
+}
+function cellOf(x, y){
+  var tx = Math.max(0, Math.min(GW - 1, Math.floor(x / TS)));
+  var ty = Math.max(0, Math.min(GH - 1, Math.floor(y / TS)));
+  return idx(tx, ty);
+}
+function nearestOpenCell(x, y){
+  var c = cellOf(x, y);
+  if (grid[c] === 0) return c;
+  var bestI = openCells.length ? openCells[0] : c;
+  var bestD = Infinity;
+  for (var k = 0; k < openCells.length; k++){
+    var p = cellCenter(openCells[k]);
+    var d = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+    if (d < bestD){ bestD = d; bestI = openCells[k]; }
+  }
+  return bestI;
+}
+
+/* ---------- kolize: po osach zvlast ---------- */
+function moveAxis(ent, dx, dy){
+  if (dx === 0 && dy === 0) return;
+  ent.x += dx;
+  ent.y += dy;
+  var r = ent.r;
+  var minTx = Math.floor((ent.x - r) / TS), maxTx = Math.floor((ent.x + r - 0.001) / TS);
+  var minTy = Math.floor((ent.y - r) / TS), maxTy = Math.floor((ent.y + r - 0.001) / TS);
+  for (var ty = minTy; ty <= maxTy; ty++){
+    for (var tx = minTx; tx <= maxTx; tx++){
+      if (!isWallTile(tx, ty)) continue;
+      if (dx > 0) ent.x = tx * TS - r;
+      else if (dx < 0) ent.x = (tx + 1) * TS + r;
+      if (dy > 0) ent.y = ty * TS - r;
+      else if (dy < 0) ent.y = (ty + 1) * TS + r;
+    }
+  }
+  /* pojistka proti vypadnuti z areny */
+  if (ent.x < TS + r) ent.x = TS + r;
+  if (ent.x > W - TS - r) ent.x = W - TS - r;
+  if (ent.y < TS + r) ent.y = TS + r;
+  if (ent.y > H - TS - r) ent.y = H - TS - r;
+}
+function moveEntity(ent, dx, dy){
+  moveAxis(ent, dx, 0);
+  moveAxis(ent, 0, dy);
+}
+
+/* ---------- raycasting ---------- */
+function castWall(ox, oy, ang, maxD){
+  var dx = Math.cos(ang), dy = Math.sin(ang);
+  var step = 4;
+  for (var d = step; d <= maxD; d += step){
+    if (isWallAt(ox + dx * d, oy + dy * d)){
+      var lo = d - step, hi = d;
+      for (var b = 0; b < 4; b++){
+        var mid = (lo + hi) * 0.5;
+        if (isWallAt(ox + dx * mid, oy + dy * mid)) hi = mid; else lo = mid;
+      }
+      return { d: hi, x: ox + dx * hi, y: oy + dy * hi };
+    }
+  }
+  return null;
+}
+function hasLOS(ox, oy, tx, ty){
+  var dx = tx - ox, dy = ty - oy;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 1) return true;
+  dx /= d; dy /= d;
+  for (var s = 6; s < d; s += 6){
+    if (isWallAt(ox + dx * s, oy + dy * s)) return false;
+  }
+  return true;
+}
+
+/* ---------- echa a vlny ---------- */
+function pushEcho(x, y, kind, dist, speed, dens){
+  var st = ECHO_STYLE[kind];
+  echoes.push({
+    x: x, y: y, kind: kind,
+    born: gameTime + dist / speed,
+    life: st.life, size: st.size,
+    gain: st.gain * (dens === undefined ? 1 : dens)
+  });
+}
+/* Rozestup paprsku roste se vzdalenosti (2*PI*d/rays), takze blizko se stopy
+   prekryvaji a v souctu vysviti do bila. Jas jedne stopy proto skaluji linearne
+   se vzdalenosti - soucin prekryv * jas pak vyjde stejny u nohou i na dostrel. */
+function density(d, range){
+  var k = d / range;
+  if (k > 1) k = 1;
+  if (k < 0.05) k = 0.05;
+  return k;
+}
+function emitPing(ox, oy, o){
+  var range = o.range;
+  var rays = o.rays;
+  var speed = o.speed || WAVE_SPEED;
+  /* Zdi se nehybou, takze je staci proprsknout hned; stopa stejne nabehne az
+     ve chvili, kdy k ni dorazi celo vlny. */
+  pings.push({ x: ox, y: oy, t: 0, max: range, speed: speed, seen: Object.create(null) });
+
+  var off = Math.random() * TAU;
+  var i, hit;
+  for (i = 0; i < rays; i++){
+    hit = castWall(ox, oy, off + i / rays * TAU, range);
+    if (hit) pushEcho(hit.x, hit.y, 'wall', hit.d, speed, density(hit.d, range));
+  }
+
+  if (o.attract) alertHunters(ox, oy);
+  if (echoes.length > MAX_ECHOES) echoes.splice(0, echoes.length - MAX_ECHOES);
+  if (pings.length > 24) pings.splice(0, pings.length - 24);
+}
+/* Pohyblive cile ozvuci az prochazejici celo vlny - stopa tak vznikne tam,
+   kde cil opravdu byl ve chvili odrazu, ne kde stal pri vyslani pingu. */
+function sweepEntity(p, e, kind, id, r0, r1){
+  if (p.seen[id]) return;
+  var dx = e.x - p.x, dy = e.y - p.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (d > p.max || d < r0 || d >= r1) return;
+  p.seen[id] = 1;
+  if (!hasLOS(p.x, p.y, e.x, e.y)) return;
+  pushEcho(e.x, e.y, kind, 0, 1);
+}
+function sweepPing(p, r0, r1){
+  var i;
+  for (i = 0; i < crystals.length; i++){
+    if (!crystals[i].taken) sweepEntity(p, crystals[i], 'item', 'c' + i, r0, r1);
+  }
+  sweepEntity(p, exitPos, exitOpen ? 'exit' : 'exitClosed', 'x', r0, r1);
+  for (i = 0; i < hunters.length; i++){
+    sweepEntity(p, hunters[i], 'hunter', 'h' + i, r0, r1);
+  }
+}
+function activePing(){
+  if (state !== 'play' || pingCd > 0) return;
+  pingCd = PING_CD;
+  score = Math.max(0, score - PING_COST);
+  emitPing(player.x, player.y, { range: PING_RANGE, rays: 420, attract: true });
+  SFX.active();
+  updateHud();
+}
+
+/* ---------- lovci ---------- */
+function alertHunters(x, y){
+  var goal = nearestOpenCell(x, y);
+  for (var i = 0; i < hunters.length; i++){
+    var h = hunters[i];
+    h.goal = goal;
+    h.mode = 'hunt';
+    h.path = findPath(cellOf(h.x, h.y), goal) || [];
+    h.stuck = 0;
+  }
+}
+function wanderTo(h){
+  if (openCells.length){
+    for (var t = 0; t < 10; t++){
+      var c = openCells[(Math.random() * openCells.length) | 0];
+      var p = findPath(cellOf(h.x, h.y), c);
+      if (p && p.length){
+        h.goal = c; h.path = p; h.mode = 'wander'; h.stuck = 0;
+        return;
+      }
+    }
+  }
+  h.path = [];
+  h.mode = 'wander';
+  h.stuck = 0;
+}
+function updateHunters(dt){
+  for (var i = 0; i < hunters.length; i++){
+    var h = hunters[i];
+    if (!h.path.length){
+      wanderTo(h);
+      if (!h.path.length) continue;
+    }
+    var target = cellCenter(h.path[0]);
+    var dx = target.x - h.x, dy = target.y - h.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 4){
+      h.path.shift();
+      if (!h.path.length) wanderTo(h);
+      continue;
+    }
+    var sp = HUNTER_SPEED * (h.mode === 'hunt' ? 1 : 0.72);
+    var px = h.x, py = h.y;
+    moveEntity(h, dx / d * sp * dt, dy / d * sp * dt);
+    var moved = Math.sqrt((h.x - px) * (h.x - px) + (h.y - py) * (h.y - py));
+    if (moved < sp * dt * 0.4){
+      h.stuck += dt;
+      if (h.stuck > 0.6) wanderTo(h);
+    } else {
+      h.stuck = 0;
+    }
+  }
+}
+
+/* ---------- rozmisteni ---------- */
+function shuffled(arr){
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--){
+    var j = (Math.random() * (i + 1)) | 0;
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+/* vrati stred volne bunky splnujici minimalni vzdalenosti,
+   pri nezdaru nejlepsi mozny kompromis; nikdy ne zed */
+function pickSpot(pool, limits){
+  var bestP = null, bestScore = -1;
+  for (var i = 0; i < pool.length; i++){
+    var p = cellCenter(pool[i]);
+    var ok = true, worst = Infinity;
+    for (var k = 0; k < limits.length; k++){
+      var m = limits[k];
+      var d = Math.sqrt((p.x - m.x) * (p.x - m.x) + (p.y - m.y) * (p.y - m.y));
+      if (d < m.d) ok = false;
+      if (d < worst) worst = d;
+    }
+    if (ok) return p;
+    if (worst > bestScore){ bestScore = worst; bestP = p; }
+  }
+  return bestP || cellCenter(pool[0]);
+}
+
+function startLevel(n){
+  var arena = buildArena();
+  grid = arena.grid;
+  openCells = arena.open;
+
+  var start = cellCenter(openCells[(Math.random() * openCells.length) | 0]);
+  player.x = start.x;
+  player.y = start.y;
+  player.moving = false;
+
+  crystals = [];
+  var used = [{ x: player.x, y: player.y, d: 130 }];
+  for (var i = 0; i < CRYSTALS; i++){
+    var p = pickSpot(shuffled(openCells), used);
+    crystals.push({ x: p.x, y: p.y, taken: false });
+    used.push({ x: p.x, y: p.y, d: 130 });
+  }
+
+  var exLimits = [{ x: player.x, y: player.y, d: 300 }];
+  for (var q = 0; q < crystals.length; q++) exLimits.push({ x: crystals[q].x, y: crystals[q].y, d: 80 });
+  var ep = pickSpot(shuffled(openCells), exLimits);
+  exitPos.x = ep.x;
+  exitPos.y = ep.y;
+  exitOpen = false;
+
+  hunters = [];
+  var count = Math.min(5, 2 + (n - 1));
+  var hUsed = [{ x: player.x, y: player.y, d: 250 }, { x: exitPos.x, y: exitPos.y, d: 60 }];
+  for (var q2 = 0; q2 < crystals.length; q2++) hUsed.push({ x: crystals[q2].x, y: crystals[q2].y, d: 60 });
+  for (var k = 0; k < count; k++){
+    var hp = pickSpot(shuffled(openCells), hUsed);
+    hunters.push({ x: hp.x, y: hp.y, r: HR, path: [], goal: -1, mode: 'wander', stuck: 0 });
+    hUsed.push({ x: hp.x, y: hp.y, d: 90 });
+  }
+  for (var m = 0; m < hunters.length; m++) wanderTo(hunters[m]);
+
+  echoes.length = 0;
+  pings.length = 0;
+  collected = 0;
+  pingCd = 0;
+  passiveCd = 0;
+  revealCd = 0;
+  flash = 0;
+  banner = { text: 'K O L O   ' + n, sub: 'najdi tři krystaly', t: 0, life: 2.2 };
+
+  /* ping zdarma, at hrac nikdy nehledi do prazdne tmy */
+  emitPing(player.x, player.y, { range: PING_RANGE, rays: 420, attract: false });
+  SFX.active();
+  updateHud();
+}
+
+function newGame(){
+  level = 1;
+  score = 0;
+  collected = 0;
+  clearKeys();
+  state = 'play';
+  gameTime = 0;
+  lastTs = 0;
+  banner = null;
+  startLevel(level);
+  showOverlay(null);
+}
+
+/* ---------- postup hrou ---------- */
+function collectCrystal(c){
+  c.taken = true;
+  collected++;
+  score += 50;
+  SFX.crystal();
+  emitPing(c.x, c.y, { range: 150, rays: 110, speed: 520, attract: false });
+  if (collected >= CRYSTALS){
+    exitOpen = true;
+    revealCd = 0;
+    SFX.exit();
+    banner = { text: 'V Ý C H O D   O T E V Ř E N', sub: 'sleduj světlo', t: 0, life: 2.2 };
+    emitPing(exitPos.x, exitPos.y, { range: 900, rays: 300, speed: 520, attract: false });
+  }
+  updateHud();
+}
+function completeLevel(){
+  score += 100 * level;
+  level++;
+  SFX.level();
+  if (score > best){ best = score; saveBest(); }
+  startLevel(level);
+}
+function die(){
+  if (state !== 'play') return;
+  state = 'over';
+  flash = 1;
+  SFX.death();
+  if (score > best){ best = score; saveBest(); }
+  document.getElementById('oScore').textContent = String(score);
+  document.getElementById('oBest').textContent = String(best);
+  document.getElementById('oLevel').textContent = String(level);
+  updateHud();
+  showOverlay(ovOver);
+}
+
+/* ---------- HUD a overlaye ---------- */
+function updateHud(){
+  elLevel.textContent = String(level);
+  elCry.textContent = collected + '/' + CRYSTALS;
+  elScore.textContent = String(score);
+  elBest.textContent = String(best);
+}
+function showOverlay(el){
+  ovStart.classList.remove('on');
+  ovPause.classList.remove('on');
+  ovOver.classList.remove('on');
+  if (el) el.classList.add('on');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function setPaused(p){
+  if (p && state === 'play'){ state = 'pause'; showOverlay(ovPause); }
+  else if (!p && state === 'pause'){ state = 'play'; showOverlay(null); }
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  if (state === 'pause' || state === 'menu') return;
+
+  gameTime += dt;
+
+  var w = 0, i;
+  for (i = 0; i < echoes.length; i++){
+    var e = echoes[i];
+    if (gameTime - e.born < e.life) echoes[w++] = e;
+  }
+  echoes.length = w;
+
+  var pw = 0;
+  for (i = 0; i < pings.length; i++){
+    var p = pings[i];
+    var r0 = p.t * p.speed;
+    p.t += dt;
+    var r1 = p.t * p.speed;
+    sweepPing(p, r0, r1);
+    if (r1 <= p.max * 1.02) pings[pw++] = p;
+  }
+  pings.length = pw;
+
+  if (flash > 0) flash = Math.max(0, flash - dt * 1.6);
+  if (banner){
+    banner.t += dt;
+    if (banner.t > banner.life) banner = null;
+  }
+
+  if (state !== 'play') return;
+
+  if (pingCd > 0) pingCd = Math.max(0, pingCd - dt);
+
+  var vx = 0, vy = 0;
+  if (keys.KeyA || keys.ArrowLeft) vx -= 1;
+  if (keys.KeyD || keys.ArrowRight) vx += 1;
+  if (keys.KeyW || keys.ArrowUp) vy -= 1;
+  if (keys.KeyS || keys.ArrowDown) vy += 1;
+  player.moving = (vx !== 0 || vy !== 0);
+  if (player.moving){
+    var len = Math.sqrt(vx * vx + vy * vy);
+    moveEntity(player, vx / len * PLAYER_SPEED * dt, vy / len * PLAYER_SPEED * dt);
+  }
+
+  passiveCd -= dt;
+  if (player.moving && passiveCd <= 0){
+    passiveCd = PASSIVE_CD;
+    emitPing(player.x, player.y, { range: PASSIVE_RANGE, rays: 100, speed: 520, attract: false });
+    SFX.passive();
+  }
+
+  if (exitOpen){
+    revealCd -= dt;
+    if (revealCd <= 0){
+      revealCd = 2.6;
+      emitPing(exitPos.x, exitPos.y, { range: 230, rays: 140, speed: 520, attract: false });
+    }
+  }
+
+  updateHunters(dt);
+
+  for (i = 0; i < crystals.length; i++){
+    var c = crystals[i];
+    if (c.taken) continue;
+    if (Math.abs(c.x - player.x) < 20 && Math.abs(c.y - player.y) < 20){
+      var dc = Math.sqrt((c.x - player.x) * (c.x - player.x) + (c.y - player.y) * (c.y - player.y));
+      if (dc < 20) collectCrystal(c);
+    }
+  }
+
+  if (exitOpen){
+    var dex = exitPos.x - player.x, dey = exitPos.y - player.y;
+    if (Math.sqrt(dex * dex + dey * dey) < 20){ completeLevel(); return; }
+  }
+
+  for (i = 0; i < hunters.length; i++){
+    var h = hunters[i];
+    var hx = h.x - player.x, hy = h.y - player.y;
+    if (Math.sqrt(hx * hx + hy * hy) < PR + HR - 2){ die(); return; }
+  }
+}
+
+/* ---------- vykresleni ---------- */
+function render(){
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(120,140,170,0.07)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(TS, TS, W - TS * 2, H - TS * 2);
+
+  ctx.globalCompositeOperation = 'lighter';
+  for (var i = 0; i < echoes.length; i++){
+    var e = echoes[i];
+    var age = gameTime - e.born;
+    if (age < 0) continue;
+    var u = age / e.life;
+    if (u >= 1) continue;
+    var a = e.gain * Math.pow(1 - u, 1.5) * (age < 0.12 ? 1.7 : 1);
+    if (a < 0.02) continue;
+    if (a > 1) a = 1;
+    ctx.globalAlpha = a;
+    var s = e.size;
+    ctx.drawImage(sprites[e.kind], e.x - s / 2, e.y - s / 2, s, s);
+  }
+  if (state !== 'menu'){
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(sprites.player, player.x - 22, player.y - 22, 44, 44);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+
+  if (state === 'menu'){ drawBanner(); return; }
+
+  for (var j = 0; j < pings.length; j++){
+    var p = pings[j];
+    var r = p.t * p.speed;
+    if (r < 2) continue;
+    var pa = 0.20 * (1 - r / p.max);
+    if (pa <= 0.005) continue;
+    ctx.strokeStyle = 'rgba(150,220,225,' + pa.toFixed(3) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, TAU);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#dff6f3';
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 3.2, 0, TAU);
+  ctx.fill();
+
+  var ready = 1 - (pingCd / PING_CD);
+  ctx.strokeStyle = ready >= 1 ? 'rgba(65,214,196,0.42)' : 'rgba(65,214,196,0.22)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 13, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.001, ready));
+  ctx.stroke();
+
+  if (mouse.on && state === 'play'){
+    ctx.strokeStyle = 'rgba(160,180,200,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mouse.x - 6, mouse.y); ctx.lineTo(mouse.x - 2, mouse.y);
+    ctx.moveTo(mouse.x + 2, mouse.y); ctx.lineTo(mouse.x + 6, mouse.y);
+    ctx.moveTo(mouse.x, mouse.y - 6); ctx.lineTo(mouse.x, mouse.y - 2);
+    ctx.moveTo(mouse.x, mouse.y + 2); ctx.lineTo(mouse.x, mouse.y + 6);
+    ctx.stroke();
+  }
+
+  if (flash > 0){
+    ctx.fillStyle = 'rgba(255,90,107,' + (flash * 0.3).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  drawBanner();
+}
+function drawBanner(){
+  if (!banner) return;
+  var u = banner.t / banner.life;
+  var a = u < 0.15 ? u / 0.15 : Math.max(0, 1 - (u - 0.15) / 0.85);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(65,214,196,' + (a * 0.9).toFixed(3) + ')';
+  ctx.font = '600 20px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+  /* nad stredem, aby text nesedel na hraci */
+  var by = H * 0.2;
+  ctx.fillText(banner.text, W / 2, by);
+  if (banner.sub){
+    ctx.fillStyle = 'rgba(160,175,195,' + (a * 0.6).toFixed(3) + ')';
+    ctx.font = '400 12px -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+    ctx.fillText(banner.sub, W / 2, by + 24);
+  }
+  ctx.textAlign = 'start';
+}
+
+/* ---------- smycka ---------- */
+function frame(ts){
+  window.requestAnimationFrame(frame);
+  if (!lastTs){ lastTs = ts; }
+  var dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  if (!isFinite(dt) || dt < 0) dt = 0;
+  if (dt > 0.05) dt = 0.05;
+  /* levy test: cteni devicePixelRatio nevynucuje prepocet layoutu */
+  if ((window.devicePixelRatio || 1) !== lastDpr) resize();
+  update(dt);
+  render();
+}
+
+/* ---------- velikost platna ---------- */
+var lastDpr = 0;
+function resize(){
+  var aw = stage.clientWidth - 16;
+  var ah = stage.clientHeight - 16;
+  if (aw < 1) aw = 1;
+  if (ah < 1) ah = 1;
+  var sc = Math.min(aw / W, ah / H);
+  var cw = Math.max(1, Math.round(W * sc));
+  var ch = Math.max(1, Math.round(H * sc));
+  cv.style.width = cw + 'px';
+  cv.style.height = ch + 'px';
+  var raw = window.devicePixelRatio || 1;
+  if (!isFinite(raw) || raw < 1) raw = 1;
+  lastDpr = raw;
+  var dpr = raw > 2 ? 2 : raw;
+  var bw = Math.max(1, Math.round(cw * dpr));
+  var bh = Math.max(1, Math.round(ch * dpr));
+  if (cv.width !== bw || cv.height !== bh){ cv.width = bw; cv.height = bh; }
+}
+
+/* ---------- vstupy ---------- */
+var NAV_KEYS = { Space: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1 };
+function clearKeys(){ keys = Object.create(null); }
+
+/* Normalizuje udalost na fyzicky kod. e.code je nezavisly na rozlozeni
+   klavesnice, ale nektere vstupni metody ho neposilaji - pak se odvodi z e.key. */
+function keyId(e){
+  if (e.code) return e.code;
+  var k = e.key;
+  if (!k) return '';
+  if (k === ' ' || k === 'Spacebar') return 'Space';
+  if (k === 'Esc') return 'Escape';
+  if (k.length === 1){
+    var c = k.toUpperCase();
+    if (c >= 'A' && c <= 'Z') return 'Key' + c;
+  }
+  return k;
+}
+/* Pismenne zkratky bereme i podle e.key, aby fungovaly na jinem rozlozeni. */
+function isCmd(e, code, letter){
+  var id = keyId(e);
+  if (id === code) return true;
+  return !!(e.key && e.key.length === 1 && e.key.toLowerCase() === letter);
+}
+
+window.addEventListener('keydown', function(e){
+  var id = keyId(e);
+  if (NAV_KEYS[id]) e.preventDefault();
+  ensureAudio();
+  resumeAudio();
+
+  if (isCmd(e, 'KeyM', 'm')){ setMuted(!muted); return; }
+  if (isCmd(e, 'KeyR', 'r')){ newGame(); return; }
+  if (isCmd(e, 'KeyP', 'p') || id === 'Escape'){
+    if (state === 'play') setPaused(true);
+    else if (state === 'pause') setPaused(false);
+    return;
+  }
+  if (id === 'Space'){
+    if (e.repeat) return;
+    if (state === 'menu' || state === 'over'){ newGame(); return; }
+    if (state === 'play') activePing();
+    return;
+  }
+  if (e.repeat) return;
+  if (id) keys[id] = true;
+}, false);
+
+window.addEventListener('keyup', function(e){
+  var id = keyId(e);
+  if (NAV_KEYS[id]) e.preventDefault();
+  if (id) keys[id] = false;
+}, false);
+
+window.addEventListener('blur', function(){
+  clearKeys();
+  setPaused(true);
+}, false);
+
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden){
+    clearKeys();
+    setPaused(true);
+  }
+}, false);
+
+function toWorld(ev){
+  var r = cv.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return null;
+  return {
+    x: (ev.clientX - r.left) / r.width * W,
+    y: (ev.clientY - r.top) / r.height * H
+  };
+}
+cv.addEventListener('mousemove', function(ev){
+  var p = toWorld(ev);
+  if (!p) return;
+  mouse.x = p.x;
+  mouse.y = p.y;
+  mouse.on = true;
+}, false);
+cv.addEventListener('mouseleave', function(){ mouse.on = false; }, false);
+cv.addEventListener('mousedown', function(ev){
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  ensureAudio();
+  resumeAudio();
+  if (state === 'play') activePing();
+}, false);
+cv.addEventListener('contextmenu', function(ev){ ev.preventDefault(); }, false);
+
+window.addEventListener('resize', resize, false);
+/* Okno neni jediny duvod ke zmene velikosti (zoom, prechod na monitor s jinym
+   DPI, zmena layoutu), proto sledujeme primo plochu a hlidame devicePixelRatio. */
+if (typeof window.ResizeObserver === 'function'){
+  try{ new window.ResizeObserver(resize).observe(stage); }catch(e){}
+}
+
+document.getElementById('btnStart').addEventListener('click', function(){
+  ensureAudio(); resumeAudio(); newGame();
+}, false);
+document.getElementById('btnAgain').addEventListener('click', function(){
+  ensureAudio(); resumeAudio(); newGame();
+}, false);
+document.getElementById('btnResume').addEventListener('click', function(){
+  ensureAudio(); resumeAudio(); setPaused(false);
+}, false);
+document.getElementById('btnRestart').addEventListener('click', function(){
+  ensureAudio(); resumeAudio(); newGame();
+}, false);
+document.getElementById('btnPause').addEventListener('click', function(){
+  if (state === 'play') setPaused(true);
+  else if (state === 'pause') setPaused(false);
+}, false);
+btnMute.addEventListener('click', function(){
+  ensureAudio(); resumeAudio(); setMuted(!muted);
+}, false);
+
+/* ---------- start ---------- */
+buildSprites();
+best = loadBest();
+setMuted(false);
+grid = new Uint8Array(GW * GH);
+openCells = [];
+updateHud();
+resize();
+window.requestAnimationFrame(frame);
+
+/* Ladici rozhrani (jen pro cteni stavu a rucni testy) - hra ho sama nepouziva. */
+window.__sonar = {
+  get state(){ return state; },
+  get echoCount(){ return echoes.length; },
+  get pingCount(){ return pings.length; },
+  get player(){ return player; },
+  get hunters(){ return hunters; },
+  get crystals(){ return crystals; },
+  get exitPos(){ return exitPos; },
+  get exitOpen(){ return exitOpen; },
+  get score(){ return score; },
+  get level(){ return level; },
+  get collected(){ return collected; },
+  get grid(){ return grid; },
+  get openCells(){ return openCells; },
+  get keys(){ return keys; },
+  get muted(){ return muted; },
+  get mouse(){ return mouse; },
+  W: W, H: H, TS: TS, GW: GW, GH: GH,
+  isWallAt: isWallAt,
+  isWallTile: isWallTile,
+  hasLOS: hasLOS,
+  buildArena: buildArena,
+  floodOpen: floodOpen,
+  cellCenter: cellCenter,
+  moveEntity: moveEntity,
+  cellOf: cellOf,
+  findPath: findPath,
+  startLevel: startLevel,
+  newGame: newGame,
+  ping: activePing,
+  step: function(dt){ update(dt); },
+  render: render,
+  setPlayer: function(x, y){ player.x = x; player.y = y; },
+  press: function(code, down){ keys[code] = !!down; }
+};
+
+})();
+</script>
+</body>
+</html>
