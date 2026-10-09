@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ECHOES — a puzzle game about time</title>
+<style>
+:root {
+  --bg: #05070d;
+  --line: rgba(140, 190, 230, .14);
+  --txt: #c9dcec;
+  --dim: #7890a6;
+  --accent: #7ef0ff;
+  --e1: #b388ff;
+  --e2: #ffc46b;
+  --e3: #5ef2b4;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 640px at 50% -12%, rgba(60, 130, 190, .17), transparent 62%),
+    radial-gradient(900px 620px at 50% 112%, rgba(120, 70, 190, .12), transparent 60%);
+}
+
+#app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding: 10px;
+  gap: 8px;
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+/* ------------------------------------------------------------------ hud */
+
+#hud {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: rgba(140, 190, 230, .04);
+}
+
+#lvlname { display: flex; align-items: baseline; gap: 9px; }
+
+#lvlnum {
+  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--accent);
+  letter-spacing: .1em;
+  padding: 4px 6px;
+  border: 1px solid rgba(126, 240, 255, .3);
+  border-radius: 6px;
+}
+
+#lvltitle { font-size: 16px; font-weight: 600; letter-spacing: .01em; }
+#objective { color: var(--dim); font-size: 12.5px; margin-top: 4px; max-width: 46ch; }
+
+.hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: none; }
+
+#meta {
+  white-space: pre-line;
+  font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--dim);
+  letter-spacing: .04em;
+  text-align: right;
+}
+
+.btnrow { display: flex; gap: 6px; }
+
+button {
+  font: 500 12.5px/1 inherit;
+  color: var(--txt);
+  background: rgba(140, 190, 230, .07);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .06s, color .12s;
+  touch-action: none;
+}
+
+button:hover { background: rgba(126, 240, 255, .13); border-color: rgba(126, 240, 255, .38); color: #eafcff; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:active, button.down { transform: translateY(1px); background: rgba(126, 240, 255, .22); }
+button:disabled { opacity: .3; cursor: default; transform: none; background: rgba(140, 190, 230, .04); }
+button kbd {
+  font: 600 10px/1 ui-monospace, Menlo, Consolas, monospace;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 3px;
+  margin-left: 5px;
+}
+button.primary { background: rgba(126, 240, 255, .16); border-color: rgba(126, 240, 255, .45); color: #eafcff; }
+button.primary:hover { background: rgba(126, 240, 255, .28); }
+
+/* ---------------------------------------------------------------- board */
+
+#stage { position: relative; flex: 1 1 auto; min-height: 0; }
+#board { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ------------------------------------------------------------- timeline */
+
+#tlwrap {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(140, 190, 230, .04);
+  padding: 6px 8px 7px;
+}
+
+#timeline { display: block; width: 100%; height: 58px; }
+
+#legend { display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 4px 4px 0; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--dim);
+  letter-spacing: .02em;
+}
+
+.chip i {
+  width: 10px;
+  height: 10px;
+  background: var(--c);
+  box-shadow: 0 0 7px var(--c);
+  flex: none;
+}
+
+.g0 { border-radius: 3px; }
+.g1 { border-radius: 50%; }
+.g2 { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.g3 { transform: rotate(45deg); }
+
+/* ------------------------------------------------------------------ pad */
+
+#pad { display: none; flex: none; gap: 14px; align-items: center; justify-content: center; padding-bottom: 2px; }
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 54px);
+  grid-template-rows: repeat(3, 46px);
+  gap: 5px;
+  grid-template-areas: ". u ." "l w r" ". d .";
+}
+
+.dpad button { padding: 0; font-size: 17px; }
+.pu { grid-area: u; } .pl { grid-area: l; } .pw { grid-area: w; } .pr { grid-area: r; } .pd { grid-area: d; }
+.pw { font-size: 11px !important; letter-spacing: .08em; }
+.sidebtns { display: flex; flex-direction: column; gap: 6px; }
+.sidebtns button { min-width: 84px; padding: 12px 10px; }
+
+@media (pointer: coarse), (max-width: 720px) {
+  #pad { display: flex; }
+  #objective { font-size: 11px; max-width: 30ch; }
+  #btnUndo, #btnRestart { display: none; }
+  #lvltitle { font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  #app { padding: 7px; gap: 6px; }
+  #hud { padding: 7px 9px; }
+  #timeline { height: 50px; }
+  .dpad { grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 42px); }
+}
+
+/* -------------------------------------------------------------- overlay */
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(4, 6, 12, .82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 5;
+}
+
+#overlay.on { display: flex; }
+
+.panel {
+  width: min(430px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(140, 190, 230, .09), rgba(140, 190, 230, .035));
+  padding: 22px 22px 20px;
+  text-align: center;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
+  animation: rise .22s ease-out;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(9px); } }
+
+.panel h1 {
+  margin: 0 0 6px;
+  font-size: 30px;
+  letter-spacing: .32em;
+  font-weight: 300;
+  color: #eafcff;
+  text-shadow: 0 0 22px rgba(126, 240, 255, .45);
+}
+
+.panel h2 { margin: 0 0 6px; font-size: 19px; font-weight: 600; letter-spacing: .02em; }
+.panel .tag { margin: 0 0 16px; color: var(--dim); font-size: 13px; line-height: 1.55; }
+
+.keys { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 6px; }
+.keys li { color: var(--dim); font-size: 12.5px; }
+.keys b {
+  color: var(--txt);
+  font: 600 11.5px/1 ui-monospace, Menlo, Consolas, monospace;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 6px;
+  margin-right: 7px;
+  display: inline-block;
+  min-width: 96px;
+}
+
+.row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.row button { padding: 9px 16px; }
+
+.grid6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.grid6 button { display: flex; flex-direction: column; gap: 3px; padding: 10px 6px; align-items: center; }
+.grid6 .n { font: 600 15px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
+.grid6 button:disabled .n { color: var(--dim); }
+.grid6 .t { font-size: 10px; color: var(--dim); text-align: center; line-height: 1.25; }
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+  button { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header id="hud">
+    <div class="hud-left">
+      <div id="lvlname"><span id="lvlnum">01</span><span id="lvltitle">Awakening</span></div>
+      <div id="objective"></div>
+    </div>
+    <div class="hud-right">
+      <div id="meta"></div>
+      <div class="btnrow">
+        <button id="btnUndo" type="button">Undo<kbd>Z</kbd></button>
+        <button id="btnRestart" type="button">Restart<kbd>R</kbd></button>
+        <button id="btnMenu" type="button">Levels</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="board" aria-label="Puzzle board. Move with the arrow keys or WASD, wait with space."></canvas>
+  </main>
+
+  <section id="tlwrap">
+    <canvas id="timeline" aria-label="Timeline of recorded ticks with a marker for each echo."></canvas>
+    <div id="legend"></div>
+  </section>
+
+  <nav id="pad" aria-label="Touch controls">
+    <div class="dpad">
+      <button class="pu" type="button" data-act="U" aria-label="Move up">&#9650;</button>
+      <button class="pl" type="button" data-act="L" aria-label="Move left">&#9664;</button>
+      <button class="pw" type="button" data-act="W" aria-label="Wait one tick">WAIT</button>
+      <button class="pr" type="button" data-act="R" aria-label="Move right">&#9654;</button>
+      <button class="pd" type="button" data-act="D" aria-label="Move down">&#9660;</button>
+    </div>
+    <div class="sidebtns">
+      <button type="button" data-act="undo">Undo</button>
+      <button type="button" data-act="restart">Restart</button>
+    </div>
+  </nav>
+
+  <div id="overlay" role="dialog" aria-modal="true"></div>
+</div>
+<script>
+'use strict';
+
+/* =========================================================== LEVEL DATA ===
+   # wall   . floor   @ start   E exit
+   1..3 pressure plate    a..c switch    A..C door (see links)            */
+
+var LEVELS = [
+  {
+    title: 'Awakening',
+    objective: 'Reach the exit. You will not be walking alone for long.',
+    echoes: 1, delay: 4, links: {},
+    grid: [
+      '#########',
+      '#@......#',
+      '#.#####.#',
+      '#.#####.#',
+      '#......E#',
+      '#########'
+    ]
+  },
+  {
+    title: 'Weight of the Past',
+    objective: 'The door needs weight on the plate. Let your past self carry it.',
+    echoes: 1, delay: 6, links: { A: '1' },
+    grid: [
+      '#######',
+      '#@.11.#',
+      '#.###.#',
+      '#.###.#',
+      '#..A..#',
+      '###E###',
+      '#######'
+    ]
+  },
+  {
+    title: 'Delayed Door',
+    objective: 'You will arrive too early. Stand still and wait for yourself.',
+    echoes: 1, delay: 5, links: { A: '1' },
+    grid: [
+      '#########',
+      '#@......#',
+      '#.#####.#',
+      '#.#.E.#.#',
+      '#.#...#.#',
+      '#.###A#.#',
+      '#..1....#',
+      '#########'
+    ]
+  },
+  {
+    title: 'Crossing Paths',
+    objective: 'The echo is solid. Step aside now so that you can pass later.',
+    echoes: 1, delay: 6, links: { A: 'a' },
+    grid: [
+      '#########',
+      '#EA@...a#',
+      '#####.###',
+      '#####.###',
+      '#########'
+    ]
+  },
+  {
+    title: 'Two Echoes',
+    objective: 'Two plates, one door. Both echoes must be pressing at once.',
+    echoes: 2, delay: 7, links: { A: ['1', '2'] },
+    grid: [
+      '#########',
+      '#@.2....#',
+      '#######.#',
+      '##.....1#',
+      '##A######',
+      '##E######',
+      '#########'
+    ]
+  },
+  {
+    title: 'Causality',
+    objective: 'Every echo flips the switch again. Choose your window.',
+    echoes: 3, delay: 4, links: { A: 'a', B: '1' },
+    grid: [
+      '#########',
+      '#@..a...#',
+      '#######.#',
+      '#..A..1.#',
+      '#.#######',
+      '#.B....E#',
+      '#########'
+    ]
+  }
+];
+
+/* ================================================================ MODEL === */
+
+var DIRS = {
+  U: { x: 0, y: -1 }, D: { x: 0, y: 1 },
+  L: { x: -1, y: 0 }, R: { x: 1, y: 0 }, W: { x: 0, y: 0 }
+};
+
+function isPlateId(id) { return id >= '1' && id <= '3'; }
+
+/* Turn an ASCII grid into a tile matrix. */
+function buildLevel(index) {
+  var def = LEVELS[index];
+  var h = def.grid.length, w = def.grid[0].length;
+  var tiles = [], start = null, exit = null;
+  for (var y = 0; y < h; y++) {
+    var row = [];
+    for (var x = 0; x < w; x++) {
+      var ch = def.grid[y][x], t;
+      if (ch === '#') t = { k: 'wall' };
+      else if (ch === 'E') { t = { k: 'exit' }; exit = { x: x, y: y }; }
+      else if (isPlateId(ch)) t = { k: 'plate', id: ch };
+      else if (ch >= 'a' && ch <= 'c') t = { k: 'switch', id: ch };
+      else if (ch >= 'A' && ch <= 'C') t = { k: 'door', id: ch };
+      else { t = { k: 'floor' }; if (ch === '@') start = { x: x, y: y }; }
+      row.push(t);
+    }
+    tiles.push(row);
+  }
+  return {
+    index: index, def: def, w: w, h: h, tiles: tiles,
+    start: start, exit: exit,
+    echoes: def.echoes, delay: def.delay, links: def.links || {}
+  };
+}
+
+/* P[0..T] — the recorded position of the player at every tick. */
+function pathFrom(level, turns) {
+  var p = [level.start];
+  for (var i = 0; i < turns.length; i++) {
+    var d = DIRS[turns[i]], last = p[p.length - 1];
+    p.push({ x: last.x + d.x, y: last.y + d.y });
+  }
+  return p;
+}
+
+/* The whole world at tick T, replayed from the turn list alone. */
+function stateAt(level, turns) {
+  var path = pathFrom(level, turns);
+  var T = turns.length, D = level.delay, N = level.echoes, k, i;
+
+  var echoes = [];
+  for (k = 1; k <= N; k++) {
+    i = T - k * D;
+    var ni = i + 1;
+    echoes.push({
+      k: k,
+      index: i,
+      pos: i >= 0 ? path[i] : null,
+      trail: i >= 1 ? path.slice(Math.max(0, i - 3), i) : [],
+      next: (ni >= 0 && ni <= T) ? path[ni] : null,
+      spawning: ni === 0
+    });
+  }
+
+  /* Switches latch: every entry by the player or by any echo toggles them. */
+  var switches = {};
+  function flip(from, to) {
+    if (!from || !to || (from.x === to.x && from.y === to.y)) return;
+    var tl = level.tiles[to.y][to.x];
+    if (tl.k === 'switch') switches[tl.id] = !switches[tl.id];
+  }
+  for (var t = 1; t <= T; t++) {
+    flip(path[t - 1], path[t]);
+    for (k = 1; k <= N; k++) {
+      i = t - k * D;
+      if (i >= 1) flip(path[i - 1], path[i]);
+    }
+  }
+
+  /* Plates are held only while somebody stands on them right now. */
+  var plates = {}, occ = [path[T]];
+  for (k = 0; k < echoes.length; k++) if (echoes[k].pos) occ.push(echoes[k].pos);
+  for (i = 0; i < occ.length; i++) {
+    var ot = level.tiles[occ[i].y][occ[i].x];
+    if (ot.k === 'plate') plates[ot.id] = true;
+  }
+
+  var doors = {};
+  for (var id in level.links) {
+    var src = level.links[id];
+    var list = Array.isArray(src) ? src : [src];
+    doors[id] = list.every(function (s) {
+      return isPlateId(s) ? !!plates[s] : !!switches[s];
+    });
+  }
+
+  return {
+    path: path, T: T, pos: path[T], echoes: echoes,
+    switches: switches, plates: plates, doors: doors, occ: occ
+  };
+}
+
+/* Try one turn. Illegal turns cost nothing and are never recorded. */
+function moveResult(level, turns, dir) {
+  var d = DIRS[dir];
+  if (!d) return { ok: false, reason: 'none' };
+  var st = stateAt(level, turns);
+  var tx = st.pos.x + d.x, ty = st.pos.y + d.y, e;
+
+  if (tx < 0 || ty < 0 || tx >= level.w || ty >= level.h)
+    return { ok: false, reason: 'wall', tile: null };
+  var tl = level.tiles[ty][tx];
+  if (tl.k === 'wall') return { ok: false, reason: 'wall', tile: { x: tx, y: ty } };
+  if (tl.k === 'door' && !st.doors[tl.id])
+    return { ok: false, reason: 'door', tile: { x: tx, y: ty } };
+  if (dir !== 'W') {
+    for (e = 0; e < st.echoes.length; e++) {
+      var ep = st.echoes[e].pos;
+      if (ep && ep.x === tx && ep.y === ty)
+        return { ok: false, reason: 'echo', tile: { x: tx, y: ty } };
+    }
+  }
+
+  var next = turns.concat([dir]);
+  var ns = stateAt(level, next);
+  if (level.tiles[ns.pos.y][ns.pos.x].k === 'exit')
+    return { ok: true, turns: next, state: ns, outcome: 'win' };
+  for (e = 0; e < ns.echoes.length; e++) {
+    var np = ns.echoes[e].pos;
+    if (np && np.x === ns.pos.x && np.y === ns.pos.y)
+      return { ok: true, turns: next, state: ns, outcome: 'paradox', echo: ns.echoes[e].k };
+  }
+  return { ok: true, turns: next, state: ns, outcome: 'ok' };
+}
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var board = $('board'), bx = board.getContext('2d');
+  var tl = $('timeline'), tx = tl.getContext('2d');
+  var overlay = $('overlay');
+
+  var reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var ECOL = ['#b388ff', '#ffc46b', '#5ef2b4'];
+  var DCOL = { A: '#ff8ab5', B: '#6fd8ff', C: '#ffd166' };
+  var PC = '#7ef0ff', WARN = '#ff5f7a';
+  var STEP = reduce ? 0.001 : 0.145;
+
+  var G = {
+    mode: 'menu', li: 0, level: null, turns: [], st: null,
+    prev: null, anim: 1, srcCol: {}, doorA: {},
+    parts: [], rings: [], bump: 0, bumpTile: null, bumpDir: null,
+    glitch: 0, clear: 0, clock: 0, unlocked: 1, timer: 0
+  };
+
+  /* ------------------------------------------------------------ progress */
+
+  function loadProgress() {
+    try {
+      var raw = localStorage.getItem('echoes.v1');
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && typeof o.unlocked === 'number' && o.unlocked >= 1)
+          return Math.min(LEVELS.length, Math.floor(o.unlocked));
+      }
+    } catch (e) { /* corrupted or unavailable — start fresh */ }
+    return 1;
+  }
+  function saveProgress() {
+    try { localStorage.setItem('echoes.v1', JSON.stringify({ unlocked: G.unlocked })); }
+    catch (e) { /* private mode — progress simply is not kept */ }
+  }
+
+  /* ---------------------------------------------------------------- flow */
+
+  function snapshot(st) {
+    return {
+      p: st.pos,
+      e: st.echoes.map(function (e) { return e.pos; }),
+      plates: Object.assign({}, st.plates)
+    };
+  }
+
+  function startLevel(i) {
+    G.li = i;
+    G.level = buildLevel(i);
+    G.turns = [];
+    G.st = stateAt(G.level, G.turns);
+    G.prev = snapshot(G.st);
+    G.anim = 1; G.parts.length = 0; G.rings.length = 0;
+    G.bump = 0; G.glitch = 0; G.clear = 0; G.timer = 0;
+    G.doorA = {};
+    G.srcCol = {};
+    for (var d in G.level.links) {
+      G.doorA[d] = G.st.doors[d] ? 1 : 0;
+      [].concat(G.level.links[d]).forEach(function (s) { G.srcCol[s] = DCOL[d]; });
+    }
+    G.mode = 'play';
+    hideOverlay();
+    updateHUD();
+    buildLegend();
+    resize();
+  }
+
+  function apply(dir) {
+    if (G.mode !== 'play') return;
+    var r = moveResult(G.level, G.turns, dir);
+    if (!r.ok) {
+      G.bump = 1; G.bumpDir = dir; G.bumpTile = r.tile;
+      return;
+    }
+    var was = G.st;
+    G.prev = snapshot(was);
+    G.turns = r.turns; G.st = r.state; G.anim = reduce ? 1 : 0;
+
+    /* a plate that just engaged gets a pulse */
+    for (var p in G.st.plates)
+      if (G.st.plates[p] && !was.plates[p]) pulsePlate(p);
+    /* an echo that just materialised gets a burst */
+    for (var k = 0; k < G.st.echoes.length; k++)
+      if (G.st.echoes[k].pos && !was.echoes[k].pos) burst(G.st.echoes[k].pos, ECOL[k], 22);
+
+    if (r.outcome === 'win') {
+      G.mode = 'clear'; G.clear = 1; G.timer = reduce ? 0.15 : 0.65;
+      burst(G.st.pos, PC, 46);
+      if (G.li + 1 >= G.unlocked && G.li + 1 < LEVELS.length) {
+        G.unlocked = G.li + 2; saveProgress();
+      } else if (G.li + 1 === LEVELS.length && G.unlocked < LEVELS.length) {
+        G.unlocked = LEVELS.length; saveProgress();
+      }
+    } else if (r.outcome === 'paradox') {
+      G.mode = 'paradox'; G.glitch = 1; G.timer = reduce ? 0.25 : 0.8;
+      burst(G.st.pos, WARN, 60);
+    }
+    updateHUD();
+  }
+
+  function undo() {
+    if (G.mode !== 'play' || !G.turns.length) return;
+    G.turns = G.turns.slice(0, -1);
+    G.st = stateAt(G.level, G.turns);
+    G.prev = snapshot(G.st);
+    G.anim = 1; G.parts.length = 0; G.rings.length = 0;
+    updateHUD();
+  }
+
+  function restart() {
+    if (G.mode !== 'play' && G.mode !== 'paradox') return;
+    G.turns = [];
+    G.st = stateAt(G.level, G.turns);
+    G.prev = snapshot(G.st);
+    G.anim = 1; G.parts.length = 0; G.rings.length = 0;
+    G.glitch = 0; G.bump = 0; G.mode = 'play';
+    for (var d in G.doorA) G.doorA[d] = G.st.doors[d] ? 1 : 0;
+    updateHUD();
+  }
+
+  /* --------------------------------------------------------------- hud   */
+
+  function updateHUD() {
+    var L = G.level;
+    $('lvlnum').textContent = ('0' + (G.li + 1)).slice(-2);
+    $('lvltitle').textContent = L.def.title;
+    $('objective').textContent = L.def.objective;
+    $('meta').textContent = 'level ' + (G.li + 1) + ' / ' + LEVELS.length +
+      ' · tick ' + G.st.T + '\ndelay ' + L.delay + ' · ' +
+      L.echoes + (L.echoes > 1 ? ' echoes' : ' echo');
+    $('btnUndo').disabled = !G.turns.length;
+  }
+
+  function buildLegend() {
+    var h = '<span class="chip" style="--c:' + PC + '"><i class="g0"></i>you · now</span>';
+    for (var k = 1; k <= G.level.echoes; k++)
+      h += '<span class="chip" style="--c:' + ECOL[k - 1] + '"><i class="g' + k + '"></i>echo ' +
+        k + ' · &minus;' + (k * G.level.delay) + ' ticks</span>';
+    $('legend').innerHTML = h;
+  }
+
+  /* ------------------------------------------------------------- effects */
+
+  function burst(pos, color, n) {
+    if (reduce) return;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 2.4;
+      G.parts.push({
+        x: pos.x + .5, y: pos.y + .5,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: 1, decay: 1.1 + Math.random(), c: color, r: 1 + Math.random() * 2
+      });
+    }
+  }
+
+  function pulsePlate(id) {
+    if (reduce) return;
+    var L = G.level;
+    for (var y = 0; y < L.h; y++) for (var x = 0; x < L.w; x++) {
+      var t = L.tiles[y][x];
+      if (t.k === 'plate' && t.id === id)
+        G.rings.push({ x: x + .5, y: y + .5, r: .2, c: G.srcCol[id] || '#9fb6d0', a: 1 });
+    }
+  }
+
+  function stepEffects(dt) {
+    var i;
+    for (i = G.parts.length - 1; i >= 0; i--) {
+      var p = G.parts[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.93; p.vy *= 0.93;
+      p.life -= p.decay * dt;
+      if (p.life <= 0) G.parts.splice(i, 1);
+    }
+    for (i = G.rings.length - 1; i >= 0; i--) {
+      var r = G.rings[i];
+      r.r += dt * 2.2; r.a -= dt * 2.0;
+      if (r.a <= 0) G.rings.splice(i, 1);
+    }
+    if (G.bump > 0) G.bump = Math.max(0, G.bump - dt * 5.5);
+    if (G.glitch > 0 && G.mode !== 'paradox') G.glitch = Math.max(0, G.glitch - dt * 4);
+    for (var d in G.doorA) {
+      var want = G.st.doors[d] ? 1 : 0;
+      var cur = G.doorA[d];
+      var sp = reduce ? 1 : dt * 6;
+      G.doorA[d] = cur + Math.max(-sp, Math.min(sp, want - cur));
+    }
+    if (G.timer > 0) {
+      G.timer -= dt;
+      if (G.timer <= 0) {
+        if (G.mode === 'paradox') restart();
+        else if (G.mode === 'clear') showClear();
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------- drawing */
+
+  function rr(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function shape(c, idx, cx, cy, r) {
+    c.beginPath();
+    if (idx === 1) c.arc(cx, cy, r, 0, Math.PI * 2);
+    else if (idx === 2) {
+      c.moveTo(cx, cy - r * 1.15); c.lineTo(cx + r * 1.05, cy + r * .8);
+      c.lineTo(cx - r * 1.05, cy + r * .8); c.closePath();
+    } else {
+      c.moveTo(cx, cy - r * 1.18); c.lineTo(cx + r * 1.18, cy);
+      c.lineTo(cx, cy + r * 1.18); c.lineTo(cx - r * 1.18, cy); c.closePath();
+    }
+  }
+
+  var ease = function (t) { return t * t * (3 - 2 * t); };
+  function lerp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+
+  function geo() {
+    var W = board.clientWidth, H = board.clientHeight, L = G.level;
+    var cell = Math.floor(Math.min((W - 16) / L.w, (H - 16) / L.h));
+    cell = Math.max(8, cell);
+    return { cell: cell, ox: Math.round((W - cell * L.w) / 2), oy: Math.round((H - cell * L.h) / 2), W: W, H: H };
+  }
+
+  function drawBoard() {
+    var L = G.level, g = geo(), c = bx, cell = g.cell, ox = g.ox, oy = g.oy;
+    var t = ease(Math.min(1, G.anim));
+    c.clearRect(0, 0, g.W, g.H);
+
+    var X = function (v) { return ox + v * cell; }, Y = function (v) { return oy + v * cell; };
+    var pulse = reduce ? .5 : (Math.sin(G.clock * 2.4) * .5 + .5);
+
+    /* --- tiles --- */
+    for (var y = 0; y < L.h; y++) for (var x = 0; x < L.w; x++) {
+      var tile = L.tiles[y][x], px = X(x), py = Y(y);
+      if (tile.k === 'wall') {
+        c.fillStyle = '#0e1626';
+        rr(c, px + 1, py + 1, cell - 2, cell - 2, 4); c.fill();
+        c.strokeStyle = 'rgba(130,180,235,.10)'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(px + 4, py + 2.5); c.lineTo(px + cell - 4, py + 2.5); c.stroke();
+      } else {
+        c.fillStyle = 'rgba(120,170,225,.045)';
+        rr(c, px + 1.5, py + 1.5, cell - 3, cell - 3, 4); c.fill();
+        c.strokeStyle = 'rgba(130,180,235,.10)'; c.lineWidth = 1;
+        rr(c, px + 1.5, py + 1.5, cell - 3, cell - 3, 4); c.stroke();
+      }
+    }
+
+    /* --- interactive tiles --- */
+    for (y = 0; y < L.h; y++) for (x = 0; x < L.w; x++) {
+      var tl2 = L.tiles[y][x], cx = X(x) + cell / 2, cy = Y(y) + cell / 2;
+      var col = G.srcCol[tl2.id] || '#9fb6d0';
+
+      if (tl2.k === 'plate') {
+        var on = !!G.st.plates[tl2.id];
+        c.lineWidth = 2;
+        c.strokeStyle = on ? col : 'rgba(159,182,208,.45)';
+        c.fillStyle = on ? col : 'transparent';
+        c.globalAlpha = on ? .28 : 1;
+        c.beginPath(); c.arc(cx, cy, cell * .28, 0, Math.PI * 2);
+        if (on) c.fill();
+        c.globalAlpha = 1;
+        c.beginPath(); c.arc(cx, cy, cell * .28, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.arc(cx, cy, cell * .13, 0, Math.PI * 2);
+        c.fillStyle = on ? col : 'rgba(159,182,208,.3)';
+        if (on) { c.shadowColor = col; c.shadowBlur = 14; }
+        c.fill(); c.shadowBlur = 0;
+        label(c, tl2.id, cx, Y(y) + cell - 4, col, cell);
+      } else if (tl2.k === 'switch') {
+        var sn = !!G.st.switches[tl2.id];
+        c.lineWidth = 2; c.strokeStyle = sn ? col : 'rgba(159,182,208,.45)';
+        c.beginPath();
+        for (var i = 0; i < 6; i++) {
+          var a = Math.PI / 6 + i * Math.PI / 3;
+          var hx = cx + Math.cos(a) * cell * .3, hy = cy + Math.sin(a) * cell * .3;
+          i ? c.lineTo(hx, hy) : c.moveTo(hx, hy);
+        }
+        c.closePath();
+        if (sn) { c.fillStyle = col; c.globalAlpha = .3; c.fill(); c.globalAlpha = 1; c.shadowColor = col; c.shadowBlur = 12; }
+        c.stroke(); c.shadowBlur = 0;
+        c.fillStyle = sn ? col : 'rgba(159,182,208,.35)';
+        c.fillRect(cx - cell * .12, cy - 1.5, cell * .24, 3);
+        if (sn) c.fillRect(cx - 1.5, cy - cell * .12, 3, cell * .24);
+        label(c, tl2.id, cx, Y(y) + cell - 4, col, cell);
+      } else if (tl2.k === 'door') {
+        var o = G.doorA[tl2.id] === undefined ? 0 : G.doorA[tl2.id];
+        var dc = DCOL[tl2.id] || '#9fb6d0';
+        var vert = isWall(x - 1, y) && isWall(x + 1, y);
+        var leaf = cell * (0.5 - 0.37 * o);
+        c.fillStyle = dc; c.globalAlpha = .55 - .25 * o;
+        c.shadowColor = dc; c.shadowBlur = 10 * (1 - o);
+        if (vert) {
+          c.fillRect(X(x) + 1, Y(y) + 3, leaf, cell - 6);
+          c.fillRect(X(x) + cell - 1 - leaf, Y(y) + 3, leaf, cell - 6);
+        } else {
+          c.fillRect(X(x) + 3, Y(y) + 1, cell - 6, leaf);
+          c.fillRect(X(x) + 3, Y(y) + cell - 1 - leaf, cell - 6, leaf);
+        }
+        c.shadowBlur = 0; c.globalAlpha = 1;
+        c.strokeStyle = dc; c.lineWidth = 1.4; c.globalAlpha = .5 + .3 * (1 - o);
+        rr(c, X(x) + 2, Y(y) + 2, cell - 4, cell - 4, 4); c.stroke();
+        c.globalAlpha = 1;
+        label(c, tl2.id, cx, Y(y) + cell - 4, dc, cell);
+      } else if (tl2.k === 'exit') {
+        c.strokeStyle = PC; c.lineWidth = 2;
+        c.shadowColor = PC; c.shadowBlur = 12 + pulse * 12;
+        c.beginPath(); c.arc(cx, cy, cell * (.3 + .04 * pulse), 0, Math.PI * 2); c.stroke();
+        c.shadowBlur = 0; c.globalAlpha = .45;
+        c.beginPath(); c.arc(cx, cy, cell * .17, 0, Math.PI * 2); c.stroke();
+        c.globalAlpha = .12 + .12 * pulse; c.fillStyle = PC;
+        c.beginPath(); c.arc(cx, cy, cell * .3, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+      }
+    }
+
+    /* --- next tile of each echo (paradox warning) --- */
+    for (var k = 0; k < G.st.echoes.length; k++) {
+      var e = G.st.echoes[k];
+      if (!e.next) continue;
+      var danger = e.next.x === G.st.pos.x && e.next.y === G.st.pos.y;
+      var hc = danger ? WARN : ECOL[k];
+      c.save();
+      c.setLineDash(k === 1 ? [5, 4] : k === 2 ? [2, 3] : []);
+      c.lineWidth = danger ? 2.4 : 1.6;
+      c.strokeStyle = hc;
+      c.globalAlpha = danger ? .55 + .4 * pulse : .42;
+      rr(c, X(e.next.x) + 3.5, Y(e.next.y) + 3.5, cell - 7, cell - 7, 4);
+      c.stroke();
+      c.restore();
+      c.globalAlpha = danger ? .8 : .5;
+      shape(c, k + 1, X(e.next.x) + cell / 2, Y(e.next.y) + cell / 2, cell * .09);
+      c.fillStyle = hc; c.fill(); c.globalAlpha = 1;
+    }
+
+    /* --- echo trails --- */
+    for (k = 0; k < G.st.echoes.length; k++) {
+      var ec = G.st.echoes[k];
+      if (!ec.pos) continue;
+      for (var j = 0; j < ec.trail.length; j++) {
+        var tp = ec.trail[j];
+        c.globalAlpha = .05 + .05 * j;
+        shape(c, k + 1, X(tp.x) + cell / 2, Y(tp.y) + cell / 2, cell * .2);
+        c.fillStyle = ECOL[k]; c.fill();
+      }
+      c.globalAlpha = 1;
+    }
+
+    /* --- echoes --- */
+    for (k = 0; k < G.st.echoes.length; k++) {
+      var eo = G.st.echoes[k];
+      if (!eo.pos) continue;
+      var from = G.prev.e[k], pos = from ? lerp(from, eo.pos, t) : eo.pos;
+      var fade = from ? 1 : t;
+      var ecx = X(pos.x) + cell / 2, ecy = Y(pos.y) + cell / 2, r = cell * .3;
+      c.save();
+      c.globalAlpha = .5 * fade;
+      shape(c, k + 1, ecx, ecy, r);
+      c.fillStyle = ECOL[k]; c.shadowColor = ECOL[k]; c.shadowBlur = 14; c.fill();
+      c.shadowBlur = 0;
+      c.globalAlpha = .95 * fade;
+      c.setLineDash(k === 1 ? [5, 4] : k === 2 ? [2, 3] : []);
+      c.lineWidth = 1.8; c.strokeStyle = ECOL[k];
+      shape(c, k + 1, ecx, ecy, r); c.stroke();
+      c.restore();
+      c.globalAlpha = .9 * fade;
+      c.fillStyle = '#06090f';
+      c.font = '600 ' + Math.round(cell * .3) + 'px ui-monospace, Menlo, Consolas, monospace';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(String(k + 1), ecx, ecy + cell * .015);
+      c.globalAlpha = 1;
+    }
+
+    /* --- player --- */
+    var pp = lerp(G.prev.p, G.st.pos, t);
+    var nudge = Math.sin(G.bump * Math.PI) * .22;
+    var bd = G.bumpDir && DIRS[G.bumpDir] ? DIRS[G.bumpDir] : { x: 0, y: 0 };
+    var pxp = X(pp.x + bd.x * nudge) + cell / 2, pyp = Y(pp.y + bd.y * nudge) + cell / 2;
+    var pr = cell * .3;
+    c.save();
+    c.shadowColor = PC; c.shadowBlur = 18;
+    var grd = c.createLinearGradient(pxp - pr, pyp - pr, pxp + pr, pyp + pr);
+    grd.addColorStop(0, '#eafeff'); grd.addColorStop(1, PC);
+    c.fillStyle = grd;
+    rr(c, pxp - pr, pyp - pr, pr * 2, pr * 2, cell * .1); c.fill();
+    c.restore();
+    c.strokeStyle = 'rgba(6,12,20,.65)'; c.lineWidth = 1.5;
+    rr(c, pxp - pr, pyp - pr, pr * 2, pr * 2, cell * .1); c.stroke();
+    c.strokeStyle = 'rgba(6,12,20,.5)'; c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(pxp - pr * .42, pyp); c.lineTo(pxp + pr * .42, pyp);
+    c.moveTo(pxp, pyp - pr * .42); c.lineTo(pxp, pyp + pr * .42);
+    c.stroke();
+
+    if (G.bump > 0 && G.bumpTile) {
+      c.globalAlpha = G.bump * .45; c.fillStyle = WARN;
+      rr(c, X(G.bumpTile.x) + 2, Y(G.bumpTile.y) + 2, cell - 4, cell - 4, 4); c.fill();
+      c.globalAlpha = 1;
+    }
+
+    /* --- effects --- */
+    for (var q = 0; q < G.rings.length; q++) {
+      var rg = G.rings[q];
+      c.globalAlpha = Math.max(0, rg.a) * .7; c.strokeStyle = rg.c; c.lineWidth = 2;
+      c.beginPath(); c.arc(X(rg.x), Y(rg.y), rg.r * cell, 0, Math.PI * 2); c.stroke();
+    }
+    for (q = 0; q < G.parts.length; q++) {
+      var pt = G.parts[q];
+      c.globalAlpha = Math.max(0, pt.life) * .85; c.fillStyle = pt.c;
+      c.beginPath(); c.arc(X(pt.x), Y(pt.y), pt.r, 0, Math.PI * 2); c.fill();
+    }
+    c.globalAlpha = 1;
+
+    if (G.glitch > 0) drawGlitch(g);
+  }
+
+  function label(c, id, cx, by, col, cell) {
+    if (cell < 26) return;
+    c.globalAlpha = .55; c.fillStyle = col;
+    c.font = '600 ' + Math.round(cell * .21) + 'px ui-monospace, Menlo, Consolas, monospace';
+    c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    c.fillText(id, cx, by);
+    c.globalAlpha = 1;
+  }
+
+  function isWall(x, y) {
+    var L = G.level;
+    if (x < 0 || y < 0 || x >= L.w || y >= L.h) return true;
+    return L.tiles[y][x].k === 'wall';
+  }
+
+  function drawGlitch(g) {
+    var c = bx, a = G.glitch;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    var H = board.height, W = board.width;
+    for (var i = 0; i < 14; i++) {
+      var sy = Math.random() * H, sh = 4 + Math.random() * 26;
+      var dx = (Math.random() - .5) * 90 * a;
+      c.drawImage(board, 0, sy, W, sh, dx, sy, W, sh);
+    }
+    c.globalCompositeOperation = 'screen';
+    c.globalAlpha = .22 * a;
+    c.fillStyle = '#ff2b4d'; c.fillRect(-7 * a, 0, W, H);
+    c.fillStyle = '#00e5ff'; c.fillRect(7 * a, 0, W, H);
+    c.restore();
+    c.globalAlpha = .16 * a; c.fillStyle = WARN;
+    c.fillRect(0, 0, g.W, g.H); c.globalAlpha = 1;
+    if (a > .3) {
+      c.fillStyle = 'rgba(255,255,255,.9)';
+      c.font = '600 ' + Math.max(13, Math.round(g.W * .028)) + 'px ui-monospace, Menlo, Consolas, monospace';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('PARADOX', g.W / 2, g.H / 2);
+    }
+  }
+
+  /* ------------------------------------------------------------ timeline */
+
+  function drawTimeline() {
+    var W = tl.clientWidth, H = tl.clientHeight, c = tx;
+    c.clearRect(0, 0, W, H);
+    if (!G.st) return;
+    var n = G.st.T + 1, pad = 10;
+    var cw = Math.max(3, Math.min(15, (W - pad * 2) / Math.max(n, 1)));
+    var gap = cw > 6 ? 1.6 : 0.7, top = 22, hc = 15;
+
+    c.fillStyle = 'rgba(130,180,235,.06)';
+    rr(c, pad - 3, top - 2, W - pad * 2 + 6, hc + 4, 4); c.fill();
+
+    for (var i = 0; i < n; i++) {
+      var x = pad + i * cw, wait = i > 0 && G.turns[i - 1] === 'W';
+      c.fillStyle = i === 0 ? 'rgba(126,240,255,.4)'
+        : wait ? 'rgba(150,195,230,.22)' : 'rgba(150,195,230,.45)';
+      var bh = wait ? hc * .34 : hc;
+      c.fillRect(x, top + (hc - bh) / 2, Math.max(1.3, cw - gap), bh);
+    }
+
+    var center = function (i) { return pad + i * cw + Math.max(1.3, cw - gap) / 2; };
+
+    for (var k = 0; k < G.st.echoes.length; k++) {
+      var e = G.st.echoes[k];
+      if (e.index < 0) continue;
+      var ex = center(e.index);
+      c.strokeStyle = ECOL[k]; c.globalAlpha = .35; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(ex, top); c.lineTo(ex, top + hc); c.stroke();
+      c.globalAlpha = 1;
+      c.fillStyle = ECOL[k];
+      c.beginPath();
+      c.moveTo(ex, top + hc + 3); c.lineTo(ex + 5, top + hc + 11); c.lineTo(ex - 5, top + hc + 11);
+      c.closePath(); c.fill();
+      c.font = '600 9px ui-monospace, Menlo, Consolas, monospace';
+      c.textAlign = 'center'; c.textBaseline = 'top';
+      c.fillStyle = ECOL[k];
+      c.fillText(String(k + 1), ex, top + hc + 12);
+    }
+
+    var px = center(n - 1);
+    c.fillStyle = PC; c.shadowColor = PC; c.shadowBlur = 8;
+    c.beginPath();
+    c.moveTo(px, top - 3); c.lineTo(px + 5, top - 11); c.lineTo(px - 5, top - 11);
+    c.closePath(); c.fill(); c.shadowBlur = 0;
+
+    c.font = '500 9.5px ui-monospace, Menlo, Consolas, monospace';
+    c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+    c.fillStyle = 'rgba(120,144,166,.85)';
+    c.fillText('0', pad, top - 6);
+    c.textAlign = 'right';
+    c.fillText('now ' + G.st.T, W - pad, top - 6);
+  }
+
+  /* ------------------------------------------------------------ overlays */
+
+  function showOverlay(html, focusId) {
+    overlay.innerHTML = html;
+    overlay.classList.add('on');
+    if (focusId) { var b = $(focusId); if (b) b.focus(); }
+  }
+  function hideOverlay() { overlay.classList.remove('on'); overlay.innerHTML = ''; }
+
+  function showMenu() {
+    G.mode = 'menu';
+    showOverlay(
+      '<div class="panel"><h1>ECHOES</h1>' +
+      '<p class="tag">Every turn you take is recorded. After a fixed delay it comes back, walks it again, and gets in your way — or holds a door open for you.</p>' +
+      '<ul class="keys">' +
+      '<li><b>Arrows / WASD</b>move one tile</li>' +
+      '<li><b>Space / .</b>wait one tick</li>' +
+      '<li><b>Z / R</b>undo · restart</li></ul>' +
+      '<div class="row"><button id="ovStart" class="primary">Begin</button>' +
+      '<button id="ovSelect">Levels</button></div></div>', 'ovStart');
+    hook($('ovStart'), function () { startLevel(0); });
+    hook($('ovSelect'), showSelect);
+  }
+
+  function showSelect() {
+    var from = G.mode;
+    G.mode = 'select';
+    var h = '<div class="panel"><h2>Levels</h2><div class="grid6">';
+    for (var i = 0; i < LEVELS.length; i++) {
+      var lock = i + 1 > G.unlocked;
+      h += '<button id="sel' + i + '"' + (lock ? ' disabled aria-label="locked"' : '') + '>' +
+        '<span class="n">' + ('0' + (i + 1)).slice(-2) + '</span>' +
+        '<span class="t">' + (lock ? 'locked' : LEVELS[i].title) + '</span></button>';
+    }
+    h += '</div><div class="row"><button id="ovBack" class="primary">Back</button></div></div>';
+    showOverlay(h, 'ovBack');
+    for (i = 0; i < LEVELS.length; i++) {
+      if (i + 1 > G.unlocked) continue;
+      (function (n) { hook($('sel' + n), function () { startLevel(n); }); })(i);
+    }
+    hook($('ovBack'), function () {
+      if (from === 'play' && G.level) { G.mode = 'play'; hideOverlay(); } else showMenu();
+    });
+  }
+
+  function showClear() {
+    var last = G.li + 1 >= LEVELS.length;
+    if (last) {
+      G.mode = 'victory';
+      showOverlay('<div class="panel"><h1>RESOLVED</h1>' +
+        '<p class="tag">Six loops closed. Every echo you left behind arrived exactly on time.</p>' +
+        '<div class="row"><button id="ovMenu" class="primary">Title screen</button>' +
+        '<button id="ovSel2">Levels</button></div></div>', 'ovMenu');
+      hook($('ovMenu'), showMenu);
+      hook($('ovSel2'), showSelect);
+      return;
+    }
+    G.mode = 'done';
+    showOverlay('<div class="panel"><h2>Level clear</h2>' +
+      '<p class="tag">' + LEVELS[G.li].title + ' — resolved in ' + G.st.T + ' ticks.</p>' +
+      '<div class="row"><button id="ovNext" class="primary">Next level</button>' +
+      '<button id="ovAgain">Replay</button></div></div>', 'ovNext');
+    hook($('ovNext'), function () { startLevel(G.li + 1); });
+    hook($('ovAgain'), function () { startLevel(G.li); });
+  }
+
+  /* --------------------------------------------------------------- input */
+
+  function hook(el, fn) {
+    if (!el) return;
+    el.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      el.classList.add('down');
+      fn();
+    });
+    var up = function () { el.classList.remove('down'); if (document.activeElement === el) el.blur(); };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('pointerleave', function () { el.classList.remove('down'); });
+    el.addEventListener('click', function (e) { if (e.detail === 0) fn(); });
+    el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  }
+
+  var KEYMAP = {
+    ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R',
+    w: 'U', s: 'D', a: 'L', d: 'R', ' ': 'W', '.': 'W'
+  };
+
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (k.indexOf('Arrow') === 0 || k === ' ') e.preventDefault();
+    var onButton = document.activeElement && document.activeElement.tagName === 'BUTTON';
+    if (onButton && (k === ' ' || k === 'Enter')) return;
+    if (G.mode !== 'play') return;
+    if (KEYMAP[k]) { e.preventDefault(); apply(KEYMAP[k]); }
+    else if (k === 'z') undo();
+    else if (k === 'r') restart();
+  }, { passive: false });
+
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  hook($('btnUndo'), undo);
+  hook($('btnRestart'), restart);
+  hook($('btnMenu'), showSelect);
+  Array.prototype.forEach.call(document.querySelectorAll('#pad button'), function (b) {
+    var act = b.getAttribute('data-act');
+    hook(b, function () {
+      if (act === 'undo') undo();
+      else if (act === 'restart') restart();
+      else apply(act);
+    });
+  });
+
+  /* ---------------------------------------------------------------- loop */
+
+  var lastW = 0, lastH = 0, lastTW = 0;
+  function resize() {
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    [board, tl].forEach(function (cv) {
+      var w = cv.clientWidth, h = cv.clientHeight;
+      cv.width = Math.max(1, Math.round(w * dpr));
+      cv.height = Math.max(1, Math.round(h * dpr));
+      cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    });
+    lastW = board.clientWidth; lastH = board.clientHeight; lastTW = tl.clientWidth;
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () { setTimeout(resize, 120); });
+
+  var prevTs = 0;
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (ts - prevTs) / 1000 || 0); prevTs = ts;
+    G.clock += dt;
+    if (board.clientWidth !== lastW || board.clientHeight !== lastH || tl.clientWidth !== lastTW) resize();
+    if (!G.level) return;
+    if (G.anim < 1) G.anim = Math.min(1, G.anim + dt / STEP);
+    stepEffects(dt);
+    drawBoard();
+    drawTimeline();
+  }
+
+  G.unlocked = loadProgress();
+  resize();
+  showMenu();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

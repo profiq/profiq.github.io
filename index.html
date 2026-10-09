@@ -144,6 +144,34 @@
   }
   .card .btn{align-self:flex-start; margin-top:1rem;}
 
+  /* ---------- winners (terminal) ---------- */
+  .winners{background:var(--navy-deep); padding:4.5rem 0; color:#d7e3f4;}
+  .winners .section-head h2{color:var(--green);}
+  .winners .section-head p{color:rgba(255,255,255,.7);}
+  .term{
+    margin-top:2.5rem; border:1px solid rgba(255,255,255,.14); background:#000f24;
+    box-shadow:0 40px 80px -30px rgba(0,0,0,.7);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92rem;
+  }
+  .term-bar{display:flex; gap:.45rem; align-items:center; padding:.6rem .9rem; background:#0a2244; font-size:.75rem; color:rgba(255,255,255,.5);}
+  .term-bar i{width:.7rem; height:.7rem; border-radius:50%; background:#ff5f57;}
+  .term-bar i:nth-child(2){background:#febc2e;} .term-bar i:nth-child(3){background:#28c840; margin-right:.6rem;}
+  .term-body{padding:1.4rem 1.3rem 1.6rem; overflow-x:auto;}
+  .term .cmd{color:#fff;} .term .cmd::before{content:"$ "; color:var(--green);}
+  .term .dim{color:rgba(255,255,255,.45);}
+  .podium{list-style:none; margin:1.1rem 0 1.2rem;}
+  .podium li{display:grid; grid-template-columns:3.2rem 1fr; gap:.2rem 1rem; padding:.7rem 0; border-top:1px dashed rgba(255,255,255,.12);}
+  .podium .rank{font-size:1.5rem; font-weight:800; color:var(--green); line-height:1.2;}
+  .podium li:first-child .rank{color:#ffd54a; text-shadow:0 0 12px rgba(255,213,74,.6);}
+  .podium .game{font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:.06em;}
+  .podium .game a{color:#fff; text-decoration:none; border-bottom:1px solid var(--green);}
+  .podium .game a:hover{color:var(--green);}
+  .podium .meta{grid-column:2; color:rgba(255,255,255,.6);}
+  .podium .bar{grid-column:2; color:var(--green); letter-spacing:-.05em;}
+  .cursor{display:inline-block; width:.6em; height:1.1em; background:var(--green); vertical-align:text-bottom; animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  @media(prefers-reduced-motion:reduce){.cursor{animation:none;}}
+
   /* ---------- footer ---------- */
   footer{background:var(--navy); color:rgba(255,255,255,.8); padding:2.75rem 0; font-size:.9rem;}
   footer .wrap{display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; align-items:baseline; justify-content:space-between;}
@@ -165,7 +193,7 @@
         </p>
         <div class="cta">
           <a class="btn" href="https://www.pracujprosiliconvalley.cz/summer-coding-challenge-2026/" target="_blank" rel="noreferrer">Read the challenge</a>
-          <a class="btn ghost" href="#games">Play the examples</a>
+          <a class="btn ghost" href="#winners">See the winners</a>
         </div>
       </div>
       <figure class="hero-art">
@@ -174,6 +202,45 @@
       </figure>
     </div>
   </header>
+
+  <section class="winners" id="winners">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">// results are in</p>
+        <h2>And the winners are&hellip;</h2>
+        <p>The judges played every entry and read every prompt. Three games made it to the top of the stack.</p>
+      </div>
+      <div class="term" role="region" aria-label="Winners">
+        <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i>judges@profiq: ~/summer-coding-challenge-2026</div>
+        <div class="term-body">
+          <p class="cmd">./judge --results --top=3</p>
+          <p class="dim">[ok] scoring complete &mdash; function, UX, originality, prompt craft, reproducibility</p>
+          <ol class="podium">
+            <li>
+              <span class="rank">#1</span>
+              <span class="game"><a href="echoes/">ECHOES</a></span>
+              <span class="meta">author: Jakub Ch.</span>
+              <span class="bar" aria-hidden="true">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</span>
+            </li>
+            <li>
+              <span class="rank">#2</span>
+              <span class="game"><a href="vesper/">VESPER</a></span>
+              <span class="meta">author: Lukáš B.</span>
+              <span class="bar" aria-hidden="true">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</span>
+            </li>
+            <li>
+              <span class="rank">#3</span>
+              <span class="game"><a href="sonar/">SONAR</a></span>
+              <span class="meta">author: Karolína P.</span>
+              <span class="bar" aria-hidden="true">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</span>
+            </li>
+          </ol>
+          <p class="dim">// congrats to all three &mdash; and thanks to everyone who shipped a game</p>
+          <p class="cmd"><span class="cursor" aria-hidden="true"></span></p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section class="brief">
     <div class="wrap">
@@ -202,6 +269,38 @@
       <p>Submissions from the contestants, shared with their permission &mdash; one prompt, one file, zero do-overs. Go have fun playing.</p>
     </div>
     <ul class="grid">
+      <li class="card">
+        <div class="shot"><img src="media/echoes.png" alt="ECHOES gameplay — a dark puzzle grid with the player, a pressure plate and an exit, and a timeline of recorded ticks below" width="1200" height="675" loading="lazy"></div>
+        <div class="body">
+          <p class="tagline">Your past self walks again</p>
+          <h3>ECHOES</h3>
+          <p class="blurb">
+            A turn-based grid puzzler about time. Every tick you spend is recorded, and after a
+            fixed delay an Echo of your past self replays it &mdash; pressing plates, flipping
+            switches and standing in your way. Waiting is half the solution.
+          </p>
+          <p class="controls">
+            <kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> / <kbd>WASD</kbd> &nbsp;&middot;&nbsp; <kbd>Space</kbd> wait &nbsp;&middot;&nbsp; <kbd>Z</kbd> undo &nbsp;&middot;&nbsp; <kbd>R</kbd> restart
+          </p>
+          <a class="btn" href="echoes/">Play ECHOES</a>
+        </div>
+      </li>
+      <li class="card">
+        <div class="shot"><img src="media/sonar.png" alt="SONAR gameplay — a pitch-black arena where a sonar ping leaves fading light traces on the walls" width="1200" height="675" loading="lazy"></div>
+        <div class="body">
+          <p class="tagline">The more you see, the more you're seen</p>
+          <h3>SONAR</h3>
+          <p class="blurb">
+            An arcade game in total darkness. Reveal the arena with a ping that leaves fading light
+            traces &mdash; but every ping calls the hunters to you. Grab three crystals and reach the
+            exit; each round adds another hunter.
+          </p>
+          <p class="controls">
+            <kbd>WASD</kbd> / arrows move &nbsp;&middot;&nbsp; <kbd>Space</kbd> / click ping &nbsp;&middot;&nbsp; <kbd>P</kbd> pause
+          </p>
+          <a class="btn" href="sonar/">Play SONAR</a>
+        </div>
+      </li>
       <li class="card">
         <div class="shot"><img src="media/apex-qualify.png" alt="APEX // QUALIFY gameplay — top-down view of a formula car on the starting grid" width="1200" height="675" loading="lazy"></div>
         <div class="body">

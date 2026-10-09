@@ -25,6 +25,8 @@ self-contained `index.html` that runs in any browser.
 - `don-t-look-away/` — DON'T LOOK AWAY, a CCTV anomaly-spotting game
 - `bloom/` — BLOOM, a seed-planting puzzle built on Conway's Game of Life
 - `vesper/` — VESPER, an atmospheric Art Nouveau shadow-thief RPG
+- `echoes/` — ECHOES, a turn-based time-echo grid puzzler (1st place)
+- `sonar/` — SONAR, an arcade ping-in-the-dark game (3rd place)
 - `media/` — gameplay screenshots used on the landing page
 
 No build step. Push to the default branch and GitHub Pages serves it.
